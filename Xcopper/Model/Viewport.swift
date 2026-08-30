@@ -1,0 +1,39 @@
+import SwiftUI
+
+/// Pan, zoom and cursor for one canvas
+struct Viewport: Equatable {
+	var cursor: Pt = .zero
+	var size: CGSize = .zero
+	var frame: CGRect = .zero
+	var scrollPosition: ScrollPosition = .init(point: .zero)
+	var magnification: CGFloat = 4.0
+}
+
+extension Viewport {
+
+	mutating func setScale(_ scale: CGFloat) {
+		let scale = min(max(scale, 0.5), 400.0)
+		let frame = frame
+		let size = size
+		let dm = scale / magnification
+		let ds = CGVector(
+			dx: frame.width - size.width,
+			dy: frame.height - size.height
+		)
+		let progress = CGVector(
+			dx: ds.dx > 0.0 ? (size.width * 0.5 - frame.minX) / frame.width : 0.5,
+			dy: ds.dy > 0.0 ? (size.height * 0.5 - frame.minY) / frame.height : 0.5,
+		)
+		let offset = CGPoint(
+			x: (frame.width * dm * progress.dx - size.width * 0.5),
+			y: (frame.height * dm * progress.dy - size.height * 0.5)
+		)
+
+		magnification = scale
+		scrollPosition = .init(point: offset)
+	}
+
+	mutating func fit(_ size: Size) {
+		setScale(size.zoomToFit(self.size, margin: Layout.margin))
+	}
+}

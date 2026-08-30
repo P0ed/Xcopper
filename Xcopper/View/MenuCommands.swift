@@ -6,8 +6,11 @@ extension FocusedValues {
 
 @MainActor
 extension Operations? {
-	var actionsDisabled: Bool { self?.state.dialogPresented ?? true }
+	var actionsDisabled: Bool { self?.editor.dialogPresented ?? true }
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
+	var pasteDisabled: Bool { actionsDisabled || !(self?.canPaste ?? false) }
+	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
+	var schematicDisabled: Bool { actionsDisabled || self?.mode != .schematic }
 }
 
 @MainActor
@@ -38,7 +41,7 @@ struct MenuCommands: Commands {
 					image: "document.on.clipboard",
 					shortcut: "V",
 					modifiers: .command,
-					disabled: op.actionsDisabled,
+					disabled: op.pasteDisabled,
 					action: { op?.paste() }
 				)
 				Divider()
@@ -65,23 +68,44 @@ struct MenuCommands: Commands {
 				image: "1.magnifyingglass",
 				shortcut: "0",
 				disabled: op.actionsDisabled,
-				action: { op?.state.setScale(4.0) }
+				action: { op?.setScale(4.0) }
 			)
 			ActionButton(
 				name: "Zoom out",
 				image: "minus.magnifyingglass",
 				shortcut: "-",
 				disabled: op.actionsDisabled,
-				action: { op?.state.setScale((op?.state.magnification ?? 4.0) / 2.0) }
+				action: { op?.setScale((op?.magnification ?? 4.0) / 2.0) }
 			)
 			ActionButton(
 				name: "Zoom in",
 				image: "plus.magnifyingglass",
 				shortcut: "=",
 				disabled: op.actionsDisabled,
-				action: { op?.state.setScale((op?.state.magnification ?? 4.0) * 2.0) }
+				action: { op?.setScale((op?.magnification ?? 4.0) * 2.0) }
 			)
 			Divider()
+		}
+		CommandMenu("Design") {
+			ForEach(Mode.allCases, id: \.self) { mode in
+				ActionButton(
+					name: mode.name,
+					image: mode.systemImage,
+					shortcut: mode.shortcutCharacter,
+					modifiers: .command,
+					disabled: op.actionsDisabled,
+					action: { op?.editor.mode = mode }
+				)
+			}
+			Divider()
+			ActionButton(
+				name: "Update board from schematic",
+				image: "arrow.triangle.2.circlepath",
+				shortcut: "U",
+				modifiers: .command,
+				disabled: op.actionsDisabled,
+				action: { op?.updateBoard() }
+			)
 		}
 		CommandMenu("Board") {
 			ActionButton(
@@ -89,30 +113,30 @@ struct MenuCommands: Commands {
 				image: "square.dashed",
 				shortcut: "B",
 				modifiers: .command,
-				disabled: op.actionsDisabled,
-				action: { op?.state.boardDialogPresented = true }
+				disabled: op.layoutDisabled,
+				action: { op?.editor.sheet = .board }
 			)
 			Divider()
 			ActionButton(
 				name: "Previous layer",
 				image: "square.3.layers.3d.bottom.filled",
 				shortcut: "\u{19}",
-				disabled: op.actionsDisabled,
-				action: { op.map { op in op.state.prevLayer(op.board.stack) } }
+				disabled: op.layoutDisabled,
+				action: { op.map { op in op.layout.prevLayer(op.design.board.stack) } }
 			)
 			ActionButton(
 				name: "Next layer",
 				image: "square.3.layers.3d.top.filled",
 				shortcut: "\u{9}",
-				disabled: op.actionsDisabled,
-				action: { op.map { op in op.state.nextLayer(op.board.stack) } }
+				disabled: op.layoutDisabled,
+				action: { op.map { op in op.layout.nextLayer(op.design.board.stack) } }
 			)
 			ActionButton(
 				name: "Toggle layer",
 				image: "square.3.layers.3d",
 				shortcut: " ",
-				disabled: op.actionsDisabled,
-				action: { op.map { op in op.state.toggleVisible(op.state.layer) } }
+				disabled: op.layoutDisabled,
+				action: { op.map { op in op.layout.toggleVisible(op.layout.layer) } }
 			)
 		}
 		CommandMenu("Objects") {
@@ -121,24 +145,41 @@ struct MenuCommands: Commands {
 				image: "square.grid.3x3.square",
 				shortcut: "F",
 				modifiers: .command,
-				disabled: op.actionsDisabled,
-				action: { op?.state.footprintDialogPresented = true }
+				disabled: op.layoutDisabled,
+				action: { op?.editor.sheet = .footprint }
 			)
+			ActionButton(
+				name: "Place symbol",
+				image: "square.on.circle",
+				shortcut: "F",
+				modifiers: [.command, .shift],
+				disabled: op.schematicDisabled,
+				action: { op?.editor.sheet = .symbol }
+			)
+			ActionButton(
+				name: "Place label",
+				image: "tag",
+				shortcut: "T",
+				modifiers: .command,
+				disabled: op.schematicDisabled,
+				action: { op?.editor.sheet = .label }
+			)
+			Divider()
 			ActionButton(
 				name: "New net",
 				image: "point.3.connected.trianglepath.dotted",
 				shortcut: "N",
 				modifiers: [.command, .shift],
-				disabled: op.actionsDisabled,
-				action: { op?.state.netDialogPresented = true }
+				disabled: op.layoutDisabled,
+				action: { op?.editor.sheet = .net }
 			)
 			ActionButton(
 				name: "Assign net",
 				image: "link",
 				shortcut: "L",
 				modifiers: .command,
-				disabled: op.selectionDisabled,
-				action: { op.map { op in op.assignNet(op.state.net) } }
+				disabled: op.layoutDisabled || op.selectionDisabled,
+				action: { op.map { op in op.assignNet(op.layout.net) } }
 			)
 			Divider()
 			ActionButton(
@@ -158,7 +199,7 @@ struct MenuCommands: Commands {
 				action: { op?.rotate(clockwise: true) }
 			)
 			ActionButton(
-				name: "Flip side",
+				name: "Flip",
 				image: "arrow.left.and.right.righttriangle.left.righttriangle.right",
 				shortcut: "H",
 				modifiers: [.command, .shift],

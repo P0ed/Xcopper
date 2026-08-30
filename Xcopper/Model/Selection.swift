@@ -5,7 +5,7 @@ enum SelectionMode: Equatable {
 		self = option ? .subtract : shift ? .union : .replace
 	}
 
-	func apply(_ current: Set<Ref>, _ hit: Set<Ref>) -> Set<Ref> {
+	func apply<R: Hashable>(_ current: Set<R>, _ hit: Set<R>) -> Set<R> {
 		switch self {
 		case .replace: hit
 		case .union: current.union(hit)
@@ -14,11 +14,11 @@ enum SelectionMode: Equatable {
 	}
 }
 
-struct SelectSession: Equatable {
+struct SelectSession<R: Hashable>: Equatable {
 	var start: Pt
 	var end: Pt
 	var mode: SelectionMode
-	var initial: Set<Ref>
+	var initial: Set<R>
 
 	var didDrag: Bool { start != end }
 	var rect: Rect { Rect(from: start, to: end) }
@@ -32,15 +32,22 @@ struct MoveSession: Equatable {
 	var didMove: Bool { start != end }
 }
 
-struct TraceSession: Equatable {
-	enum Phase: Equatable {
-		case pending
-		case gesture(committable: Bool)
-	}
+/// Shared lifecycle of a chained routing gesture, on copper or on a sheet
+enum RoutePhase: Equatable {
+	case pending
+	case gesture(committable: Bool)
+}
 
+struct TraceSession: Equatable {
 	var start: Pt
 	var end: Pt
 	var layer: Int
 	var net: Net.ID?
-	var phase: Phase
+	var phase: RoutePhase
+}
+
+struct WireSession: Equatable {
+	var start: Pt
+	var end: Pt
+	var phase: RoutePhase
 }

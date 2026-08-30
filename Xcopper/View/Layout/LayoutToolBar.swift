@@ -1,23 +1,32 @@
 import SwiftUI
 
-extension EditorView {
+@MainActor
+struct LayoutToolBar: ToolbarContent {
+	var stack: Stack
+	@Binding var state: LayoutState
+	@Binding var sheet: Sheet?
 
-	@ToolbarContentBuilder
-	var toolbar: some ToolbarContent {
+	var body: some ToolbarContent {
 		ToolbarItemGroup {
-			ForEach(Array(board.stack.copper), id: \.self) { layer in
-				LayerButton(layer: layer, stack: board.stack, state: $state)
+			ForEach(Array(stack.copper), id: \.self) { layer in
+				LayerButton(layer: layer, stack: stack, state: $state)
 			}
 			LayerToggle(
 				name: "Silk",
 				image: "textformat",
-				bit: EditorState.silkBit,
+				bit: LayoutState.silkBit,
 				state: $state
 			)
 			LayerToggle(
 				name: "Drills",
 				image: "circle.dotted",
-				bit: EditorState.drillBit,
+				bit: LayoutState.drillBit,
+				state: $state
+			)
+			LayerToggle(
+				name: "Ratsnest",
+				image: "point.3.filled.connected.trianglepath.dotted",
+				bit: LayoutState.ratsBit,
 				state: $state
 			)
 		}
@@ -32,51 +41,8 @@ extension EditorView {
 			ActionButton(
 				name: "Board",
 				image: "square.dashed",
-				action: { state.boardDialogPresented = true }
+				action: { sheet = .board }
 			)
-		}
-	}
-}
-
-@MainActor
-struct ToolButton: View {
-	var tool: Tool
-	@Binding
-	var state: Tool
-
-	var body: some View {
-		Button(tool.actionName, systemImage: tool.systemImage, action: { state = tool })
-			.foregroundStyle(state == tool ? Color.accentColor : .primary)
-			.keyboardShortcut(KeyEquivalent(tool.shortcutCharacter), modifiers: [])
-	}
-}
-
-@MainActor
-struct ActionButton: View {
-	var name: String
-	var image: String
-	var shortcut: Character?
-	var modifiers: EventModifiers = []
-	var disabled: Bool = false
-	var action: () -> Void
-
-	var body: some View {
-		Button(name, systemImage: image, action: action)
-			.disabled(disabled)
-			.modifier(Shortcut(shortcut: shortcut, modifiers: modifiers))
-	}
-}
-
-@MainActor
-private struct Shortcut: ViewModifier {
-	var shortcut: Character?
-	var modifiers: EventModifiers
-
-	func body(content: Content) -> some View {
-		if let shortcut {
-			content.keyboardShortcut(KeyEquivalent(shortcut), modifiers: modifiers)
-		} else {
-			content
 		}
 	}
 }
@@ -86,9 +52,8 @@ struct LayerButton: View {
 	var layer: Int
 	var stack: Stack
 	@Binding
-	var state: EditorState
+	var state: LayoutState
 
-	private var name: String { stack.shortName(of: layer) }
 	private var isVisible: Bool { state.isVisible(layer) }
 	private var isActive: Bool { state.layer == layer }
 
@@ -120,7 +85,7 @@ struct LayerToggle: View {
 	var image: String
 	var bit: Int
 	@Binding
-	var state: EditorState
+	var state: LayoutState
 
 	private var isVisible: Bool { state.visibleLayers & 1 << bit != 0 }
 

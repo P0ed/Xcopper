@@ -162,6 +162,19 @@ enum Rotation: Int, Codable, CaseIterable {
 	var previous: Rotation { Rotation(rawValue: (rawValue + 3) & 0b11) ?? .r0 }
 	var degrees: Int { rawValue * 90 }
 	var isQuarter: Bool { rawValue & 1 == 1 }
+
+	func adding(_ other: Rotation) -> Rotation {
+		Rotation(rawValue: (rawValue + other.rawValue) & 0b11) ?? .r0
+	}
+
+	/// Direction this one becomes when the x axis is mirrored
+	var mirroredX: Rotation {
+		switch self {
+		case .r0: .r180
+		case .r180: .r0
+		case .r90, .r270: self
+		}
+	}
 }
 
 enum Stack: Int, Codable, CaseIterable {

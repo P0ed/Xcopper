@@ -78,21 +78,3 @@ struct FootprintDialog: View {
 		}
 	}
 }
-
-@MainActor
-struct NetDialog: View {
-	var confirm: (String) -> Void
-
-	@State var name: String = ""
-
-	var body: some View {
-		Dialog(
-			action: "Add",
-			isValid: !name.trimmingCharacters(in: .whitespaces).isEmpty,
-			confirm: { confirm(name.trimmingCharacters(in: .whitespaces)) }
-		) {
-			TextField("Net name", text: $name)
-				.frame(width: 180.0)
-		}
-	}
-}

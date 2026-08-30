@@ -9,6 +9,12 @@ enum Palette {
 	static let highlight = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.9)
 	static let preview = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.55)
 
+	static let sheet = Color(red: 0.10, green: 0.10, blue: 0.13)
+	static let symbol = Color(red: 0.88, green: 0.88, blue: 0.86)
+	static let pin = Color(red: 0.85, green: 0.74, blue: 0.35)
+	static let wire = Color(red: 0.55, green: 0.80, blue: 0.60)
+	static let junction = Color(red: 0.95, green: 0.95, blue: 0.90)
+
 	static let copper: [Color] = [
 		Color(red: 0.78, green: 0.16, blue: 0.16),
 		Color(red: 0.30, green: 0.66, blue: 0.30),
@@ -29,5 +35,13 @@ enum Palette {
 
 	static func color(of net: Net.ID) -> Color {
 		Color(hue: Double(net &* 47 % 360) / 360.0, saturation: 0.55, brightness: 0.95)
+	}
+
+	/// Colour for a net the schematic knows only by name. Seeded by hand because
+	/// `hashValue` is salted per process and would change between launches.
+	static func color(named name: String) -> Color {
+		var hash = 5381
+		for byte in name.utf8 { hash = (hash &* 33) &+ Int(byte) }
+		return Color(hue: Double(abs(hash) % 360) / 360.0, saturation: 0.55, brightness: 0.95)
 	}
 }

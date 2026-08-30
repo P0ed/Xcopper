@@ -5,28 +5,51 @@ extension UTType {
 	static var pcb: Self { UTType("p0.xcopper.pcb")! }
 }
 
+/// Net table of a document written before the schematic existed, when `Board`
+/// was the root and owned the nets
+private struct LegacyNets: Decodable {
+	var nets: [Net]
+}
+
 struct Document: FileDocument {
-	var board: Board
+	var design: Design
 
 	static var readableContentTypes: [UTType] { [.pcb] }
 
-	init(board: Board = Board()) {
-		self.board = board
+	init(design: Design = Design()) {
+		self.design = design
 	}
 
 	init(configuration: ReadConfiguration) throws {
-		let data = try configuration.file.regularFileContents
-			.throwing("Failed to read file")
+		design = try Document.decode(
+			configuration.file.regularFileContents.throwing("Failed to read file")
+		)
+	}
 
-		board = try JSONDecoder().decode(Board.self, from: data)
+	/// Reads the current root, falling back to a document written before the
+	/// schematic existed, when `Board` was the root and owned the nets.
+	static func decode(_ data: Data) throws -> Design {
+		let design: Design
 
-		guard !board.size.isEmpty else { throw Err("Board has no size") }
-		guard board.planes.count == board.stack.count else { throw Err("Corrupted layer stack") }
+		if let current = try? JSONDecoder().decode(Design.self, from: data) {
+			design = current
+		} else {
+			let board = try JSONDecoder().decode(Board.self, from: data)
+			let legacy = try? JSONDecoder().decode(LegacyNets.self, from: data)
+			design = Design(nets: legacy?.nets ?? [], board: board, schematic: Schematic())
+		}
+
+		guard !design.board.size.isEmpty else { throw Err("Board has no size") }
+		guard !design.schematic.size.isEmpty else { throw Err("Sheet has no size") }
+		guard design.board.planes.count == design.board.stack.count else {
+			throw Err("Corrupted layer stack")
+		}
+		return design
 	}
 
 	func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
 		let encoder = JSONEncoder()
 		encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-		return FileWrapper(regularFileWithContents: try encoder.encode(board))
+		return FileWrapper(regularFileWithContents: try encoder.encode(design))
 	}
 }

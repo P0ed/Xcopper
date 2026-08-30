@@ -28,3 +28,44 @@ struct Dialog<Content: View>: View {
 		.padding(24.0)
 	}
 }
+
+@MainActor
+struct NetDialog: View {
+	var confirm: (String) -> Void
+
+	@State var name: String = ""
+
+	var body: some View {
+		Dialog(
+			action: "Add",
+			isValid: !name.trimmingWhitespace.isEmpty,
+			confirm: { confirm(name.trimmingWhitespace) }
+		) {
+			TextField("Net name", text: $name)
+				.frame(width: 180.0)
+		}
+	}
+}
+
+@MainActor
+struct LabelDialog: View {
+	@Binding var text: String
+	var confirm: () -> Void
+
+	@State var draft: String = ""
+
+	var body: some View {
+		Dialog(
+			action: "Use",
+			isValid: !draft.trimmingWhitespace.isEmpty,
+			confirm: {
+				text = draft.trimmingWhitespace
+				confirm()
+			}
+		) {
+			TextField("Net name", text: $draft)
+				.frame(width: 180.0)
+		}
+		.onAppear { draft = text }
+	}
+}

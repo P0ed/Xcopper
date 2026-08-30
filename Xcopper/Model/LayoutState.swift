@@ -1,0 +1,206 @@
+import SwiftUI
+
+enum Tool: Hashable, CaseIterable, ToolKind {
+	case select, trace, via, hole, footprint
+}
+
+extension Tool {
+
+	var actionName: String {
+		switch self {
+		case .select: "Select"
+		case .trace: "Route"
+		case .via: "Via"
+		case .hole: "Hole"
+		case .footprint: "Place"
+		}
+	}
+
+	var systemImage: String {
+		switch self {
+		case .select: "rectangle.dashed"
+		case .trace: "line.diagonal"
+		case .via: "circle.circle"
+		case .hole: "circle.dashed"
+		case .footprint: "square.grid.3x3.square"
+		}
+	}
+
+	var shortcutCharacter: Character {
+		switch self {
+		case .select: "S"
+		case .trace: "T"
+		case .via: "V"
+		case .hole: "H"
+		case .footprint: "F"
+		}
+	}
+}
+
+extension Nm {
+
+	static var grids: [Nm] {
+		[.mm(0.05), .mm(0.1), .mm(0.25), .mm(0.5), .mm(1.0), .mil(25), .mil(50), .mil(100)]
+	}
+
+	static var widths: [Nm] {
+		[.mm(0.15), .mm(0.2), .mm(0.25), .mm(0.35), .mm(0.5), .mm(0.8), .mm(1.2), .mm(2.0)]
+	}
+
+	/// Schematics are drawn on imperial pitches, not the board's metric ones
+	static var sheetGrids: [Nm] {
+		[.mm(0.635), .mm(1.27), .mm(2.54)]
+	}
+
+	var coordinate: String { String(format: "%.2f", mm) }
+
+	var label: String {
+		let mm = mm
+		return mm < 0.1
+			? String(format: "%.3f", mm)
+			: mm < 1.0 ? String(format: "%.2f", mm) : String(format: "%.3g", mm)
+	}
+}
+
+struct LayoutState: Equatable {
+	var tool: Tool = .select {
+		didSet {
+			guard tool != oldValue else { return }
+			cancelSessions()
+		}
+	}
+	var layer: Int = 0
+	var visibleLayers: Int = ~0
+	var net: Net.ID?
+	var grid: Nm = .mm(0.25)
+	var traceWidth: Nm = .mm(0.25)
+	var spec: Footprint.Spec = .default
+	var selection: Set<Ref> = []
+	var traceSession: TraceSession?
+	var selectSession: SelectSession<Ref>?
+	var moveSession: MoveSession?
+	var viewport: Viewport = .init()
+}
+
+extension LayoutState {
+
+	static let silkBit = 8
+	static let drillBit = 9
+	static let ratsBit = 10
+
+	func isVisible(_ layer: Int) -> Bool { visibleLayers & 1 << layer != 0 }
+	var silkVisible: Bool { visibleLayers & 1 << Self.silkBit != 0 }
+	var drillVisible: Bool { visibleLayers & 1 << Self.drillBit != 0 }
+	var ratsVisible: Bool { visibleLayers & 1 << Self.ratsBit != 0 }
+
+	mutating func toggleVisible(_ bit: Int) {
+		visibleLayers ^= 1 << bit
+	}
+
+	mutating func cancelSessions() {
+		traceSession = nil
+		selectSession = nil
+		moveSession = nil
+	}
+
+	mutating func resetTransientInteractions() {
+		selection = []
+		cancelSessions()
+	}
+
+	mutating func prevLayer(_ stack: Stack) {
+		layer = (layer + stack.count - 1) % stack.count
+	}
+
+	mutating func nextLayer(_ stack: Stack) {
+		layer = (layer + 1) % stack.count
+	}
+
+	mutating func clampLayer(_ stack: Stack) {
+		layer = min(layer, stack.bottom)
+	}
+}
+
+extension LayoutState {
+
+	mutating func beginSelect(at point: Pt, mode: SelectionMode) {
+		guard selectSession == nil else { return }
+		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
+	}
+
+	mutating func updateSelect(to point: Pt) {
+		guard var session = selectSession, session.end != point else { return }
+		session.end = point
+		selectSession = session
+	}
+
+	mutating func beginMove(at point: Pt) {
+		guard moveSession == nil else { return }
+		moveSession = MoveSession(start: point, end: point)
+	}
+
+	mutating func updateMove(to point: Pt) {
+		guard var session = moveSession, session.end != point else { return }
+		session.end = point
+		moveSession = session
+	}
+
+	mutating func beginTrace(at point: Pt) {
+		if let session = traceSession, session.phase == .pending {
+			traceSession = TraceSession(
+				start: session.start,
+				end: point,
+				layer: session.layer,
+				net: session.net,
+				phase: .gesture(committable: true)
+			)
+		} else if traceSession == nil {
+			traceSession = TraceSession(
+				start: point,
+				end: point,
+				layer: layer,
+				net: net,
+				phase: .gesture(committable: false)
+			)
+		}
+	}
+
+	mutating func updateTrace(to point: Pt) {
+		guard var session = traceSession else { return }
+		session.end = point
+		if case let .gesture(committable) = session.phase {
+			session.phase = .gesture(committable: committable || point != session.start)
+		}
+		traceSession = session
+	}
+
+	mutating func hoverTrace(to point: Pt) {
+		guard traceSession?.phase == .pending else { return }
+		updateTrace(to: point)
+	}
+
+	/// Commits the current segment and keeps routing from its end
+	mutating func endTrace() -> Trace? {
+		guard let session = traceSession, case let .gesture(committable) = session.phase else {
+			return nil
+		}
+		guard committable else {
+			traceSession = modifying(session) { session in session.phase = .pending }
+			return nil
+		}
+		traceSession = TraceSession(
+			start: session.end,
+			end: session.end,
+			layer: session.layer,
+			net: session.net,
+			phase: .pending
+		)
+		return Trace(
+			start: session.start,
+			end: session.end,
+			width: traceWidth,
+			layer: session.layer,
+			net: session.net
+		)
+	}
+}

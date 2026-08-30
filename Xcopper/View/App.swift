@@ -7,7 +7,7 @@ struct XcopperApp: App {
 
 	var body: some Scene {
 		DocumentGroup(newDocument: Document()) { cfg in
-			EditorView(board: cfg.$document.board, clipboard: $clipboard)
+			EditorView(design: cfg.$document.design, clipboard: $clipboard)
 		}
 		.windowToolbarStyle(.unified)
 		.commands { MenuCommands() }

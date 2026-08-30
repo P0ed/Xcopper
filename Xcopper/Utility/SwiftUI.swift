@@ -25,6 +25,34 @@ extension Figure {
 	}
 }
 
+extension Glyph {
+
+	func path(_ scale: CGFloat, origin: CGPoint) -> Path {
+		switch self {
+		case let .path(points, closed, _):
+			Path { path in
+				guard let first = points.first else { return }
+				path.move(to: first.cg(scale, origin: origin))
+				for point in points.dropFirst() {
+					path.addLine(to: point.cg(scale, origin: origin))
+				}
+				if closed { path.closeSubpath() }
+			}
+		case let .rect(rect):
+			Path(rect.cg(scale, origin: origin))
+		case let .circle(center, diameter):
+			Path(ellipseIn: CGRect(
+				center: center.cg(scale, origin: origin),
+				radius: Double(diameter).mm * scale / 2.0
+			))
+		}
+	}
+
+	var isFilled: Bool {
+		if case let .path(_, _, filled) = self { filled } else { false }
+	}
+}
+
 extension CGRect {
 
 	init(center: CGPoint, radius: CGFloat) {

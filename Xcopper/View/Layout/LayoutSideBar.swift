@@ -1,18 +1,25 @@
 import SwiftUI
 
-extension EditorView {
+@MainActor
+struct LayoutSideBar: View {
+	@Binding var design: Design
+	@Binding var state: LayoutState
+	@Binding var sheet: Sheet?
+	var operations: Operations
 
-	var sidebar: some View {
+	private var stack: Stack { design.board.stack }
+
+	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				section("Nets") {
+				Panel(title: "Nets") {
 					NetRow(
 						name: "None",
 						color: .secondary,
 						selected: state.net == nil,
 						select: { state.net = nil }
 					)
-					ForEach(board.nets) { net in
+					ForEach(design.nets) { net in
 						NetRow(
 							name: net.name,
 							color: Palette.color(of: net.id),
@@ -22,7 +29,7 @@ extension EditorView {
 						)
 					}
 					HStack {
-						Button("Add", systemImage: "plus") { state.netDialogPresented = true }
+						Button("Add", systemImage: "plus") { sheet = .net }
 						Spacer()
 						Button("Assign", systemImage: "link") { operations.assignNet(state.net) }
 							.disabled(state.selection.isEmpty)
@@ -31,28 +38,28 @@ extension EditorView {
 					.padding(.top, 2.0)
 				}
 
-				if !board.stack.internals.isEmpty {
-					section("Planes") {
-						ForEach(Array(board.stack.internals), id: \.self) { layer in
+				if !stack.internals.isEmpty {
+					Panel(title: "Planes") {
+						ForEach(Array(stack.internals), id: \.self) { layer in
 							PlaneRow(
 								layer: layer,
-								stack: board.stack,
-								nets: board.nets,
-								plane: board.plane(layer),
+								stack: stack,
+								nets: design.nets,
+								plane: design.board.plane(layer),
 								select: { net in operations.setPlane(net, on: layer) }
 							)
 						}
 					}
 				}
 
-				section("Route") {
-					picker("Width", value: $state.traceWidth, options: Nm.widths)
-					picker("Grid", value: $state.grid, options: Nm.grids)
+				Panel(title: "Route") {
+					GridPicker(title: "Width", value: $state.traceWidth, options: Nm.widths)
+					GridPicker(title: "Grid", value: $state.grid, options: Nm.grids)
 				}
 
-				section("Place") {
+				Panel(title: "Place") {
 					Button("Footprint…", systemImage: "square.grid.3x3.square") {
-						state.footprintDialogPresented = true
+						sheet = .footprint
 					}
 					.buttonStyle(.borderless)
 					Text(specSummary)
@@ -74,60 +81,6 @@ extension EditorView {
 		case .qfp: "QFP-\(spec.pins) \(spec.pitch.label)mm"
 		default: "\(spec.kind.name)-\(spec.pins)"
 		}
-	}
-
-	private func section<Content: View>(
-		_ title: String,
-		@ViewBuilder content: () -> Content
-	) -> some View {
-		VStack(alignment: .leading, spacing: 4.0) {
-			Text(title)
-				.font(.caption.weight(.semibold))
-				.foregroundStyle(.secondary)
-			content()
-		}
-	}
-
-	private func picker(_ title: String, value: Binding<Nm>, options: [Nm]) -> some View {
-		HStack(spacing: 6.0) {
-			Text(title)
-				.foregroundStyle(.secondary)
-				.frame(width: 40.0, alignment: .leading)
-			Picker("", selection: value) {
-				ForEach(options, id: \.self) { option in
-					Text("\(option.label) mm").tag(option)
-				}
-			}
-			.labelsHidden()
-		}
-	}
-}
-
-@MainActor
-struct NetRow: View {
-	var name: String
-	var color: Color
-	var selected: Bool
-	var select: () -> Void = ø
-	var remove: (() -> Void)?
-
-	var body: some View {
-		HStack(spacing: 6.0) {
-			Circle().fill(color).frame(width: 10.0, height: 10.0)
-			Text(name).lineLimit(1)
-			Spacer(minLength: 0.0)
-			if let remove {
-				Button("Delete", systemImage: "xmark", action: remove)
-					.buttonStyle(.borderless)
-					.labelStyle(.iconOnly)
-					.foregroundStyle(.tertiary)
-			}
-		}
-		.padding(.horizontal, 6.0)
-		.padding(.vertical, 3.0)
-		.background(selected ? Color.accentColor.opacity(0.25) : .clear, in: .rect(cornerRadius: 5.0))
-		.contentShape(.rect)
-		.onTapGesture(perform: select)
 	}
 }
 

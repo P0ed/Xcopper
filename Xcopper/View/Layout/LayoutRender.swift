@@ -1,30 +1,13 @@
 import SwiftUI
 
-enum Layout {
-	static let margin: CGFloat = 24.0
-	static let origin = CGPoint(x: margin, y: margin)
-
-	static func contentSize(_ board: Board, scale: CGFloat) -> CGSize {
-		let size = board.size.cg * scale
-		return CGSize(width: size.width + margin * 2.0, height: size.height + margin * 2.0)
-	}
-
-	static func point(_ location: CGPoint, scale: CGFloat) -> Pt {
-		Pt(
-			x: Int(((location.x - margin) / scale * 1_000_000.0).rounded()),
-			y: Int(((location.y - margin) / scale * 1_000_000.0).rounded())
-		)
-	}
-}
-
-extension EditorView {
+extension LayoutView {
 
 	func render(in context: GraphicsContext, size: CGSize) {
-		let scale = state.magnification
+		let scale = state.viewport.magnification
 		let origin = Layout.origin
 
 		renderSubstrate(in: context, scale: scale, origin: origin)
-		renderGrid(in: context, scale: scale, origin: origin)
+		renderGrid(board.bounds, step: state.grid, in: context, scale: scale, origin: origin)
 
 		let layers = board.stack.copper.filter { state.isVisible($0) }
 		for layer in layers where layer != state.layer {
@@ -36,46 +19,16 @@ extension EditorView {
 
 		if state.drillVisible { renderDrills(in: context, scale: scale, origin: origin) }
 		if state.silkVisible { renderSilk(in: context, scale: scale, origin: origin) }
+		if state.ratsVisible { renderRatsnest(in: context, scale: scale, origin: origin) }
 
 		renderOutline(in: context, scale: scale, origin: origin)
 		renderSessions(in: context, scale: scale, origin: origin)
 		renderSelection(in: context, scale: scale, origin: origin)
-		renderCursor(in: context, scale: scale, origin: origin)
-	}
-
-	private func renderCursor(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		let center = state.cursor.cg(scale, origin: origin)
-		let arm = 6.0
-		var path = Path()
-		path.move(to: CGPoint(x: center.x - arm, y: center.y))
-		path.addLine(to: CGPoint(x: center.x + arm, y: center.y))
-		path.move(to: CGPoint(x: center.x, y: center.y - arm))
-		path.addLine(to: CGPoint(x: center.x, y: center.y + arm))
-		context.stroke(path, with: .color(Palette.preview), lineWidth: 1.0)
+		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
 
 	private func renderSubstrate(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
 		context.fill(Path(board.bounds.cg(scale, origin: origin)), with: .color(Palette.substrate))
-	}
-
-	private func renderGrid(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		let step = Double(state.grid).mm * scale
-		guard step >= 5.0 else { return }
-
-		let bounds = board.bounds.cg(scale, origin: origin)
-		let dot = min(1.5, max(0.75, step / 12.0))
-		var path = Path()
-
-		var y = bounds.minY
-		while y <= bounds.maxY + 0.5 {
-			var x = bounds.minX
-			while x <= bounds.maxX + 0.5 {
-				path.addEllipse(in: CGRect(center: CGPoint(x: x, y: y), radius: dot / 2.0))
-				x += step
-			}
-			y += step
-		}
-		context.fill(path, with: .color(Palette.grid))
 	}
 
 	private func renderOutline(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
@@ -132,6 +85,20 @@ extension EditorView {
 			for figure in board.clearances(on: layer, net: net) {
 				ctx.fill(figure.path(scale, origin: origin), with: .color(.black))
 			}
+		}
+	}
+
+	/// What the netlist asks for and copper does not yet deliver
+	private func renderRatsnest(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+		for rat in board.ratsnest() {
+			var path = Path()
+			path.move(to: rat.from.cg(scale, origin: origin))
+			path.addLine(to: rat.to.cg(scale, origin: origin))
+			context.stroke(
+				path,
+				with: .color(Palette.color(of: rat.net).opacity(0.8)),
+				style: StrokeStyle(lineWidth: 0.75, dash: [3.0, 3.0])
+			)
 		}
 	}
 
@@ -193,14 +160,5 @@ extension EditorView {
 		}
 		guard !path.isEmpty else { return }
 		marching(path, in: context)
-	}
-
-	private func marching(_ path: Path, in context: GraphicsContext) {
-		context.stroke(path, with: .color(.black), lineWidth: 2.0)
-		context.stroke(
-			path,
-			with: .color(Palette.highlight),
-			style: StrokeStyle(lineWidth: 1.0, dash: [4.0, 4.0])
-		)
 	}
 }

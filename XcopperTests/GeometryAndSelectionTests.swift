@@ -223,21 +223,21 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testRemovingANetClearsEveryReferenceToIt() {
-		var board = board()
-		let net = board.addNet(name: "SIG")
-		board.setPlane(net, on: 1)
-		board.traces = [Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: net)]
-		board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: net)]
-		board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: .zero)]
-		board.footprints[0].pads.modifyEach { pad in pad.net = net }
+		var design = Design(board: board())
+		let net = design.addNet(name: "SIG")
+		design.board.setPlane(net, on: 1)
+		design.board.traces = [Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: net)]
+		design.board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: net)]
+		design.board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: .zero)]
+		design.board.footprints[0].pads.modifyEach { pad in pad.net = net }
 
-		board.removeNet(net)
+		design.removeNet(net)
 
-		XCTAssertNil(board.net(net))
-		XCTAssertEqual(board.planes, [nil, nil, nil, nil])
-		XCTAssertNil(board.traces[0].net)
-		XCTAssertNil(board.vias[0].net)
-		XCTAssertTrue(board.footprints[0].pads.allSatisfy { $0.net == nil })
+		XCTAssertNil(design.net(net))
+		XCTAssertEqual(design.board.planes, [nil, nil, nil, nil])
+		XCTAssertNil(design.board.traces[0].net)
+		XCTAssertNil(design.board.vias[0].net)
+		XCTAssertTrue(design.board.footprints[0].pads.allSatisfy { $0.net == nil })
 	}
 
 	func testRemoveDeletesEveryReferencedObjectWithoutShiftingTheWrongIndices() {
@@ -280,7 +280,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testTraceSessionCommitsOnDragAndChainsFromTheLastEndpoint() {
-		var state = EditorState()
+		var state = LayoutState()
 		state.tool = .trace
 		state.traceWidth = .mm(0.3)
 		state.layer = 1
@@ -308,7 +308,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testLayerVisibilityAndCyclingWrapAroundTheStack() {
-		var state = EditorState()
+		var state = LayoutState()
 		state.nextLayer(.four)
 		state.nextLayer(.four)
 		XCTAssertEqual(state.layer, 2)
@@ -345,7 +345,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(8), y: .mm(32))),
 		]
 
-		let view = EditorView(board: .constant(board), clipboard: .constant(Clipboard()))
+		let view = LayoutView(design: .constant(Design(board: board)), state: .constant(LayoutState()))
 		let renderer = ImageRenderer(
 			content: SwiftUI.Canvas { ctx, size in view.render(in: ctx, size: size) }
 				.frame(width: 480.0, height: 400.0)

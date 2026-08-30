@@ -74,7 +74,6 @@ struct Board: Equatable, Codable {
 	var size: Size
 	var stack: Stack
 	var planes: [Net.ID?]
-	var nets: [Net]
 	var traces: [Trace]
 	var vias: [Via]
 	var holes: [Hole]
@@ -88,7 +87,6 @@ extension Board {
 		self.size = size
 		self.stack = stack
 		planes = .init(repeating: nil, count: stack.count)
-		nets = [Net(id: 0, name: "GND"), Net(id: 1, name: "VCC")]
 		traces = []
 		vias = []
 		holes = []
@@ -98,15 +96,9 @@ extension Board {
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
 
-	func net(_ id: Net.ID?) -> Net? {
-		id.flatMap { id in nets.first { $0.id == id } }
-	}
-
 	func plane(_ layer: Int) -> Net.ID? {
 		planes.indices.contains(layer) ? planes[layer] : nil
 	}
-
-	var nextNetID: Net.ID { (nets.map(\.id).max() ?? -1) + 1 }
 }
 
 extension Footprint {
@@ -166,24 +158,14 @@ extension Board {
 			+ vias.count { min($0.from, stack.bottom) == min($0.to, stack.bottom) }
 	}
 
-	mutating func addNet(name: String) -> Net.ID {
-		let net = Net(id: nextNetID, name: name)
-		nets.append(net)
-		return net.id
-	}
-
-	mutating func removeNet(_ id: Net.ID) {
-		nets.removeAll { $0.id == id }
+	/// Forgets every reference to `id`, leaving the net table to `Design`
+	mutating func clearNet(_ id: Net.ID) {
 		planes.modifyEach { plane in if plane == id { plane = nil } }
 		traces.modifyEach { trace in if trace.net == id { trace.net = nil } }
 		vias.modifyEach { via in if via.net == id { via.net = nil } }
 		footprints.modifyEach { footprint in
 			footprint.pads.modifyEach { pad in if pad.net == id { pad.net = nil } }
 		}
-	}
-
-	mutating func renameNet(_ id: Net.ID, to name: String) {
-		nets.modifyEach { net in if net.id == id { net.name = name } }
 	}
 
 	mutating func setPlane(_ net: Net.ID?, on layer: Int) {
@@ -308,11 +290,7 @@ extension Board {
 	}
 
 	func nextReference(like reference: String) -> String {
-		let prefix = String(reference.prefix { !$0.isNumber })
-		let used = Set(footprints.map(\.reference))
-		var index = 1
-		while used.contains("\(prefix)\(index)") { index += 1 }
-		return "\(prefix)\(index)"
+		Xcopper.nextReference(like: reference, used: Set(footprints.map(\.reference)))
 	}
 }
 

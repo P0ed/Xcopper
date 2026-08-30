@@ -71,6 +71,13 @@ func snapped45(from start: Pt, to end: Pt) -> Pt {
 	return Pt(x: start.x + sx * length, y: start.y + sy * length)
 }
 
+/// Nearest orthogonal projection, the convention for schematic wires
+func snapped90(from start: Pt, to end: Pt) -> Pt {
+	let dx = end.x - start.x
+	let dy = end.y - start.y
+	return abs(dx) >= abs(dy) ? Pt(x: end.x, y: start.y) : Pt(x: start.x, y: end.y)
+}
+
 extension Board {
 
 	/// Copper on `layer`, paired with the net it belongs to

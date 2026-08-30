@@ -48,3 +48,20 @@ extension Array {
 		}
 	}
 }
+
+/// First `prefix<n>` not present in `used`, keeping the prefix of `reference`
+func nextReference(like reference: String, used: Set<String>) -> String {
+	let prefix = String(reference.prefix { !$0.isNumber })
+	var index = 1
+	while used.contains("\(prefix)\(index)") { index += 1 }
+	return "\(prefix)\(index)"
+}
+
+extension String {
+	var trimmingWhitespace: String {
+		var text = Substring(self)
+		while let first = text.first, first.isWhitespace { text = text.dropFirst() }
+		while let last = text.last, last.isWhitespace { text = text.dropLast() }
+		return String(text)
+	}
+}

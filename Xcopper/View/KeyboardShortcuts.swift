@@ -7,30 +7,48 @@ extension EditorView {
 			let modifiers = keys.modifiers
 
 			if keys.key == .escape {
-				guard state.traceSession != nil || state.selectSession != nil else {
-					return .ignored
-				}
-				state.cancelSessions()
+				guard cancelSessions() else { return .ignored }
 				return .handled
 			}
 
 			@MainActor func nudge(dx: Int = 0, dy: Int = 0) {
-				guard !state.selection.isEmpty else { return }
+				guard operations.hasSelection else { return }
 				DispatchQueue.main.async { operations.nudge(dx: dx, dy: dy) }
 			}
 
 			switch keys.key.character {
-			case "\u{9}": state.nextLayer(board.stack)
-			case "\u{19}": state.prevLayer(board.stack)
 			case KeyEquivalent.leftArrow.character: nudge(dx: -1)
 			case KeyEquivalent.rightArrow.character: nudge(dx: 1)
 			case KeyEquivalent.upArrow.character: nudge(dy: -1)
 			case KeyEquivalent.downArrow.character: nudge(dy: 1)
-			case "g": cycle(&state.grid, Nm.grids, back: modifiers.contains(.shift))
-			case "w": cycle(&state.traceWidth, Nm.widths, back: modifiers.contains(.shift))
+			case "g": cycleGrid(back: modifiers.contains(.shift))
+			case "\u{9}" where editor.mode == .layout: layout.nextLayer(design.board.stack)
+			case "\u{19}" where editor.mode == .layout: layout.prevLayer(design.board.stack)
+			case "w" where editor.mode == .layout:
+				cycle(&layout.traceWidth, Nm.widths, back: modifiers.contains(.shift))
 			default: return .ignored
 			}
 			return .handled
+		}
+	}
+
+	/// Whether there was anything to cancel
+	private func cancelSessions() -> Bool {
+		switch editor.mode {
+		case .layout:
+			guard layout.traceSession != nil || layout.selectSession != nil else { return false }
+			layout.cancelSessions()
+		case .schematic:
+			guard schematic.wireSession != nil || schematic.selectSession != nil else { return false }
+			schematic.cancelSessions()
+		}
+		return true
+	}
+
+	private func cycleGrid(back: Bool) {
+		switch editor.mode {
+		case .layout: cycle(&layout.grid, Nm.grids, back: back)
+		case .schematic: cycle(&schematic.grid, Nm.sheetGrids, back: back)
 		}
 	}
 

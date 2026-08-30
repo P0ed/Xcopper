@@ -1,15 +1,21 @@
 # PCB editor
 
-Minimal PCB layout for macOS. No schematic capture: you place footprints, route
-copper, and assign nets by hand. One rectangular board per document.
+Minimal schematic capture and PCB layout for macOS, both halves in one document.
+Draw the schematic, let it derive the netlist, push that onto the board, then
+route the copper it asks for. One rectangular board and one sheet per document.
 
+- Schematic capture with parametric symbols and net labels
+- Netlist read straight back out of the drawing — nothing to keep in sync by hand
+- Ratsnest on the layout showing what the schematic wants and copper does not yet do
 - 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints: chip, SOIC, QFP, SOT-23, DIP, headers
-- Lightweight named nets
 
-## Tools
+`⌘1` and `⌘2` switch between layout and schematic. Each side keeps its own zoom,
+scroll and selection.
+
+## Layout
 
 | Key | Tool |
 | --- | --- |
@@ -26,9 +32,53 @@ While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 `⎋` to cancel.
 
+## Schematic
+
+| Key | Tool |
+| --- | --- |
+| `S` | Select |
+| `W` | Wire |
+| `L` | Label |
+| `P` | Place symbol |
+
+`G` cycles the sheet grid. Wires snap to 90° and chain the same way routing
+does, with the same `⇧`, `⌃` and `⎋` modifiers.
+
+Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
+box with any pin count, and power and ground flags. A flag's value **is** a net
+name — dropping a `GND` flag on a wire names that net, no label needed.
+
+## Nets
+
+Connectivity is never stored, only drawn. A wire shorts its own two ends, and any
+pin tip, wire end or label anchor sitting on a wire joins it. Because only those
+terminals are tested against wires, a T-junction connects and two wires merely
+crossing do not — the usual schematic convention, and junction dots follow from
+it rather than being placed by hand.
+
+A net takes its name from a label in it, or failing that from a power or ground
+flag. Unnamed nets get an `N$n` when they reach the board.
+
+`⌘U` pushes the netlist onto the layout: footprints are matched to symbols by
+reference designator and pads to pins by number, and `Pad.net` is set from that.
+The pass is additive — a pad the schematic says nothing about keeps the net it
+had — and the sidebar reports what it could not match: symbols with no footprint,
+footprints in no schematic, and pins with no pad.
+
+The layout then draws a ratsnest for every net whose copper does not yet join all
+of it, as a minimum spanning tree over the disconnected islands. Route one of
+those connections and its line goes away. Toggle it from the toolbar next to the
+silk and drill toggles.
+
 ## Layers
 
 Copper layers are indexed from the top. On a 4 or 6 layer board any internal
 layer can be turned into a plane by picking a net for it in the sidebar: the
 plane fills the board and clears around every pad, via, hole and trace that
 carries a different net.
+
+## File format
+
+One JSON document holding `nets`, `board` and `schematic`. Files written before
+schematic capture existed had `Board` at the root with the nets inside it; those
+still open, and are rewritten in the new shape on save.

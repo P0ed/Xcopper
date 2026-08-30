@@ -1,15 +1,15 @@
 import AppKit
 import SwiftUI
 
-extension EditorView {
+extension LayoutView {
 
 	func point(at location: CGPoint) -> Pt {
-		Layout.point(location, scale: state.magnification)
+		Layout.point(location, scale: state.viewport.magnification)
 	}
 
 	var snapRadius: Int { max(Int(state.grid), Int(Nm.mm(0.4))) }
 
-	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.magnification / 4)))) }
+	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
 	/// Grid position, overridden by a nearby pad, via or trace endpoint
 	func snapped(_ point: Pt, layer: Int) -> (Pt, Net.ID?) {
@@ -60,15 +60,15 @@ extension EditorView {
 
 	func hover(at location: CGPoint) {
 		let point = point(at: location)
-		state.cursor = state.tool == .trace && state.traceSession != nil
+		state.viewport.cursor = state.tool == .trace && state.traceSession != nil
 			? routeEnd(point)
 			: snapped(point, layer: state.layer).0
 		guard state.tool == .trace else { return }
-		state.hoverTrace(to: state.cursor)
+		state.hoverTrace(to: state.viewport.cursor)
 	}
 }
 
-private extension EditorView {
+private extension LayoutView {
 
 	var modifierFlags: NSEvent.ModifierFlags { NSEvent.modifierFlags }
 
