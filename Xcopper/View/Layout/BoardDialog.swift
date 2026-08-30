@@ -1,5 +1,12 @@
 import SwiftUI
 
+private enum BoardUnit: CaseIterable, Identifiable {
+	case millimeters, inches
+
+	var id: Self { self }
+	var label: String { self == .millimeters ? "mm" : "in" }
+}
+
 @MainActor
 struct BoardDialog: View {
 	var size: Size
@@ -10,10 +17,11 @@ struct BoardDialog: View {
 	@State var width: String = ""
 	@State var height: String = ""
 	@State var selected: Stack?
+	@State private var unit: BoardUnit = .millimeters
 
 	private var chosen: Stack { selected ?? stack }
-	private var w: Nm? { width.isEmpty ? Nm(size.width) : parse(width) }
-	private var h: Nm? { height.isEmpty ? Nm(size.height) : parse(height) }
+	private var w: Nm? { width.isEmpty ? Nm(size.width) : parse(width, as: unit) }
+	private var h: Nm? { height.isEmpty ? Nm(size.height) : parse(height, as: unit) }
 
 	private var isValid: Bool {
 		guard let w, let h else { return false }
@@ -33,15 +41,22 @@ struct BoardDialog: View {
 			}
 		) {
 			VStack(spacing: 12.0) {
+				Picker("Units", selection: unitBinding) {
+					ForEach(BoardUnit.allCases) { unit in
+						Text(unit.label).tag(unit)
+					}
+				}
+				.pickerStyle(.segmented)
+
 				HStack {
-					TextField("\(Nm(size.width).label)", text: $width)
-						.frame(width: 64.0)
+					TextField(format(Nm(size.width), as: unit), text: $width)
+						.frame(width: 88.0)
 						.multilineTextAlignment(.trailing)
 					Text("×")
-					TextField("\(Nm(size.height).label)", text: $height)
-						.frame(width: 64.0)
+					TextField(format(Nm(size.height), as: unit), text: $height)
+						.frame(width: 88.0)
 						.multilineTextAlignment(.trailing)
-					Text("mm")
+					Text(unit.label)
 				}
 				Picker("Layers", selection: Binding(get: { chosen }, set: { selected = $0 })) {
 					ForEach(Stack.allCases, id: \.self) { stack in
@@ -60,7 +75,33 @@ struct BoardDialog: View {
 		}
 	}
 
-	private func parse(_ text: String) -> Nm? {
-		Double(text.replacingOccurrences(of: ",", with: ".")).map { value in .mm(value) }
+	private var unitBinding: Binding<BoardUnit> {
+		Binding(
+			get: { unit },
+			set: { newUnit in
+				guard newUnit != unit else { return }
+				let parsedWidth = width.isEmpty ? nil : parse(width, as: unit)
+				let parsedHeight = height.isEmpty ? nil : parse(height, as: unit)
+				guard width.isEmpty || parsedWidth != nil, height.isEmpty || parsedHeight != nil else { return }
+
+				unit = newUnit
+				if let parsedWidth { width = format(parsedWidth, as: newUnit) }
+				if let parsedHeight { height = format(parsedHeight, as: newUnit) }
+			}
+		)
+	}
+
+	private func parse(_ text: String, as unit: BoardUnit) -> Nm? {
+		Double(text.replacingOccurrences(of: ",", with: ".")).map { value in
+			unit == .millimeters ? .mm(value) : .inches(value)
+		}
+	}
+
+	private func format(_ length: Nm, as unit: BoardUnit) -> String {
+		let value = unit == .millimeters ? length.mm : length.inches
+		var text = String(format: unit == .millimeters ? "%.6f" : "%.8f", value)
+		while text.last == "0" { text.removeLast() }
+		if text.last == "." { text.removeLast() }
+		return text
 	}
 }

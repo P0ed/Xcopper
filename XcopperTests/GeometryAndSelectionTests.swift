@@ -38,6 +38,11 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(LayoutState().grid, .mil(10))
 	}
 
+	func testInchConversionPreservesBoardDimensions() {
+		XCTAssertEqual(Nm.inches(1), .mm(25.4))
+		XCTAssertEqual(Nm.mm(50.8).inches, 2.0, accuracy: 0.000_000_01)
+	}
+
 	func testSnapTargetPrefersTheNearestPadOnTheRoutedLayer() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(10), y: .mm(10)))]

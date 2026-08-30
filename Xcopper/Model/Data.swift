@@ -6,12 +6,15 @@ typealias Nm = Int32
 extension Nm {
 	static var mm: Nm { 1_000_000 }
 	static var mil: Nm { 25_400 }
+	static var inch: Nm { 25_400_000 }
 
 	static func mm(_ value: Double) -> Nm { Nm(clamping: Int((value * 1_000_000.0).rounded())) }
 	static func mil(_ value: Double) -> Nm { Nm(clamping: Int((value * 25_400.0).rounded())) }
+	static func inches(_ value: Double) -> Nm { Nm(clamping: Int((value * 25_400_000.0).rounded())) }
 
 	var mm: Double { Double(self) / 1_000_000.0 }
 	var mil: Double { Double(self) / 25_400.0 }
+	var inches: Double { Double(self) / 25_400_000.0 }
 }
 
 extension Int {
