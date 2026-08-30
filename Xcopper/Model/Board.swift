@@ -214,12 +214,15 @@ extension Board {
 		}
 	}
 
-	/// Trace ends landing on a pad of a footprint in `refs`. Attachment is the
-	/// same pad-contains-endpoint test the ratsnest uses, so copper follows a
-	/// part exactly when it counted as joined to it. Traces in `refs` already
-	/// move whole and are left out.
+	/// Trace ends that follow `refs`: one landing on a pad of a moving footprint
+	/// and one soldered to the end of a moving segment. Attachment is the same
+	/// pad-contains-endpoint test the ratsnest uses, so copper follows a part
+	/// exactly when it counted as joined to it, and a joint held by a pad or a
+	/// via stays with the terminal rather than with the copper leaving it.
+	/// Traces in `refs` already move whole and are left out.
 	func attachedEnds(to refs: Set<Ref>) -> Set<TraceEnd> {
 		var pads: [(figure: Figure, layers: ClosedRange<Int>)] = []
+		var joints: [Int: Set<Pt>] = [:]
 
 		for case let .footprint(index) in refs where footprints.indices.contains(index) {
 			let footprint = footprints[index]
@@ -231,7 +234,13 @@ extension Board {
 				))
 			}
 		}
-		guard !pads.isEmpty else { return [] }
+		for case let .trace(index) in refs where traces.indices.contains(index) {
+			let trace = traces[index]
+			for point in [trace.start, trace.end] where !isTerminal(point, layer: trace.layer) {
+				joints[trace.layer, default: []].insert(point)
+			}
+		}
+		guard !pads.isEmpty || !joints.isEmpty else { return [] }
 
 		var ends: Set<TraceEnd> = []
 		for (index, trace) in traces.enumerated() where !refs.contains(.trace(index)) {
@@ -239,6 +248,9 @@ extension Board {
 				if figure.contains(trace.start) { ends.insert(TraceEnd(trace: index, isStart: true)) }
 				if figure.contains(trace.end) { ends.insert(TraceEnd(trace: index, isStart: false)) }
 			}
+			guard let points = joints[trace.layer] else { continue }
+			if points.contains(trace.start) { ends.insert(TraceEnd(trace: index, isStart: true)) }
+			if points.contains(trace.end) { ends.insert(TraceEnd(trace: index, isStart: false)) }
 		}
 		return ends
 	}
@@ -255,9 +267,9 @@ extension Board {
 		}
 	}
 
-	/// Moves `refs`, dragging the loose ends of whatever copper lands on a
-	/// moving footprint along with it and putting the segments it stretched
-	/// back on the 45 degree grid
+	/// Moves `refs`, dragging the loose ends of whatever copper it is soldered
+	/// to along with it and putting the segments it stretched back on the 45
+	/// degree grid
 	mutating func move(_ refs: Set<Ref>, by delta: Pt) {
 		let attached = attachedEnds(to: refs)
 		let headings = headings(of: attached)

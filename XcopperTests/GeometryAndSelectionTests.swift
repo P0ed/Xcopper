@@ -8,6 +8,10 @@ final class GeometryAndSelectionTests: XCTestCase {
 		Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack)
 	}
 
+	private func trace(from start: Pt, to end: Pt, layer: Int = 0) -> Trace {
+		Trace(start: start, end: end, width: .mm(0.3), layer: layer, net: nil)
+	}
+
 	func testSchematicIsTheFirstAndDefaultEditorMode() {
 		XCTAssertEqual(Mode.allCases, [.schematic, .layout])
 		XCTAssertEqual(Mode.schematic.shortcutCharacter, "1")
@@ -144,6 +148,21 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.run(of: 0), [0])
 		XCTAssertEqual(board.run(of: 1), [1])
 		XCTAssertEqual(board.run(of: 3), [3])
+	}
+
+	func testDrillingInPicksTheOneSegmentUnderThePointer() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: .mm(5), y: .mm(10)), to: Pt(x: .mm(10), y: .mm(10))),
+			trace(from: Pt(x: .mm(10), y: .mm(10)), to: Pt(x: .mm(15), y: .mm(15))),
+		]
+		XCTAssertEqual(
+			board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0, whole: false),
+			[.trace(0)]
+		)
+
+		let partial = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(12), y: .mm(12)))
+		XCTAssertEqual(board.refs(in: partial, layer: 0, whole: false), [.trace(0)])
 	}
 
 	func testARubberBandTakesARunOnlyWhenItCoversAllOfIt() {
@@ -431,6 +450,53 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces.count, 1)
 		XCTAssertEqual(board.traces[0].start, pad + delta)
 		XCTAssertEqual(board.traces[0].end, away)
+	}
+
+	func testMovingOneSegmentSlidesTheCornersItsNeighboursRunInto() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(5), y: .mm(15))),
+			trace(from: Pt(x: .mm(5), y: .mm(15)), to: Pt(x: .mm(15), y: .mm(15))),
+			trace(from: Pt(x: .mm(15), y: .mm(15)), to: Pt(x: .mm(20), y: .mm(20))),
+			trace(from: Pt(x: .mm(20), y: .mm(20)), to: Pt(x: .mm(30), y: .mm(20))),
+			trace(from: Pt(x: .mm(30), y: .mm(20)), to: Pt(x: .mm(35), y: .mm(15))),
+		]
+		let delta = Pt(x: 0, y: .mm(-1))
+		board.move([.trace(2)], by: delta)
+
+		XCTAssertEqual(board.traces.count, 5)
+		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(15), y: .mm(14)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(20), y: .mm(19)))
+
+		// The joints followed the segment and the corners beyond took up the slack
+		XCTAssertEqual(board.traces[1].end, board.traces[2].start)
+		XCTAssertEqual(board.traces[3].start, board.traces[2].end)
+		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(20)))
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(6), y: .mm(14)))
+		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
+		XCTAssertEqual(board.traces[3].end, Pt(x: .mm(31), y: .mm(19)))
+		XCTAssertEqual(board.traces[4].start, board.traces[3].end)
+		XCTAssertEqual(board.traces[4].end, Pt(x: .mm(35), y: .mm(15)))
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+	}
+
+	func testASegmentDragLeavesCopperHeldByAViaWhereItIs() {
+		var board = board()
+		let via = Pt(x: 0, y: .mm(10))
+		board.vias = [Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.traces = [
+			trace(from: via, to: Pt(x: .mm(10), y: .mm(10))),
+			trace(from: Pt(x: .mm(10), y: .mm(10)), to: Pt(x: .mm(15), y: .mm(15))),
+		]
+		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-1)))
+
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(9), y: .mm(10)))
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(9)))
+		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
+		XCTAssertEqual(board.traces[2].start, board.traces[0].start)
+		XCTAssertEqual(board.traces[2].end, via)
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
 	}
 
 	func testATraceMovedWithItsFootprintDoesNotShiftTwice() {

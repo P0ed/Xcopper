@@ -79,6 +79,9 @@ private extension LayoutView {
 		)
 	}
 
+	/// Whether the pointer drills past the run grouping to the single segment
+	var picksSegment: Bool { modifierFlags.contains(.command) }
+
 	func undoGroup(_ name: String, _ body: () -> Void = {}) {
 		undoManager?.beginUndoGrouping()
 		body()
@@ -111,7 +114,7 @@ private extension LayoutView {
 		if state.moveSession != nil {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
-		if state.selectSession == nil {
+		if state.selectSession == nil, !picksSegment {
 			let hit = board.hitTest(at: start, layer: state.layer, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
 				state.beginMove(at: start.snapped(to: state.snap))
@@ -133,9 +136,10 @@ private extension LayoutView {
 		guard let session = state.selectSession else { return }
 		state.updateSelect(to: current)
 
+		let whole = !picksSegment
 		let hit: Set<Ref> = session.didDrag
-			? board.refs(in: session.rect, layer: state.layer)
-			: board.refs(at: start, layer: state.layer, tolerance: hitTolerance)
+			? board.refs(in: session.rect, layer: state.layer, whole: whole)
+			: board.refs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

@@ -216,14 +216,15 @@ extension Board {
 	}
 
 	/// Everything one click picks up. A trace comes with the rest of its run, so
-	/// a route selects, moves and deletes as the single object it was drawn as.
-	func refs(at point: Pt, layer: Int, tolerance: Int) -> Set<Ref> {
+	/// a route selects, moves and deletes as the single object it was drawn as,
+	/// unless `whole` is off and the click drills in to the segment under it.
+	func refs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = true) -> Set<Ref> {
 		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
-		guard case let .trace(index) = hit else { return [hit] }
+		guard whole, case let .trace(index) = hit else { return [hit] }
 		return Set(run(of: index).map(Ref.trace))
 	}
 
-	func refs(in rect: Rect, layer: Int) -> Set<Ref> {
+	func refs(in rect: Rect, layer: Int, whole: Bool = true) -> Set<Ref> {
 		var result: Set<Ref> = []
 
 		// A run is one object, so a band covering part of one takes none of it
@@ -232,7 +233,7 @@ extension Board {
 		where trace.layer == layer && rect.contains(trace.start) && rect.contains(trace.end) {
 			covered.insert(index)
 		}
-		for index in covered where run(of: index).isSubset(of: covered) {
+		for index in covered where !whole || run(of: index).isSubset(of: covered) {
 			result.insert(.trace(index))
 		}
 		for (index, via) in vias.enumerated() where rect.contains(via.at) {
@@ -303,7 +304,7 @@ extension Board {
 	}
 
 	/// Whether a pad or via lands on `point`, where a run ends
-	private func isTerminal(_ point: Pt, layer: Int) -> Bool {
+	func isTerminal(_ point: Pt, layer: Int) -> Bool {
 		for via in vias
 		where via.spans(layer) && Figure.round(via.at, via.pad).contains(point) {
 			return true

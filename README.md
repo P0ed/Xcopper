@@ -38,13 +38,15 @@ click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 Clicking one segment of a route picks up the whole run — the chain of segments
 joined end to end on one layer, up to wherever the copper branches or lands on a
 pad or via. A run selects, moves and deletes as one object, and a rubber band
-that covers only part of one takes none of it.
+that covers only part of one takes none of it. Hold `⌘` to drill in and take the
+single segment under the pointer instead, band included.
 
-Moving a footprint takes its copper with it: every trace end sitting on one of
-its pads follows the part while the far end stays put, and the stretched
-segment stays on the 45° grid. The corner it runs into slides along to absorb
-the move; where there is no corner to slide — a pad, a via, a branch — the
-segment folds into two legs instead. Copper drawn at a free angle keeps it.
+Moving copper takes the copper it is soldered to with it: every trace end
+sitting on a pad of a moving footprint, and every joint at the end of a moving
+segment, follows along while the far end stays put. The stretched segment stays
+on the 45° grid — the corner it runs into slides along to absorb the move, and
+where there is no corner to slide, a pad, a via or a branch, the segment folds
+into two legs instead. Copper drawn at a free angle keeps it.
 
 ## Schematic
 
