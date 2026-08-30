@@ -11,7 +11,14 @@ extension SchematicView {
 			Path(schematic.bounds.cg(scale, origin: origin)),
 			with: .color(Palette.sheet)
 		)
-		renderGrid(schematic.bounds, step: state.grid, in: context, scale: scale, origin: origin)
+		renderGrid(
+			schematic.bounds,
+			step: state.grid,
+			in: context,
+			scale: scale,
+			origin: origin,
+			visible: state.viewport.visibleRect(in: size)
+		)
 
 		renderWires(netlist, in: context, scale: scale, origin: origin)
 		renderJunctions(in: context, scale: scale, origin: origin)

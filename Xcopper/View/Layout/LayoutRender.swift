@@ -7,7 +7,14 @@ extension LayoutView {
 		let origin = Layout.origin
 
 		renderSubstrate(in: context, scale: scale, origin: origin)
-		renderGrid(board.bounds, step: state.grid, in: context, scale: scale, origin: origin)
+		renderGrid(
+			board.bounds,
+			step: state.grid,
+			in: context,
+			scale: scale,
+			origin: origin,
+			visible: state.viewport.visibleRect(in: size)
+		)
 
 		for layer in board.stack.copper where layer != state.layer {
 			renderCopper(layer, in: context, scale: scale, origin: origin, dimmed: true)

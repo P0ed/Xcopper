@@ -11,6 +11,19 @@ struct Viewport: Equatable {
 
 extension Viewport {
 
+	/// Portion of a scrollable canvas currently on screen, in canvas coordinates.
+	func visibleRect(in contentSize: CGSize) -> CGRect {
+		guard size.width > 0.0, size.height > 0.0, !frame.isEmpty else {
+			return CGRect(origin: .zero, size: contentSize)
+		}
+		return CGRect(
+			x: max(0.0, -frame.minX),
+			y: max(0.0, -frame.minY),
+			width: size.width,
+			height: size.height
+		).intersection(CGRect(origin: .zero, size: contentSize))
+	}
+
 	mutating func setScale(_ scale: CGFloat) {
 		let scale = min(max(scale, 0.5), 400.0)
 		let frame = frame

@@ -4,6 +4,7 @@ enum Palette {
 	static let substrate = Color(red: 0.09, green: 0.11, blue: 0.10)
 	static let outline = Color(red: 0.85, green: 0.87, blue: 0.60)
 	static let grid = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.16)
+	static let gridMajor = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.32)
 	static let drill = Color(red: 0.04, green: 0.05, blue: 0.05)
 	static let silk = Color(red: 0.92, green: 0.92, blue: 0.90)
 	static let highlight = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.9)

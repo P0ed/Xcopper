@@ -96,31 +96,65 @@ struct Coordinates: View {
 	}
 }
 
-/// Dotted grid over `bounds`, skipped once the dots would crowd together
+/// Square-dot grid built from reusable 10 × 10 tiles. Minor dots are omitted
+/// when they would crowd together or make the rendered path excessively large.
 func renderGrid(
 	_ bounds: Rect,
 	step: Nm,
 	in context: GraphicsContext,
 	scale: CGFloat,
-	origin: CGPoint
+	origin: CGPoint,
+	visible: CGRect
 ) {
-	let step = Double(step).mm * scale
-	guard step >= 5.0 else { return }
+	let step = CGFloat(Double(step).mm) * scale
+	let tileSpan = step * 10.0
+	guard step > 0.0, tileSpan >= 3.0 else { return }
 
 	let bounds = bounds.cg(scale, origin: origin)
-	let dot = min(1.5, max(0.75, step / 12.0))
-	var path = Path()
+	let visible = bounds.intersection(visible)
+	guard !visible.isNull, !visible.isEmpty else { return }
 
-	var y = bounds.minY
-	while y <= bounds.maxY + 0.5 {
-		var x = bounds.minX
-		while x <= bounds.maxX + 0.5 {
-			path.addEllipse(in: CGRect(center: CGPoint(x: x, y: y), radius: dot / 2.0))
-			x += step
+	let firstColumn = Int(floor((visible.minX - bounds.minX) / tileSpan))
+	let lastColumn = Int(floor((visible.maxX - bounds.minX) / tileSpan))
+	let firstRow = Int(floor((visible.minY - bounds.minY) / tileSpan))
+	let lastRow = Int(floor((visible.maxY - bounds.minY) / tileSpan))
+	let columns = lastColumn - firstColumn + 1
+	let rows = lastRow - firstRow + 1
+	guard columns > 0, rows > 0, columns * rows <= 50_000 else { return }
+
+	let tileCount = columns * rows
+	let drawMinor = step >= 3.0 && tileCount <= 200
+	let minorSize = min(1.5, max(0.75, step / 12.0))
+	let majorSize = min(2.0, max(1.0, minorSize * 1.5))
+	let minorDot = CGRect(center: .zero, radius: minorSize / 2.0)
+	let majorDot = CGRect(center: .zero, radius: majorSize / 2.0)
+
+	var tile = Path()
+	if drawMinor {
+		for row in 0 ..< 10 {
+			for column in 0 ..< 10 where row != 0 || column != 0 {
+				tile.addRect(minorDot.offsetBy(dx: CGFloat(column) * step, dy: CGFloat(row) * step))
+			}
 		}
-		y += step
 	}
-	context.fill(path, with: .color(Palette.grid))
+
+	var minor = Path()
+	var major = Path()
+	for row in firstRow ... lastRow {
+		for column in firstColumn ... lastColumn {
+			let x = bounds.minX + CGFloat(column) * tileSpan
+			let y = bounds.minY + CGFloat(row) * tileSpan
+			if drawMinor {
+				minor.addPath(tile, transform: CGAffineTransform(translationX: x, y: y))
+			}
+			major.addRect(majorDot.offsetBy(dx: x, dy: y))
+		}
+	}
+
+	var context = context
+	context.clip(to: Path(visible))
+	if drawMinor { context.fill(minor, with: .color(Palette.grid)) }
+	context.fill(major, with: .color(Palette.gridMajor))
 }
 
 /// Selection outline, legible over any fill

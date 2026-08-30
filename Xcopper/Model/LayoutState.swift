@@ -40,7 +40,7 @@ extension Tool {
 extension Nm {
 
 	static var grids: [Nm] {
-		[.mm(0.05), .mm(0.1), .mm(0.25), .mm(0.5), .mm(1.0), .mil(25), .mil(50), .mil(100)]
+		[.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)]
 	}
 
 	static var widths: [Nm] {
@@ -49,7 +49,7 @@ extension Nm {
 
 	/// Schematics are drawn on imperial pitches, not the board's metric ones
 	static var sheetGrids: [Nm] {
-		[.mm(0.635), .mm(1.27), .mm(2.54)]
+		[.mil(25), .mil(50), .mil(100)]
 	}
 
 	var coordinate: String { String(format: "%.2f", mm) }
@@ -58,7 +58,7 @@ extension Nm {
 		let mm = mm
 		return mm < 0.1
 			? String(format: "%.3f", mm)
-			: mm < 1.0 ? String(format: "%.2f", mm) : String(format: "%.3g", mm)
+			: String(format: "%.3g", mm)
 	}
 }
 
@@ -71,7 +71,7 @@ struct LayoutState: Equatable {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var grid: Nm = .mm(0.25)
+	var grid: Nm = .mil(10)
 	var traceWidth: Nm = .mm(0.25)
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []

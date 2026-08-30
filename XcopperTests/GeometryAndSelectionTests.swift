@@ -32,6 +32,12 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(Pt(x: 7, y: 7).snapped(to: 0), Pt(x: 7, y: 7))
 	}
 
+	func testGridPresetsUseExactImperialPitches() {
+		XCTAssertEqual(Nm.grids, [.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)])
+		XCTAssertEqual(Nm.grids.map(\.label), ["0.127", "0.254", "0.635", "1.27", "2.54"])
+		XCTAssertEqual(LayoutState().grid, .mil(10))
+	}
+
 	func testSnapTargetPrefersTheNearestPadOnTheRoutedLayer() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(10), y: .mm(10)))]
