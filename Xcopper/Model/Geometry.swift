@@ -1,3 +1,5 @@
+import Foundation
+
 /// Copper or clearance primitive, board coordinates
 enum Figure: Hashable {
 	case rect(Rect)
@@ -357,4 +359,59 @@ extension Board {
 		}
 		return best
 	}
+}
+
+extension Figure {
+
+	/// The outline as a closed loop of points, wound the way the layout draws
+	/// it. Curves are cut into `arc` steps per quarter turn, which is what
+	/// gives the 3D preview something flat to raise copper and packages over.
+	func polygon(arc: Int = 3) -> [Pt] {
+		switch self {
+		case let .rect(rect):
+			rect.corners
+		case let .round(center, diameter):
+			circle(at: center, diameter: Int(diameter), arc: arc)
+		case let .segment(start, end, width):
+			stadium(from: start, to: end, width: Int(width), arc: arc)
+		}
+	}
+}
+
+/// A closed ring of points around `center`, wound like `Rect.corners`
+func circle(at center: Pt, diameter: Int, arc: Int = 3) -> [Pt] {
+	let steps = max(3, arc * 4)
+	let radius = Double(diameter) / 2.0
+	return (0 ..< steps).map { step in
+		let angle = Double(step) / Double(steps) * 2.0 * .pi
+		return Pt(
+			x: center.x + Int((cos(angle) * radius).rounded()),
+			y: center.y + Int((sin(angle) * radius).rounded())
+		)
+	}
+}
+
+/// A trace as a closed outline: the two sides of the run, with a half turn
+/// round each end, the same shape the layout fills it with
+func stadium(from start: Pt, to end: Pt, width: Int, arc: Int = 3) -> [Pt] {
+	let radius = Double(width) / 2.0
+	let offset = end - start
+	guard offset.x != 0 || offset.y != 0 else {
+		return circle(at: start, diameter: width, arc: arc)
+	}
+	let heading = atan2(Double(offset.y), Double(offset.x))
+	let steps = max(2, arc * 2)
+
+	var loop: [Pt] = []
+	loop.reserveCapacity((steps + 1) * 2)
+	for (center, base) in [(end, heading - .pi / 2.0), (start, heading + .pi / 2.0)] {
+		for step in 0 ... steps {
+			let angle = base + Double(step) / Double(steps) * .pi
+			loop.append(Pt(
+				x: center.x + Int((cos(angle) * radius).rounded()),
+				y: center.y + Int((sin(angle) * radius).rounded())
+			))
+		}
+	}
+	return loop
 }

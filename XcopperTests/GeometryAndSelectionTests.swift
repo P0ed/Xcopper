@@ -13,9 +13,10 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testSchematicIsTheFirstAndDefaultEditorMode() {
-		XCTAssertEqual(Mode.allCases, [.schematic, .layout])
+		XCTAssertEqual(Mode.allCases, [.schematic, .layout, .preview])
 		XCTAssertEqual(Mode.schematic.shortcutCharacter, "1")
 		XCTAssertEqual(Mode.layout.shortcutCharacter, "2")
+		XCTAssertEqual(Mode.preview.shortcutCharacter, "3")
 		XCTAssertEqual(EditorState().mode, .schematic)
 	}
 

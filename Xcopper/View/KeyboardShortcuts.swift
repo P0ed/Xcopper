@@ -11,16 +11,23 @@ extension EditorView {
 				return .handled
 			}
 
-			@MainActor func nudge(dx: Int = 0, dy: Int = 0) {
+			// Arrows push the selection about on a flat canvas, and turn the
+			// board over on the 3D one, where there is nothing to select
+			@MainActor func step(dx: Int = 0, dy: Int = 0) {
+				guard editor.mode != .preview else {
+					return preview.camera.orbit(
+						by: CGSize(width: Double(dx) * 12.0, height: Double(dy) * 12.0)
+					)
+				}
 				guard operations.hasSelection else { return }
 				DispatchQueue.main.async { operations.nudge(dx: dx, dy: dy) }
 			}
 
 			switch keys.key.character {
-			case KeyEquivalent.leftArrow.character: nudge(dx: -1)
-			case KeyEquivalent.rightArrow.character: nudge(dx: 1)
-			case KeyEquivalent.upArrow.character: nudge(dy: -1)
-			case KeyEquivalent.downArrow.character: nudge(dy: 1)
+			case KeyEquivalent.leftArrow.character: step(dx: -1)
+			case KeyEquivalent.rightArrow.character: step(dx: 1)
+			case KeyEquivalent.upArrow.character: step(dy: -1)
+			case KeyEquivalent.downArrow.character: step(dy: 1)
 			case "g": cycleSnap(back: modifiers.contains(.shift))
 			case "\u{9}" where editor.mode == .layout: layout.nextLayer(design.board.stack)
 			case "\u{19}" where editor.mode == .layout: layout.prevLayer(design.board.stack)
@@ -39,6 +46,8 @@ extension EditorView {
 		case .schematic:
 			guard schematic.wireSession != nil || schematic.selectSession != nil else { return false }
 			schematic.cancelSessions()
+		case .preview:
+			return false
 		}
 		return true
 	}
@@ -47,6 +56,7 @@ extension EditorView {
 		switch editor.mode {
 		case .layout: cycle(&layout.snap, Nm.snapGrids, back: back)
 		case .schematic: cycle(&schematic.snap, Nm.sheetSnapGrids, back: back)
+		case .preview: break
 		}
 	}
 

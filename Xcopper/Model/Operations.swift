@@ -5,6 +5,7 @@ struct Operations {
 	@Binding var editor: EditorState
 	@Binding var layout: LayoutState
 	@Binding var schematic: SchematicState
+	@Binding var preview: PreviewState
 	@Binding var design: Design
 	@Binding var clipboard: Clipboard
 
@@ -30,7 +31,11 @@ struct Clipboard: Equatable, Codable {
 	}
 
 	func isEmpty(in mode: Mode) -> Bool {
-		mode == .layout ? layoutIsEmpty : schematicIsEmpty
+		switch mode {
+		case .layout: layoutIsEmpty
+		case .schematic: schematicIsEmpty
+		case .preview: true
+		}
 	}
 }
 
@@ -41,11 +46,19 @@ extension Operations {
 	var snap: Nm { mode == .layout ? layout.snap : schematic.snap }
 
 	var magnification: CGFloat {
-		mode == .layout ? layout.viewport.magnification : schematic.viewport.magnification
+		switch mode {
+		case .layout: layout.viewport.magnification
+		case .schematic: schematic.viewport.magnification
+		case .preview: preview.magnification
+		}
 	}
 
 	var hasSelection: Bool {
-		mode == .layout ? !layout.selection.isEmpty : !schematic.selection.isEmpty
+		switch mode {
+		case .layout: !layout.selection.isEmpty
+		case .schematic: !schematic.selection.isEmpty
+		case .preview: false
+		}
 	}
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
@@ -56,6 +69,7 @@ extension Operations {
 		switch mode {
 		case .layout: layout.viewport.setScale(scale)
 		case .schematic: schematic.viewport.setScale(scale)
+		case .preview: preview.magnification = scale
 		}
 	}
 
@@ -63,6 +77,7 @@ extension Operations {
 		switch mode {
 		case .layout: layout.viewport.fit(design.board.size)
 		case .schematic: schematic.viewport.fit(design.schematic.size)
+		case .preview: preview.frame(design.board)
 		}
 	}
 
@@ -74,6 +89,8 @@ extension Operations {
 		case .schematic:
 			design.schematic.remove(schematic.selection)
 			schematic.resetTransientInteractions()
+		case .preview:
+			break
 		}
 	}
 
@@ -81,6 +98,7 @@ extension Operations {
 		switch mode {
 		case .layout: design.board.rotate(layout.selection, clockwise: clockwise)
 		case .schematic: design.schematic.rotate(schematic.selection, clockwise: clockwise)
+		case .preview: break
 		}
 	}
 
@@ -88,6 +106,7 @@ extension Operations {
 		switch mode {
 		case .layout: design.board.flip(layout.selection)
 		case .schematic: design.schematic.mirror(schematic.selection)
+		case .preview: break
 		}
 	}
 
@@ -95,6 +114,7 @@ extension Operations {
 		switch mode {
 		case .layout: layout.selection = design.board.duplicate(layout.selection, by: offset)
 		case .schematic: schematic.selection = design.schematic.duplicate(schematic.selection, by: offset)
+		case .preview: break
 		}
 	}
 
@@ -102,6 +122,7 @@ extension Operations {
 		switch mode {
 		case .layout: layout.selection = design.board.refs(in: design.board.bounds, layer: layout.layer)
 		case .schematic: schematic.selection = design.schematic.refs(in: design.schematic.bounds)
+		case .preview: break
 		}
 	}
 
@@ -110,6 +131,7 @@ extension Operations {
 		switch mode {
 		case .layout: layout.selection = design.board.move(layout.selection, by: delta)
 		case .schematic: design.schematic.move(schematic.selection, by: delta)
+		case .preview: break
 		}
 	}
 
@@ -144,6 +166,8 @@ extension Operations {
 			next.symbols = refs.compactMap { if case let .symbol(i) = $0, sheet.symbols.indices.contains(i) { sheet.symbols[i] } else { nil } }
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
 			next.labels = refs.compactMap { if case let .label(i) = $0, sheet.labels.indices.contains(i) { sheet.labels[i] } else { nil } }
+		case .preview:
+			return
 		}
 		clipboard = next
 	}
@@ -153,6 +177,7 @@ extension Operations {
 		switch mode {
 		case .layout: pasteLayout()
 		case .schematic: pasteSchematic()
+		case .preview: break
 		}
 	}
 

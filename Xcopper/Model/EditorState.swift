@@ -1,11 +1,12 @@
 /// Which half of the document is on screen
 enum Mode: Hashable, CaseIterable {
-	case schematic, layout
+	case schematic, layout, preview
 
 	var name: String {
 		switch self {
 		case .layout: "Layout"
 		case .schematic: "Schematic"
+		case .preview: "3D"
 		}
 	}
 
@@ -13,6 +14,7 @@ enum Mode: Hashable, CaseIterable {
 		switch self {
 		case .layout: "square.stack.3d.up"
 		case .schematic: "point.topleft.down.to.point.bottomright.curvepath"
+		case .preview: "cube.transparent"
 		}
 	}
 
@@ -20,6 +22,7 @@ enum Mode: Hashable, CaseIterable {
 		switch self {
 		case .schematic: "1"
 		case .layout: "2"
+		case .preview: "3"
 		}
 	}
 }

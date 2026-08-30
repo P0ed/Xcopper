@@ -10,6 +10,7 @@ struct EditorView: View {
 	@State var editor: EditorState = .init()
 	@State var layout: LayoutState = .init()
 	@State var schematic: SchematicState = .init()
+	@State var preview: PreviewState = .init()
 
 	@FocusState private(set) var focused: Bool
 	@Environment(\.documentConfiguration) private var configuration
@@ -34,6 +35,7 @@ struct EditorView: View {
 			editor: $editor,
 			layout: $layout,
 			schematic: $schematic,
+			preview: $preview,
 			design: $design,
 			clipboard: $clipboard,
 			documentName: documentName
@@ -51,6 +53,8 @@ struct EditorView: View {
 			LayoutSideBar(design: $design, state: $layout, sheet: $editor.sheet, operations: operations)
 		case .schematic:
 			SchematicSideBar(design: $design, state: $schematic, editor: $editor, operations: operations)
+		case .preview:
+			PreviewSideBar(board: design.board, state: $preview)
 		}
 	}
 
@@ -59,6 +63,7 @@ struct EditorView: View {
 		switch editor.mode {
 		case .layout: LayoutView(design: $design, state: $layout)
 		case .schematic: SchematicView(design: $design, state: $schematic)
+		case .preview: PreviewView(board: design.board, state: $preview)
 		}
 	}
 
@@ -66,10 +71,13 @@ struct EditorView: View {
 	private var toolbar: some ToolbarContent {
 		ToolbarItemGroup { ModePicker(mode: $editor.mode) }
 		ToolbarItemGroup { Spacer() }
-		if editor.mode == .layout {
+		switch editor.mode {
+		case .layout:
 			LayoutToolBar(stack: design.board.stack, state: $layout, sheet: $editor.sheet)
-		} else {
+		case .schematic:
 			SchematicToolBar(state: $schematic, sheet: $editor.sheet, update: operations.updateBoard)
+		case .preview:
+			PreviewToolBar(board: design.board, state: $preview)
 		}
 	}
 

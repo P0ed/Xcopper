@@ -12,9 +12,10 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
 - Gerber and Excellon export of the whole manufacturing set
+- 3D preview of the finished board with the parts standing on it
 
-`⌘1` opens the schematic and `⌘2` opens the layout. Each side keeps its own
-zoom, scroll and selection.
+`⌘1` opens the schematic, `⌘2` the layout and `⌘3` the 3D preview. Each side
+keeps its own zoom, scroll and selection.
 
 ## Layout
 
@@ -108,6 +109,34 @@ Copper layers are indexed from the top. On a 4 or 6 layer board any internal
 layer can be turned into a plane by picking a net for it in the sidebar: the
 plane fills the board and clears around every pad, via, hole and trace that
 carries a different net.
+
+## 3D preview
+
+`⌘3` shows the board the way it comes back from the fab: laminate of the chosen
+thickness with its cut edge showing, solder mask over it, copper reading through
+the mask, pads left open and plated, holes drilled through and lined, and every
+part standing where the layout puts it. Nothing is approximated away: the copper
+drawn is the copper on the board, and no legend is drawn because the fabrication
+set carries none.
+
+| Key | View |
+| --- | --- |
+| `T` | Top |
+| `B` | Bottom |
+| `F` | Front |
+| `A` | Angled |
+
+Drag to turn the board over, `⇧`-drag to slide it, scroll or pinch to zoom, and
+arrow keys to step around it. `⌘9` frames the whole board and the usual `⌘-` and
+`⌘=` zoom. The sidebar picks the mask colour, the pad finish and the core
+thickness, and switches copper and parts on and off. It also lists what is
+stuffed, which side each part is on and how tall it stands.
+
+Only the outer copper layers are on show, since those are the only ones a
+finished board lets you see. Part heights come from the library for the parts it
+knows and are read off the land pattern for everything else — two lands and no
+holes is a chip, holes inside the outline are pins coming up through a moulding,
+holes outside it are a package sitting beside them.
 
 ## Fabrication
 
