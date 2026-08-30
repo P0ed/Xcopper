@@ -1,15 +1,68 @@
 {
   "images" : [
-    { "idiom" : "mac", "scale" : "1x", "size" : "16x16" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "16x16" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "32x32" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "32x32" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "128x128" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "128x128" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "256x256" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "256x256" },
-    { "idiom" : "mac", "scale" : "1x", "size" : "512x512" },
-    { "idiom" : "mac", "scale" : "2x", "size" : "512x512" }
+    {
+      "filename" : "PCB16.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "16x16"
+    },
+    {
+      "filename" : "PCB32.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "16x16"
+    },
+    {
+      "filename" : "PCB32 1.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "32x32"
+    },
+    {
+      "filename" : "PCB64.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "32x32"
+    },
+    {
+      "filename" : "PCB128.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "128x128"
+    },
+    {
+      "filename" : "PCB256.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "128x128"
+    },
+    {
+      "filename" : "PCB256 1.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "256x256"
+    },
+    {
+      "filename" : "PCB512.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "256x256"
+    },
+    {
+      "filename" : "PCB512 1.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "512x512"
+    },
+    {
+      "filename" : "PCB1024.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "size" : "512x512"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
 }
