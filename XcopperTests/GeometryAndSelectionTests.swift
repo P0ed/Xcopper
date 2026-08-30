@@ -117,7 +117,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.refs(in: rect, layer: 2), [.trace(2), .hole(0)])
 	}
 
-	func testClickingATraceSelectsTheWholeRunItIsPartOf() {
+	func testHoldingCommandSelectsTheWholeRunATraceIsPartOf() {
 		var board = board()
 		board.traces = [
 			Trace(start: Pt(x: .mm(5), y: .mm(10)), end: Pt(x: .mm(10), y: .mm(10)), width: .mm(0.3), layer: 0, net: nil),
@@ -126,11 +126,17 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: Pt(x: .mm(15), y: .mm(15)), end: Pt(x: .mm(25), y: .mm(15)), width: .mm(0.3), layer: 1, net: nil),
 		]
 		XCTAssertEqual(
-			board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0),
+			board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0, whole: true),
 			[.trace(0), .trace(1), .trace(2)]
 		)
-		XCTAssertEqual(board.refs(at: Pt(x: .mm(20), y: .mm(15)), layer: 1, tolerance: 0), [.trace(3)])
-		XCTAssertEqual(board.refs(at: Pt(x: .mm(40), y: .mm(30)), layer: 0, tolerance: 0), [])
+		XCTAssertEqual(
+			board.refs(at: Pt(x: .mm(20), y: .mm(15)), layer: 1, tolerance: 0, whole: true),
+			[.trace(3)]
+		)
+		XCTAssertEqual(
+			board.refs(at: Pt(x: .mm(40), y: .mm(30)), layer: 0, tolerance: 0, whole: true),
+			[]
+		)
 	}
 
 	func testARunStopsWhereCopperBranchesOrMeetsAPad() {
@@ -150,19 +156,20 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.run(of: 3), [3])
 	}
 
-	func testDrillingInPicksTheOneSegmentUnderThePointer() {
+	func testSelectionTakesTheOneSegmentUnderThePointerOrInsideTheBand() {
 		var board = board()
 		board.traces = [
 			trace(from: Pt(x: .mm(5), y: .mm(10)), to: Pt(x: .mm(10), y: .mm(10))),
 			trace(from: Pt(x: .mm(10), y: .mm(10)), to: Pt(x: .mm(15), y: .mm(15))),
 		]
-		XCTAssertEqual(
-			board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0, whole: false),
-			[.trace(0)]
-		)
+		XCTAssertEqual(board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0), [.trace(0)])
 
+		// The band takes a segment that fits inside it, run or no run
 		let partial = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(12), y: .mm(12)))
-		XCTAssertEqual(board.refs(in: partial, layer: 0, whole: false), [.trace(0)])
+		XCTAssertEqual(board.refs(in: partial, layer: 0), [.trace(0)])
+
+		let clipped = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(8), y: .mm(12)))
+		XCTAssertEqual(board.refs(in: clipped, layer: 0), [])
 	}
 
 	func testARubberBandTakesARunOnlyWhenItCoversAllOfIt() {
@@ -172,10 +179,30 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: Pt(x: .mm(10), y: .mm(5)), end: Pt(x: .mm(20), y: .mm(5)), width: .mm(0.3), layer: 0, net: nil),
 		]
 		let partial = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(12), y: .mm(10)))
-		XCTAssertEqual(board.refs(in: partial, layer: 0), [])
+		XCTAssertEqual(board.refs(in: partial, layer: 0, whole: true), [])
+		XCTAssertEqual(board.refs(in: partial, layer: 0), [.trace(0)])
 
 		let whole = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(25), y: .mm(10)))
-		XCTAssertEqual(board.refs(in: whole, layer: 0), [.trace(0), .trace(1)])
+		XCTAssertEqual(board.refs(in: whole, layer: 0, whole: true), [.trace(0), .trace(1)])
+	}
+
+	func testARouteIsConnectedWhereItLandsOnCopperAndNowhereElse() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(30), y: .mm(10))),
+		]
+		board.vias = [Via(at: Pt(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.traces = [trace(from: Pt(x: .mm(5), y: .mm(5)), to: Pt(x: .mm(10), y: .mm(5)))]
+
+		let pad = board.footprints[0].placedPads[0].at
+		XCTAssertTrue(board.isConnection(pad, layer: 0))
+		XCTAssertTrue(board.isConnection(Pt(x: .mm(20), y: .mm(20)), layer: 2))
+		XCTAssertTrue(board.isConnection(Pt(x: .mm(10), y: .mm(5)), layer: 0))
+
+		// Mid air, mid segment, and the same endpoint on another layer
+		XCTAssertFalse(board.isConnection(Pt(x: .mm(40), y: .mm(30)), layer: 0))
+		XCTAssertFalse(board.isConnection(Pt(x: .mm(7), y: .mm(5)), layer: 0))
+		XCTAssertFalse(board.isConnection(Pt(x: .mm(10), y: .mm(5)), layer: 1))
 	}
 
 	func testSelectionModesCombineHitsWithTheInitialSelection() {

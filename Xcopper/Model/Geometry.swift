@@ -215,19 +215,21 @@ extension Board {
 		return nil
 	}
 
-	/// Everything one click picks up. A trace comes with the rest of its run, so
-	/// a route selects, moves and deletes as the single object it was drawn as,
-	/// unless `whole` is off and the click drills in to the segment under it.
-	func refs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = true) -> Set<Ref> {
+	/// Everything one click picks up: the segment under the pointer, or, with
+	/// `whole` on, the rest of the run it was drawn as part of, so a route
+	/// selects, moves and deletes as the single object it was drawn as.
+	func refs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
 		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
 		guard whole, case let .trace(index) = hit else { return [hit] }
 		return Set(run(of: index).map(Ref.trace))
 	}
 
-	func refs(in rect: Rect, layer: Int, whole: Bool = true) -> Set<Ref> {
+	/// Everything a rubber band picks up. A segment comes along when the band
+	/// holds both its ends; with `whole` on a run is one object, so a band
+	/// covering part of one takes none of it.
+	func refs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
 		var result: Set<Ref> = []
 
-		// A run is one object, so a band covering part of one takes none of it
 		var covered: Set<Int> = []
 		for (index, trace) in traces.enumerated()
 		where trace.layer == layer && rect.contains(trace.start) && rect.contains(trace.end) {
@@ -317,6 +319,15 @@ extension Board {
 			}
 		}
 		return false
+	}
+
+	/// Where a route lands and is done: a pad, a via, or the end of copper
+	/// already drawn on the layer
+	func isConnection(_ point: Pt, layer: Int) -> Bool {
+		isTerminal(point, layer: layer)
+			|| traces.contains { trace in
+				trace.layer == layer && (trace.start == point || trace.end == point)
+			}
 	}
 
 	/// Pad, via or trace endpoint worth snapping a route to

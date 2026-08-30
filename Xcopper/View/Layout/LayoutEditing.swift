@@ -46,7 +46,11 @@ extension LayoutView {
 				case .trace:
 					state.updateTrace(to: routeEnd(current))
 					if let trace = state.endTrace() {
+						// A route that has reached a pad, a via or copper already
+						// drawn has nowhere left to chain to, so the tool steps aside
+						let landed = board.isConnection(trace.end, layer: trace.layer)
 						undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
+						if landed { state.tool = .select }
 					}
 				case .via:
 					undoGroup(Tool.via.actionName) { placeVia(at: current) }
@@ -79,8 +83,8 @@ private extension LayoutView {
 		)
 	}
 
-	/// Whether the pointer drills past the run grouping to the single segment
-	var picksSegment: Bool { modifierFlags.contains(.command) }
+	/// Whether the pointer takes the whole run rather than the one segment on it
+	var picksRun: Bool { modifierFlags.contains(.command) }
 
 	func undoGroup(_ name: String, _ body: () -> Void = {}) {
 		undoManager?.beginUndoGrouping()
@@ -114,7 +118,7 @@ private extension LayoutView {
 		if state.moveSession != nil {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
-		if state.selectSession == nil, !picksSegment {
+		if state.selectSession == nil, !picksRun {
 			let hit = board.hitTest(at: start, layer: state.layer, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
 				state.beginMove(at: start.snapped(to: state.snap))
@@ -136,7 +140,7 @@ private extension LayoutView {
 		guard let session = state.selectSession else { return }
 		state.updateSelect(to: current)
 
-		let whole = !picksSegment
+		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
 			? board.refs(in: session.rect, layer: state.layer, whole: whole)
 			: board.refs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)

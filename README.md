@@ -33,13 +33,14 @@ counterclockwise.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
-`⎋` to cancel.
+`⎋` to cancel. Landing on a pad, a via or copper already drawn ends the route
+there and hands the tool back to Select.
 
-Clicking one segment of a route picks up the whole run — the chain of segments
-joined end to end on one layer, up to wherever the copper branches or lands on a
-pad or via. A run selects, moves and deletes as one object, and a rubber band
-that covers only part of one takes none of it. Hold `⌘` to drill in and take the
-single segment under the pointer instead, band included.
+Clicking picks up the one segment under the pointer, and a rubber band takes
+every segment that fits inside it whole. Hold `⌘` to take the run instead — the
+chain of segments joined end to end on one layer, up to wherever the copper
+branches or lands on a pad or via. A run selects, moves and deletes as one
+object, and a `⌘` band that covers only part of one takes none of it.
 
 Moving copper takes the copper it is soldered to with it: every trace end
 sitting on a pad of a moving footprint, and every joint at the end of a moving
