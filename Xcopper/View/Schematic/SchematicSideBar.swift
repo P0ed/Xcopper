@@ -14,7 +14,8 @@ struct SchematicSideBar: View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Sheet") {
-					GridPicker(title: "Grid", value: $state.grid, options: Nm.sheetGrids)
+					GridPicker(title: "Snap", value: $state.snap, options: Nm.sheetSnapGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
 				}
 
 				Panel(title: "Place") {

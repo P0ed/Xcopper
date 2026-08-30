@@ -39,7 +39,7 @@ extension Tool {
 
 extension Nm {
 
-	static var grids: [Nm] {
+	static var snapGrids: [Nm] {
 		[.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)]
 	}
 
@@ -47,8 +47,12 @@ extension Nm {
 		[.mm(0.33), .mm(0.47), .mm(0.68), .mm(1.0), .mm(1.5), .mm(2.2)]
 	}
 
-	static var sheetGrids: [Nm] {
+	static var sheetSnapGrids: [Nm] {
 		[.mil(50), .mil(100)]
+	}
+
+	static var displayGrids: [Nm] {
+		[.mm(1.27), .mm(2.54)]
 	}
 
 	var coordinate: String { String(format: "%.2f", mm) }
@@ -70,7 +74,8 @@ struct LayoutState: Equatable {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var grid: Nm = .mil(10)
+	var snap: Nm = .mil(10)
+	var grid: Nm = .mm(1.27)
 	var traceWidth: Nm = .mm(0.25)
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []

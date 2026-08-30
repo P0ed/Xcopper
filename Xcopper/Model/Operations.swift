@@ -35,7 +35,7 @@ extension Operations {
 
 	var mode: Mode { editor.mode }
 
-	var grid: Nm { mode == .layout ? layout.grid : schematic.grid }
+	var snap: Nm { mode == .layout ? layout.snap : schematic.snap }
 
 	var magnification: CGFloat {
 		mode == .layout ? layout.viewport.magnification : schematic.viewport.magnification
@@ -47,7 +47,7 @@ extension Operations {
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
 
-	private var offset: Pt { Pt(x: Int(grid) * 4, y: Int(grid) * 4) }
+	private var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
 
 	func setScale(_ scale: CGFloat) {
 		switch mode {
@@ -103,7 +103,7 @@ extension Operations {
 	}
 
 	func nudge(dx: Int = 0, dy: Int = 0) {
-		let delta = Pt(x: dx * Int(grid), y: dy * Int(grid))
+		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
 		case .layout: design.board.move(layout.selection, by: delta)
 		case .schematic: design.schematic.move(schematic.selection, by: delta)

@@ -21,7 +21,7 @@ extension EditorView {
 			case KeyEquivalent.rightArrow.character: nudge(dx: 1)
 			case KeyEquivalent.upArrow.character: nudge(dy: -1)
 			case KeyEquivalent.downArrow.character: nudge(dy: 1)
-			case "g": cycleGrid(back: modifiers.contains(.shift))
+			case "g": cycleSnap(back: modifiers.contains(.shift))
 			case "\u{9}" where editor.mode == .layout: layout.nextLayer(design.board.stack)
 			case "\u{19}" where editor.mode == .layout: layout.prevLayer(design.board.stack)
 			case "w" where editor.mode == .layout:
@@ -45,10 +45,10 @@ extension EditorView {
 		return true
 	}
 
-	private func cycleGrid(back: Bool) {
+	private func cycleSnap(back: Bool) {
 		switch editor.mode {
-		case .layout: cycle(&layout.grid, Nm.grids, back: back)
-		case .schematic: cycle(&schematic.grid, Nm.sheetGrids, back: back)
+		case .layout: cycle(&layout.snap, Nm.snapGrids, back: back)
+		case .schematic: cycle(&schematic.snap, Nm.sheetSnapGrids, back: back)
 		}
 	}
 

@@ -7,7 +7,7 @@ extension LayoutView {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
-	var snapRadius: Int { max(Int(state.grid), Int(Nm.mm(0.4))) }
+	var snapRadius: Int { max(Int(state.snap), Int(Nm.mm(0.4))) }
 
 	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
@@ -17,7 +17,7 @@ extension LayoutView {
 			let target = board.snapTarget(near: point, layer: layer, radius: snapRadius) {
 			return target
 		}
-		return (point.snapped(to: state.grid), nil)
+		return (point.snapped(to: state.snap), nil)
 	}
 
 	var editingController: some Gesture {
@@ -101,21 +101,21 @@ private extension LayoutView {
 			let (target, _) = board.snapTarget(near: point, layer: session.layer, radius: snapRadius) {
 			return target
 		}
-		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.grid) }
+		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
 
 		let projected = snapped45(from: session.start, to: point)
-		return session.start + (projected - session.start).snapped(to: state.grid)
+		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
 	func dragSelection(from start: Pt, to current: Pt) {
 		if state.moveSession != nil {
-			return state.updateMove(to: current.snapped(to: state.grid))
+			return state.updateMove(to: current.snapped(to: state.snap))
 		}
 		if state.selectSession == nil {
 			let hit = board.hitTest(at: start, layer: state.layer, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
-				state.beginMove(at: start.snapped(to: state.grid))
-				return state.updateMove(to: current.snapped(to: state.grid))
+				state.beginMove(at: start.snapped(to: state.snap))
+				return state.updateMove(to: current.snapped(to: state.snap))
 			}
 		}
 		state.beginSelect(at: start, mode: selectionMode)
@@ -155,7 +155,7 @@ private extension LayoutView {
 
 	func placeHole(at point: Pt) {
 		board.holes.append(Hole(
-			at: point.snapped(to: state.grid),
+			at: point.snapped(to: state.snap),
 			diameter: .mm(3.2)
 		))
 	}
@@ -164,7 +164,7 @@ private extension LayoutView {
 		let footprint = Footprint(
 			spec: state.spec,
 			reference: board.nextReference(like: state.spec.referencePrefix),
-			at: point.snapped(to: state.grid)
+			at: point.snapped(to: state.snap)
 		)
 		board.footprints.append(footprint)
 		state.selection = [.footprint(board.footprints.count - 1)]

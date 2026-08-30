@@ -54,7 +54,8 @@ struct LayoutSideBar: View {
 
 				Panel(title: "Route") {
 					GridPicker(title: "Width", value: $state.traceWidth, options: Nm.widths)
-					GridPicker(title: "Grid", value: $state.grid, options: Nm.grids)
+					GridPicker(title: "Snap", value: $state.snap, options: Nm.snapGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
 				}
 
 				Panel(title: "Place") {

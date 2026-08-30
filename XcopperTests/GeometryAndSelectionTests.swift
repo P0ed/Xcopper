@@ -41,10 +41,15 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(Pt(x: 7, y: 7).snapped(to: 0), Pt(x: 7, y: 7))
 	}
 
-	func testGridPresetsUseExactImperialPitches() {
-		XCTAssertEqual(Nm.grids, [.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)])
-		XCTAssertEqual(Nm.grids.map(\.label), ["0.127", "0.254", "0.635", "1.27", "2.54"])
-		XCTAssertEqual(LayoutState().grid, .mil(10))
+	func testSnapAndDisplayGridPresetsAreIndependent() {
+		XCTAssertEqual(Nm.snapGrids, [.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)])
+		XCTAssertEqual(Nm.snapGrids.map(\.label), ["0.127", "0.254", "0.635", "1.27", "2.54"])
+		XCTAssertEqual(Nm.sheetSnapGrids, [.mil(50), .mil(100)])
+		XCTAssertEqual(Nm.displayGrids, [.mm(1.27), .mm(2.54)])
+		XCTAssertEqual(LayoutState().snap, .mil(10))
+		XCTAssertEqual(LayoutState().grid, .mm(1.27))
+		XCTAssertEqual(SchematicState().snap, .mm(1.27))
+		XCTAssertEqual(SchematicState().grid, .mm(1.27))
 	}
 
 	func testInchConversionPreservesBoardDimensions() {

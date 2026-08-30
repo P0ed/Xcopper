@@ -30,6 +30,7 @@ struct SchematicView: View {
 			Text(state.tool.actionName)
 				.foregroundStyle(Palette.wire)
 			Coordinates(cursor: state.viewport.cursor)
+			Text("snap \(state.snap.label)")
 			Text("grid \(state.grid.label)")
 			if state.tool == .label {
 				Text("label \(state.label)")

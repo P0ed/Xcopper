@@ -39,6 +39,7 @@ struct SchematicState: Equatable {
 			cancelSessions()
 		}
 	}
+	var snap: Nm = .mm(1.27)
 	var grid: Nm = .mm(1.27)
 	var spec: Symbol.Spec = .default
 	var label: String = "NET"

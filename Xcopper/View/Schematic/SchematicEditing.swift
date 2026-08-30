@@ -7,7 +7,7 @@ extension SchematicView {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
-	var snapRadius: Int { max(Int(state.grid), Int(Nm.mm(0.8))) }
+	var snapRadius: Int { max(Int(state.snap), Int(Nm.mm(0.8))) }
 
 	var hitTolerance: Int { Int(Nm.mm(1.2) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
@@ -17,7 +17,7 @@ extension SchematicView {
 			let target = schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
-		return point.snapped(to: state.grid)
+		return point.snapped(to: state.snap)
 	}
 
 	var editingController: some Gesture {
@@ -92,21 +92,21 @@ private extension SchematicView {
 			let target = schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
-		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.grid) }
+		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
 
 		let projected = snapped90(from: session.start, to: point)
-		return session.start + (projected - session.start).snapped(to: state.grid)
+		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
 	func dragSelection(from start: Pt, to current: Pt) {
 		if state.moveSession != nil {
-			return state.updateMove(to: current.snapped(to: state.grid))
+			return state.updateMove(to: current.snapped(to: state.snap))
 		}
 		if state.selectSession == nil {
 			let hit = schematic.hitTest(at: start, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
-				state.beginMove(at: start.snapped(to: state.grid))
-				return state.updateMove(to: current.snapped(to: state.grid))
+				state.beginMove(at: start.snapped(to: state.snap))
+				return state.updateMove(to: current.snapped(to: state.snap))
 			}
 		}
 		state.beginSelect(at: start, mode: selectionMode)
@@ -143,7 +143,7 @@ private extension SchematicView {
 		let symbol = Symbol(
 			spec: state.spec,
 			reference: schematic.nextReference(like: state.spec.referencePrefix),
-			at: point.snapped(to: state.grid)
+			at: point.snapped(to: state.snap)
 		)
 		schematic.symbols.append(symbol)
 		state.selection = [.symbol(schematic.symbols.count - 1)]

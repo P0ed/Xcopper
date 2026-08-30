@@ -30,6 +30,7 @@ struct LayoutView: View {
 			Text(board.stack.name(of: state.layer))
 				.foregroundStyle(Palette.color(of: state.layer, in: board.stack))
 			Coordinates(cursor: state.viewport.cursor)
+			Text("snap \(state.snap.label)")
 			Text("grid \(state.grid.label)")
 			if state.tool == .trace {
 				Text("width \(state.traceWidth.label)")
