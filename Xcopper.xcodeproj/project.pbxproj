@@ -17,6 +17,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4C0863F83044A548009E9059 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		5FF2A3B02E8F136C00EA7883 /* Xcopper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Xcopper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000004 /* XcopperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XcopperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -71,6 +72,7 @@
 				4CDEAEC2301783BB00FE51C4 /* Xcopper */,
 				4CDEAEE0301783EF00FE51C4 /* XcopperTests */,
 				5FF2A3B12E8F136C00EA7883 /* Products */,
+				4C0863F83044A548009E9059 /* README.md */,
 			);
 			sourceTree = "<group>";
 		};
