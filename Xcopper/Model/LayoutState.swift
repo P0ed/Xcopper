@@ -44,12 +44,11 @@ extension Nm {
 	}
 
 	static var widths: [Nm] {
-		[.mm(0.15), .mm(0.2), .mm(0.25), .mm(0.35), .mm(0.5), .mm(0.8), .mm(1.2), .mm(2.0)]
+		[.mm(0.33), .mm(0.47), .mm(0.68), .mm(1.0), .mm(1.5), .mm(2.2)]
 	}
 
-	/// Schematics are drawn on imperial pitches, not the board's metric ones
 	static var sheetGrids: [Nm] {
-		[.mil(25), .mil(50), .mil(100)]
+		[.mil(50), .mil(100)]
 	}
 
 	var coordinate: String { String(format: "%.2f", mm) }

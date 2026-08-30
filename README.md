@@ -4,13 +4,13 @@ Minimal schematic capture and PCB layout for macOS, both halves in one document.
 Draw the schematic, let it derive the netlist, push that onto the board, then
 route the copper it asks for. One rectangular board and one sheet per document.
 
-- Schematic capture with parametric symbols and net labels
+- Schematic capture with parametric symbols, a built-in component library and net labels
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
 - 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
-- Built-in parametric footprints: chip, SOIC, SOT-23, DIP, headers
+- Built-in parametric footprints plus manufacturer-specific library footprints
 
 `⌘1` and `⌘2` switch between layout and schematic. Each side keeps its own zoom,
 scroll and selection.
@@ -47,6 +47,11 @@ does, with the same `⇧`, `⌃` and `⎋` modifiers.
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
 box with any pin count, and power and ground flags. A flag's value **is** a net
 name — dropping a `GND` flag on a wire names that net, no label needed.
+
+The part picker also contains manufacturer-specific symbols with named pins and
+matching footprints. Package variants use SOIC where the manufacturer offers it.
+Pomona 1581 includes a custom plated panel-hole footprint with an auxiliary wire
+hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Nets
 

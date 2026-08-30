@@ -50,14 +50,28 @@ extension Footprint {
 		var chip: Chip = .c1206
 		var pins: Int = 8
 		var rows: Int = 1
+		var component: Component?
 
 		static var `default`: Spec { Spec() }
+
+		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
 	}
 }
 
 extension Footprint {
 
 	init(spec: Footprint.Spec, reference: String, at: Pt) {
+		if let component = spec.component {
+			guard let built = component.makeFootprint() else {
+				preconditionFailure("\(component.name) has no PCB footprint")
+			}
+			self = modifying(built) { footprint in
+				footprint.reference = reference
+				footprint.at = at
+			}
+			return
+		}
+
 		let built = switch spec.kind {
 		case .chip: Footprint.chip(spec.chip)
 		case .soic: Footprint.soic(pins: max(2, spec.pins & ~1))
@@ -189,6 +203,140 @@ extension Footprint {
 		return make(
 			pads: pads,
 			body: Size(width: rows * pitch, height: pins * pitch)
+		)
+	}
+
+	/// Sound Semiconductor PSSL10: 3.9 mm body, 1.00 mm lead pitch.
+	static func ssop10() -> Footprint {
+		let pitch = Int.mm(1.0)
+		let span = Int.mm(5.2)
+		let size = Size(width: .mm(1.55), height: .mm(0.55))
+		let first = -2 * pitch
+		let pads = (0 ..< 5).flatMap { index in
+			[
+				smd(index + 1, -span / 2, first + index * pitch, size),
+				smd(10 - index, span / 2, first + index * pitch, size),
+			]
+		}
+		return make(
+			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
+			body: Size(width: .mm(3.9), height: .mm(4.9))
+		)
+	}
+
+	static func sip(pins: Int) -> Footprint {
+		let pitch = Int.mm(2.54)
+		let first = -(pins - 1) * pitch / 2
+		return make(
+			pads: (0 ..< pins).map { index in
+				through(index + 1, 0, first + index * pitch, drill: .mm(0.9), pad: .mm(1.7))
+			},
+			body: Size(width: .mm(2.8), height: max(.mm(5.8), (pins - 1) * pitch + .mm(1.7)))
+		)
+	}
+
+	static func mta156(pins: Int) -> Footprint {
+		let pitch = Int.mm(3.96)
+		let first = -(pins - 1) * pitch / 2
+		return make(
+			pads: (0 ..< pins).map { index in
+				through(index + 1, 0, first + index * pitch, drill: .mm(1.8), pad: .mm(2.8))
+			},
+			body: Size(width: .mm(9.0), height: pins * pitch)
+		)
+	}
+
+	static func led5mm() -> Footprint {
+		make(
+			pads: [
+				through(1, 0, -.mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
+				through(2, 0, .mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
+			],
+			body: Size(width: .mm(5.8), height: .mm(5.8))
+		)
+	}
+
+	static func sod123() -> Footprint {
+		make(
+			pads: [
+				smd(1, -.mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
+				smd(2, .mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
+			],
+			body: Size(width: .mm(2.7), height: .mm(1.6))
+		)
+	}
+
+	/// Nexperia SOT457 / SC-74 / TSOP6 land pattern.
+	static func sot457() -> Footprint {
+		let size = Size(width: .mm(0.9), height: .mm(0.55))
+		let span = Int.mm(2.6)
+		let pitch = Int.mm(0.95)
+		return make(
+			pads: [
+				smd(1, -span / 2, -pitch, size),
+				smd(2, -span / 2, 0, size),
+				smd(3, -span / 2, pitch, size),
+				smd(4, span / 2, pitch, size),
+				smd(5, span / 2, 0, size),
+				smd(6, span / 2, -pitch, size),
+			],
+			body: Size(width: .mm(1.7), height: .mm(3.0))
+		)
+	}
+
+	static func bourns51() -> Footprint {
+		let pitch = Int.mm(2.54)
+		return make(
+			pads: (0 ..< 3).map { index in
+				through(
+					index + 1,
+					(index - 1) * pitch,
+					-.mm(7.5),
+					drill: .mm(0.9),
+					pad: .mm(1.8)
+				)
+			},
+			body: Size(width: .mm(12.5), height: .mm(12.5))
+		)
+	}
+
+	/// Pomona 1581 panel jack adapted for PCB mounting. The auxiliary pad
+	/// overlaps the 10 mm annulus and shares its pin number, making one
+	/// continuous copper connection with a 1 mm wire hole.
+	static func pomona1581() -> Footprint {
+		make(
+			pads: [
+				Pad(
+					at: .zero,
+					size: Size(width: .mm(10.0), height: .mm(10.0)),
+					shape: .oval,
+					drill: .mm(6.35),
+					layer: 0,
+					name: "1",
+					net: nil
+				),
+				Pad(
+					at: Pt(x: .mm(5.0), y: 0),
+					size: Size(width: .mm(2.0), height: .mm(2.0)),
+					shape: .oval,
+					drill: .mm(1.0),
+					layer: 0,
+					name: "1",
+					net: nil
+				),
+			],
+			body: Size(width: .mm(12.0), height: .mm(10.0))
+		)
+	}
+
+	/// NKK MN12SS1G03 / MN15SS1G03 straight-PC terminal pattern.
+	static func nkkMNPC() -> Footprint {
+		let pitch = Int.mm(4.7)
+		return make(
+			pads: (0 ..< 3).map { index in
+				through(index + 1, 0, (index - 1) * pitch, drill: .mm(1.6), pad: .mm(2.8))
+			},
+			body: Size(width: .mm(4.8), height: .mm(13.0))
 		)
 	}
 }

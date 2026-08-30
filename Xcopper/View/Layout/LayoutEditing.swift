@@ -163,7 +163,7 @@ private extension LayoutView {
 	func placeFootprint(at point: Pt) {
 		let footprint = Footprint(
 			spec: state.spec,
-			reference: board.nextReference(like: state.spec.kind.prefix),
+			reference: board.nextReference(like: state.spec.referencePrefix),
 			at: point.snapped(to: state.grid)
 		)
 		board.footprints.append(footprint)

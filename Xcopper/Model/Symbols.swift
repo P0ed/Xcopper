@@ -50,14 +50,26 @@ extension Symbol {
 		var kind: Kind = .resistor
 		var pins: Int = 8
 		var value: String = ""
+		var component: Component?
 
 		static var `default`: Spec { Spec() }
+
+		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
 	}
 }
 
 extension Symbol {
 
 	init(spec: Spec, reference: String, at: Pt) {
+		if let component = spec.component {
+			self = modifying(component.makeSymbol()) { symbol in
+				symbol.reference = reference
+				symbol.at = at
+				symbol.value = spec.value.isEmpty ? component.name : spec.value
+			}
+			return
+		}
+
 		let built = switch spec.kind {
 		case .resistor: Symbol.resistor()
 		case .capacitor: Symbol.capacitor()
@@ -204,7 +216,12 @@ extension Symbol {
 	}
 
 	static func ic(pins count: Int) -> Symbol {
+		ic(pinNames: (1 ... count).map { "\($0)" })
+	}
+
+	static func ic(pinNames: [String]) -> Symbol {
 		let pitch = Int.mm(2.54)
+		let count = pinNames.count
 		let perSide = (count + 1) / 2
 		let width = Int.mm(12.7)
 		let height = (perSide + 1) * pitch
@@ -212,11 +229,11 @@ extension Symbol {
 		var pins: [Pin] = []
 
 		for index in 0 ..< perSide {
-			pins.append(pin(index + 1, "\(index + 1)", -width / 2 - pitch, first + index * pitch, .r180))
+			pins.append(pin(index + 1, pinNames[index], -width / 2 - pitch, first + index * pitch, .r180))
 		}
 		for index in perSide ..< count {
 			let row = count - 1 - index
-			pins.append(pin(index + 1, "\(index + 1)", width / 2 + pitch, first + row * pitch, .r0))
+			pins.append(pin(index + 1, pinNames[index], width / 2 + pitch, first + row * pitch, .r0))
 		}
 		return make(
 			.ic,

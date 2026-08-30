@@ -69,6 +69,21 @@ extension Board {
 
 		var merge = Merge(count: terminals.count + traces.count)
 
+		// Compound pads may use several overlapping copper primitives with the
+		// same pin number (for example, a large mounting annulus plus a small
+		// wire hole). Treat those primitives as one copper island.
+		for index in terminals.indices {
+			for other in terminals.indices where other > index {
+				let terminal = terminals[index]
+				let peer = terminals[other]
+				guard terminal.net == peer.net,
+					terminal.layers.overlaps(peer.layers),
+					terminal.figure.contains(peer.at) || peer.figure.contains(terminal.at)
+				else { continue }
+				merge.union(index, other)
+			}
+		}
+
 		// Routing snaps to pad centres, via centres and trace ends, so joining
 		// on endpoints alone reproduces the copper faithfully.
 		for (index, trace) in traces.enumerated() {

@@ -13,6 +13,15 @@ struct FootprintDialog: View {
 		Binding(get: { current }, set: { draft = $0 })
 	}
 
+	private var component: Binding<Component?> {
+		Binding(
+			get: { current.component },
+			set: { component in
+				draft = modifying(current) { $0.component = component }
+			}
+		)
+	}
+
 	var body: some View {
 		Dialog(
 			action: "Place",
@@ -22,32 +31,47 @@ struct FootprintDialog: View {
 			}
 		) {
 			VStack(alignment: .leading, spacing: 10.0) {
-				Picker("Kind", selection: binding.kind) {
-					ForEach(Footprint.Kind.allCases) { kind in
-						Text(kind.name).tag(kind)
+				Picker("Part", selection: component) {
+					Text("Generic").tag(Component?.none)
+					Divider()
+					ForEach(Component.layoutCases) { component in
+						Text(component.name).tag(Component?.some(component))
 					}
 				}
-				if current.kind.hasChip {
-					Picker("Size", selection: binding.chip) {
-						ForEach(Footprint.Chip.allCases) { chip in
-							Text(chip.name).tag(chip)
+				if let component = current.component {
+					HStack {
+						Text("Package")
+							.foregroundStyle(.secondary)
+						Text(component.packageName)
+					}
+				} else {
+					Picker("Kind", selection: binding.kind) {
+						ForEach(Footprint.Kind.allCases) { kind in
+							Text(kind.name).tag(kind)
 						}
 					}
-				}
-				if current.kind.hasPins {
-					Stepper(
-						"Pins: \(current.pins)",
-						value: binding.pins,
-						in: pinRange,
-						step: pinStep
-					)
-				}
-				if current.kind.hasRows {
-					Picker("Rows", selection: binding.rows) {
-						Text("1").tag(1)
-						Text("2").tag(2)
+					if current.kind.hasChip {
+						Picker("Size", selection: binding.chip) {
+							ForEach(Footprint.Chip.allCases) { chip in
+								Text(chip.name).tag(chip)
+							}
+						}
 					}
-					.pickerStyle(.segmented)
+					if current.kind.hasPins {
+						Stepper(
+							"Pins: \(current.pins)",
+							value: binding.pins,
+							in: pinRange,
+							step: pinStep
+						)
+					}
+					if current.kind.hasRows {
+						Picker("Rows", selection: binding.rows) {
+							Text("1").tag(1)
+							Text("2").tag(2)
+						}
+						.pickerStyle(.segmented)
+					}
 				}
 			}
 			.frame(width: 240.0)

@@ -44,13 +44,13 @@ extension Design {
 				wired.insert(symbol.reference)
 
 				guard let footprint = placed[symbol.reference] else { continue }
-				guard let pad = board.footprints[footprint].pads
-					.firstIndex(where: { $0.name == number })
-				else {
+				let pads = board.footprints[footprint].pads.indices
+					.filter { board.footprints[footprint].pads[$0].name == number }
+				guard !pads.isEmpty else {
 					report.missingPins.append("\(symbol.reference).\(number)")
 					continue
 				}
-				board.footprints[footprint].pads[pad].net = id
+				for pad in pads { board.footprints[footprint].pads[pad].net = id }
 				report.assigned += 1
 			}
 		}

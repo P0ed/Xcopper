@@ -13,6 +13,22 @@ struct SymbolDialog: View {
 		Binding(get: { current }, set: { draft = $0 })
 	}
 
+	private var component: Binding<Component?> {
+		Binding(
+			get: { current.component },
+			set: { component in
+				draft = modifying(current) { spec in
+					spec.component = component
+					if let component {
+						spec.kind = component.symbolKind
+						spec.pins = component.pinNames.count
+						spec.value = component.name
+					}
+				}
+			}
+		)
+	}
+
 	/// Changing kind carries the value over only when it still means something
 	private var kind: Binding<Symbol.Kind> {
 		Binding(
@@ -35,13 +51,28 @@ struct SymbolDialog: View {
 			}
 		) {
 			VStack(alignment: .leading, spacing: 10.0) {
-				Picker("Kind", selection: kind) {
-					ForEach(Symbol.Kind.allCases) { kind in
-						Text(kind.name).tag(kind)
+				Picker("Part", selection: component) {
+					Text("Generic").tag(Component?.none)
+					Divider()
+					ForEach(Component.allCases) { component in
+						Text(component.name).tag(Component?.some(component))
 					}
 				}
-				if current.kind.hasPins {
-					Stepper("Pins: \(current.pins)", value: binding.pins, in: 2 ... 64)
+				if let component = current.component {
+					HStack {
+						Text("Package")
+							.foregroundStyle(.secondary)
+						Text(component.packageName)
+					}
+				} else {
+					Picker("Kind", selection: kind) {
+						ForEach(Symbol.Kind.allCases) { kind in
+							Text(kind.name).tag(kind)
+						}
+					}
+					if current.kind.hasPins {
+						Stepper("Pins: \(current.pins)", value: binding.pins, in: 2 ... 64)
+					}
 				}
 				HStack {
 					Text(current.kind.isPower ? "Net" : "Value")
