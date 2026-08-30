@@ -8,6 +8,13 @@ final class GeometryAndSelectionTests: XCTestCase {
 		Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack)
 	}
 
+	func testSchematicIsTheFirstAndDefaultEditorMode() {
+		XCTAssertEqual(Mode.allCases, [.schematic, .layout])
+		XCTAssertEqual(Mode.schematic.shortcutCharacter, "1")
+		XCTAssertEqual(Mode.layout.shortcutCharacter, "2")
+		XCTAssertEqual(EditorState().mode, .schematic)
+	}
+
 	func testNewDesignDefaultsToFourBySixInchesAndSixLayers() {
 		let design = Design()
 		XCTAssertEqual(design.board.size, Size(width: .inches(4), height: .inches(6)))

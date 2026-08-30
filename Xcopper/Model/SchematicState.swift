@@ -27,7 +27,7 @@ extension SchematicTool {
 		case .select: "S"
 		case .wire: "W"
 		case .label: "L"
-		case .symbol: "P"
+		case .symbol: "F"
 		}
 	}
 }

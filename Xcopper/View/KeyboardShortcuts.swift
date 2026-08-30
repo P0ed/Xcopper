@@ -24,8 +24,6 @@ extension EditorView {
 			case "g": cycleSnap(back: modifiers.contains(.shift))
 			case "\u{9}" where editor.mode == .layout: layout.nextLayer(design.board.stack)
 			case "\u{19}" where editor.mode == .layout: layout.prevLayer(design.board.stack)
-			case "w" where editor.mode == .layout:
-				cycle(&layout.traceWidth, Nm.widths, back: modifiers.contains(.shift))
 			default: return .ignored
 			}
 			return .handled

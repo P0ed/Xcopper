@@ -12,23 +12,23 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
 
-`⌘1` and `⌘2` switch between layout and schematic. Each side keeps its own zoom,
-scroll and selection.
+`⌘1` opens the schematic and `⌘2` opens the layout. Each side keeps its own
+zoom, scroll and selection.
 
 ## Layout
 
 | Key | Tool |
 | --- | --- |
 | `S` | Select |
-| `T` | Route |
+| `W` | Route |
 | `V` | Via |
 | `H` | Hole |
 | `F` | Place footprint |
 
-`1`…`6` pick the active copper layer. `⇥` / `⇧⇥` step through layers, `G` and
-`W` cycle snap spacing and trace width. Grid dots have their own 1.27 mm and
-2.54 mm display spacing setting. `R` rotates a selection clockwise and `⇧R`
-rotates it counterclockwise.
+`1`…`6` pick the active copper layer. `⇥` / `⇧⇥` step through layers and `G`
+cycles snap spacing. Grid dots have their own 1.27 mm and 2.54 mm display
+spacing setting. `R` rotates a selection clockwise and `⇧R` rotates it
+counterclockwise.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
@@ -41,7 +41,7 @@ click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 | `S` | Select |
 | `W` | Wire |
 | `L` | Label |
-| `P` | Place symbol |
+| `F` | Place symbol |
 
 `G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
 `R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires

@@ -29,7 +29,7 @@ extension Tool {
 	var shortcutCharacter: Character {
 		switch self {
 		case .select: "S"
-		case .trace: "T"
+		case .trace: "W"
 		case .via: "V"
 		case .hole: "H"
 		case .footprint: "F"

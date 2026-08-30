@@ -1,6 +1,6 @@
 /// Which half of the document is on screen
 enum Mode: Hashable, CaseIterable {
-	case layout, schematic
+	case schematic, layout
 
 	var name: String {
 		switch self {
@@ -18,8 +18,8 @@ enum Mode: Hashable, CaseIterable {
 
 	var shortcutCharacter: Character {
 		switch self {
-		case .layout: "1"
-		case .schematic: "2"
+		case .schematic: "1"
+		case .layout: "2"
 		}
 	}
 }
@@ -39,7 +39,7 @@ protocol ToolKind: Hashable, CaseIterable {
 
 /// State the shell owns, shared by both modes
 struct EditorState: Equatable {
-	var mode: Mode = .layout
+	var mode: Mode = .schematic
 	var sheet: Sheet?
 	var report: Design.Report?
 }

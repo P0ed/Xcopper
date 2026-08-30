@@ -4,6 +4,13 @@ import XCTest
 
 final class SchematicTests: XCTestCase {
 
+	func testContextualToolShortcutsMatchAcrossEditors() {
+		XCTAssertEqual(SchematicTool.symbol.shortcutCharacter, "F")
+		XCTAssertEqual(Tool.footprint.shortcutCharacter, "F")
+		XCTAssertEqual(SchematicTool.wire.shortcutCharacter, "W")
+		XCTAssertEqual(Tool.trace.shortcutCharacter, "W")
+	}
+
 	private func wire(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Wire {
 		Wire(start: Pt(x: .mm(ax), y: .mm(ay)), end: Pt(x: .mm(bx), y: .mm(by)))
 	}
