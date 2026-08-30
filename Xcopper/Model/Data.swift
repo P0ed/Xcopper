@@ -142,6 +142,16 @@ struct Rect: Hashable, Codable {
 		Rect(origin: origin + delta, size: size)
 	}
 
+	/// Clockwise from the top left corner
+	var corners: [Pt] {
+		[
+			Pt(x: minX, y: minY),
+			Pt(x: maxX, y: minY),
+			Pt(x: maxX, y: maxY),
+			Pt(x: minX, y: maxY),
+		]
+	}
+
 	static func union(_ rects: some Sequence<Rect>) -> Rect? {
 		var result: Rect?
 		for rect in rects {

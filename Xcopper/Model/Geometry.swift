@@ -80,6 +80,16 @@ func snapped90(from start: Pt, to end: Pt) -> Pt {
 
 extension Board {
 
+	/// Placed pads reaching `layer`. A through pad reaches every layer, so it
+	/// turns up on both faces.
+	func pads(on layer: Int) -> [Pad] {
+		footprints.flatMap { footprint in
+			footprint.placedPads.filter { pad in
+				pad.isThrough || footprint.layer(of: pad, in: stack) == layer
+			}
+		}
+	}
+
 	/// Copper on `layer`, paired with the net it belongs to
 	func figures(on layer: Int) -> [(Figure, Net.ID?)] {
 		var result: [(Figure, Net.ID?)] = []
@@ -90,11 +100,8 @@ extension Board {
 		for via in vias where via.spans(layer) {
 			result.append((.round(via.at, via.pad), via.net))
 		}
-		for footprint in footprints {
-			for pad in footprint.placedPads
-			where pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
-				result.append((pad.figure, pad.net))
-			}
+		for pad in pads(on: layer) {
+			result.append((pad.figure, pad.net))
 		}
 		return result
 	}

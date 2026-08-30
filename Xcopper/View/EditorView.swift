@@ -12,6 +12,7 @@ struct EditorView: View {
 	@State var schematic: SchematicState = .init()
 
 	@FocusState private(set) var focused: Bool
+	@Environment(\.documentConfiguration) private var configuration
 
 	var body: some View {
 		NavigationSplitView(
@@ -34,8 +35,13 @@ struct EditorView: View {
 			layout: $layout,
 			schematic: $schematic,
 			design: $design,
-			clipboard: $clipboard
+			clipboard: $clipboard,
+			documentName: documentName
 		)
+	}
+
+	private var documentName: String {
+		configuration?.fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled"
 	}
 
 	@ViewBuilder

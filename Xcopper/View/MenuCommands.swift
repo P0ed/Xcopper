@@ -55,6 +55,16 @@ struct MenuCommands: Commands {
 				)
 			}
 		}
+		CommandGroup(replacing: .importExport) {
+			ActionButton(
+				name: "Export Gerbers…",
+				image: "square.and.arrow.up",
+				shortcut: "E",
+				modifiers: [.command, .shift],
+				disabled: op.actionsDisabled,
+				action: { op?.exportFabrication() }
+			)
+		}
 		CommandGroup(before: .windowSize) {
 			ActionButton(
 				name: "Size to fit",

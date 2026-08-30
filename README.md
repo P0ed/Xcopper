@@ -11,6 +11,7 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
+- Gerber and Excellon export of the whole manufacturing set
 
 `⌘1` opens the schematic and `⌘2` opens the layout. Each side keeps its own
 zoom, scroll and selection.
@@ -92,6 +93,24 @@ Copper layers are indexed from the top. On a 4 or 6 layer board any internal
 layer can be turned into a plane by picking a net for it in the sidebar: the
 plane fills the board and clears around every pad, via, hole and trace that
 carries a different net.
+
+## Fabrication
+
+`⌘⇧E` writes the manufacturing set into a folder: a Gerber for every copper
+layer, solder mask, paste and legend for both faces, the board outline, and
+Excellon drill programs split into plated and non-plated. Files are named after
+the document — `Amp-F_Cu.gbr`, `Amp-In1_Cu.gbr`, `Amp-PTH.drl` — the way fab
+portals expect to find them.
+
+Pads open the solder mask and vias do not, so vias come back tented.
+
+The Gerbers are RS-274X in millimeters at a 4.6 format, so a board nanometer is
+written as its own integer and nothing is rounded on the way out. Copper carries
+X2 net attributes, and each file states its own place in the stack. A plane goes
+out the way the layout draws it: poured over the board, cleared back around
+everything on another net, then the copper on that layer drawn over the top.
+Legend text is stroked from a built-in single stroke font and mirrored on the
+bottom, since every Gerber in the set is drawn as seen from above.
 
 ## File format
 

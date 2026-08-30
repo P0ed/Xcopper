@@ -7,6 +7,9 @@ struct Operations {
 	@Binding var schematic: SchematicState
 	@Binding var design: Design
 	@Binding var clipboard: Clipboard
+
+	/// Name of the file on disk, the stem the fabrication set is named after
+	var documentName: String
 }
 
 struct Clipboard: Equatable, Codable {
