@@ -2,9 +2,18 @@ import SwiftUI
 
 extension SchematicView {
 
+	/// The sheet as the drag in progress would leave it, so a move draws where
+	/// the wires, symbols and net names actually end up rather than an outline
+	/// of where the selection is headed.
+	private var drawn: Schematic {
+		guard let session = state.moveSession, session.didMove else { return schematic }
+		return modifying(schematic) { $0.move(state.selection, by: session.delta) }
+	}
+
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
+		let schematic = drawn
 		let netlist = Netlist(schematic)
 
 		context.fill(
@@ -20,10 +29,10 @@ extension SchematicView {
 			visible: state.viewport.visibleRect(in: size)
 		)
 
-		renderWires(netlist, in: context, scale: scale, origin: origin)
-		renderJunctions(in: context, scale: scale, origin: origin)
-		renderSymbols(in: context, scale: scale, origin: origin)
-		renderLabels(netlist, in: context, scale: scale, origin: origin)
+		renderWires(schematic, netlist, in: context, scale: scale, origin: origin)
+		renderJunctions(schematic, in: context, scale: scale, origin: origin)
+		renderSymbols(schematic, in: context, scale: scale, origin: origin)
+		renderLabels(schematic, netlist, in: context, scale: scale, origin: origin)
 
 		context.stroke(
 			Path(schematic.bounds.cg(scale, origin: origin)),
@@ -31,7 +40,7 @@ extension SchematicView {
 			lineWidth: 1.5
 		)
 		renderSessions(in: context, scale: scale, origin: origin)
-		renderSelection(in: context, scale: scale, origin: origin)
+		renderSelection(schematic, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
 
@@ -40,6 +49,7 @@ extension SchematicView {
 	}
 
 	private func renderWires(
+		_ schematic: Schematic,
 		_ netlist: Netlist,
 		in context: GraphicsContext,
 		scale: CGFloat,
@@ -57,7 +67,12 @@ extension SchematicView {
 		}
 	}
 
-	private func renderJunctions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderJunctions(
+		_ schematic: Schematic,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var path = Path()
 		for point in schematic.junctions {
 			path.addEllipse(in: CGRect(
@@ -68,7 +83,12 @@ extension SchematicView {
 		context.fill(path, with: .color(Palette.junction))
 	}
 
-	private func renderSymbols(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderSymbols(
+		_ schematic: Schematic,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var strokes = Path()
 		var fills = Path()
 		var legs = Path()
@@ -127,6 +147,7 @@ extension SchematicView {
 	}
 
 	private func renderLabels(
+		_ schematic: Schematic,
 		_ netlist: Netlist,
 		in context: GraphicsContext,
 		scale: CGFloat,
@@ -159,13 +180,17 @@ extension SchematicView {
 		}
 	}
 
-	private func renderSelection(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		let delta = state.moveSession?.delta ?? .zero
+	private func renderSelection(
+		_ schematic: Schematic,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var path = Path()
 
 		for ref in state.selection {
 			guard let bounds = schematic.bounds(of: [ref]) else { continue }
-			path.addRect(bounds.offset(by: delta).outset(Int(Nm.mm(0.4))).cg(scale, origin: origin))
+			path.addRect(bounds.outset(Int(Nm.mm(0.4))).cg(scale, origin: origin))
 		}
 		guard !path.isEmpty else { return }
 		marching(path, in: context)

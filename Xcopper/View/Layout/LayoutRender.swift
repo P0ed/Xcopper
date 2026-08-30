@@ -2,11 +2,21 @@ import SwiftUI
 
 extension LayoutView {
 
+	/// The board as the drag in progress would leave it. Drawing this rather
+	/// than the stored board is what puts a move on the canvas as it happens:
+	/// the copper it stretches, the planes it clears again and the ratsnest it
+	/// satisfies all follow the pointer.
+	private var drawn: Board {
+		guard let session = state.moveSession, session.didMove else { return board }
+		return modifying(board) { $0.move(state.selection, by: session.delta) }
+	}
+
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
+		let board = drawn
 
-		renderSubstrate(in: context, scale: scale, origin: origin)
+		renderSubstrate(board, in: context, scale: scale, origin: origin)
 		renderGrid(
 			board.bounds,
 			step: state.grid,
@@ -17,25 +27,35 @@ extension LayoutView {
 		)
 
 		for layer in board.stack.copper where layer != state.layer {
-			renderCopper(layer, in: context, scale: scale, origin: origin, dimmed: true)
+			renderCopper(layer, of: board, in: context, scale: scale, origin: origin, dimmed: true)
 		}
-		renderCopper(state.layer, in: context, scale: scale, origin: origin, dimmed: false)
+		renderCopper(state.layer, of: board, in: context, scale: scale, origin: origin, dimmed: false)
 
-		renderDrills(in: context, scale: scale, origin: origin)
-		renderSilk(in: context, scale: scale, origin: origin)
-		renderRatsnest(in: context, scale: scale, origin: origin)
+		renderDrills(board, in: context, scale: scale, origin: origin)
+		renderSilk(board, in: context, scale: scale, origin: origin)
+		renderRatsnest(board, in: context, scale: scale, origin: origin)
 
-		renderOutline(in: context, scale: scale, origin: origin)
-		renderSessions(in: context, scale: scale, origin: origin)
-		renderSelection(in: context, scale: scale, origin: origin)
+		renderOutline(board, in: context, scale: scale, origin: origin)
+		renderSessions(board, in: context, scale: scale, origin: origin)
+		renderSelection(board, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
 
-	private func renderSubstrate(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderSubstrate(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		context.fill(Path(board.bounds.cg(scale, origin: origin)), with: .color(Palette.substrate))
 	}
 
-	private func renderOutline(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderOutline(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		context.stroke(
 			Path(board.bounds.cg(scale, origin: origin)),
 			with: .color(Palette.outline),
@@ -45,6 +65,7 @@ extension LayoutView {
 
 	private func renderCopper(
 		_ layer: Int,
+		of board: Board,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint,
@@ -56,6 +77,7 @@ extension LayoutView {
 		if let plane = board.plane(layer) {
 			renderPlane(
 				layer,
+				of: board,
 				net: plane,
 				in: context,
 				scale: scale,
@@ -73,6 +95,7 @@ extension LayoutView {
 
 	private func renderPlane(
 		_ layer: Int,
+		of board: Board,
 		net: Net.ID,
 		in context: GraphicsContext,
 		scale: CGFloat,
@@ -93,7 +116,12 @@ extension LayoutView {
 	}
 
 	/// What the netlist asks for and copper does not yet deliver
-	private func renderRatsnest(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderRatsnest(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		for rat in board.ratsnest() {
 			var path = Path()
 			path.move(to: rat.from.cg(scale, origin: origin))
@@ -106,7 +134,12 @@ extension LayoutView {
 		}
 	}
 
-	private func renderDrills(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderDrills(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var path = Path()
 		for figure in board.drills {
 			path.addPath(figure.path(scale, origin: origin))
@@ -114,7 +147,12 @@ extension LayoutView {
 		context.fill(path, with: .color(Palette.drill))
 	}
 
-	private func renderSilk(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderSilk(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var path = Path()
 		for footprint in board.footprints {
 			let body = footprint.placedBody.cg(scale, origin: origin)
@@ -137,7 +175,12 @@ extension LayoutView {
 		}
 	}
 
-	private func renderSessions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+	private func renderSessions(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		if let session = state.traceSession, session.start != session.end {
 			let figure = Figure.segment(session.start, session.end, state.traceWidth)
 			context.fill(
@@ -155,12 +198,16 @@ extension LayoutView {
 		}
 	}
 
-	private func renderSelection(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		let delta = state.moveSession?.delta ?? .zero
+	private func renderSelection(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
 		var path = Path()
 		for ref in state.selection {
 			guard let bounds = board.bounds(of: [ref]) else { continue }
-			path.addRect(bounds.offset(by: delta).outset(Int(Nm.mm(0.1))).cg(scale, origin: origin))
+			path.addRect(bounds.outset(Int(Nm.mm(0.1))).cg(scale, origin: origin))
 		}
 		guard !path.isEmpty else { return }
 		marching(path, in: context)

@@ -48,6 +48,10 @@ on the 45° grid — the corner it runs into slides along to absorb the move, an
 where there is no corner to slide, a pad, a via or a branch, the segment folds
 into two legs instead. Copper drawn at a free angle keeps it.
 
+The board is redrawn as the pointer moves, so a drag shows the copper it
+stretches, the planes it clears again and the ratsnest it satisfies rather than
+an outline of where the selection is headed.
+
 ## Schematic
 
 | Key | Tool |

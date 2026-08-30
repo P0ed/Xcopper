@@ -139,10 +139,6 @@ struct Rect: Hashable, Codable {
 		)
 	}
 
-	func offset(by delta: Pt) -> Rect {
-		Rect(origin: origin + delta, size: size)
-	}
-
 	/// Clockwise from the top left corner
 	var corners: [Pt] {
 		[
