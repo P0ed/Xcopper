@@ -300,6 +300,44 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.footprints[0].at.x, board.footprints[1].at.x)
 	}
 
+	func testMovingAFootprintDragsTheTraceEndsLandingOnItsPads() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		let away = Pt(x: .mm(30), y: .mm(10))
+		board.traces = [
+			Trace(start: pad, end: away, width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: pad, end: away, width: .mm(0.3), layer: 3, net: nil),
+			Trace(start: away, end: Pt(x: .mm(35), y: .mm(10)), width: .mm(0.3), layer: 0, net: nil),
+		]
+		let delta = Pt(x: .mm(2), y: .mm(-1))
+		board.move([.footprint(0)], by: delta)
+
+		XCTAssertEqual(board.footprints[0].at, Pt(x: .mm(12), y: .mm(9)))
+		XCTAssertEqual(board.traces[0].start, pad + delta)
+		XCTAssertEqual(board.traces[0].end, away)
+		XCTAssertEqual(board.traces[1].start, pad)
+		XCTAssertEqual(board.traces[2].start, away)
+	}
+
+	func testATraceMovedWithItsFootprintDoesNotShiftTwice() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		let away = Pt(x: .mm(20), y: .mm(10))
+		board.traces = [Trace(start: pad, end: away, width: .mm(0.3), layer: 2, net: nil)]
+
+		let delta = Pt(x: .mm(1), y: 0)
+		board.move([.footprint(0), .trace(0)], by: delta)
+
+		XCTAssertEqual(board.traces[0].start, pad + delta)
+		XCTAssertEqual(board.traces[0].end, away + delta)
+	}
+
 	func testDuplicateOffsetsCopiesAndRenamesFootprints() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: Pt(x: .mm(10), y: .mm(10)))]

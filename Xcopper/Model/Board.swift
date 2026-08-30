@@ -11,6 +11,13 @@ struct Trace: Hashable, Codable {
 	var net: Net.ID?
 }
 
+/// One end of a trace, the granularity at which copper follows a footprint it
+/// is soldered to
+struct TraceEnd: Hashable {
+	var trace: Int
+	var isStart: Bool
+}
+
 struct Via: Hashable, Codable {
 	var at: Pt
 	var drill: Nm
@@ -200,7 +207,40 @@ extension Board {
 		}
 	}
 
+	/// Trace ends landing on a pad of a footprint in `refs`. Attachment is the
+	/// same pad-contains-endpoint test the ratsnest uses, so copper follows a
+	/// part exactly when it counted as joined to it. Traces in `refs` already
+	/// move whole and are left out.
+	func attachedEnds(to refs: Set<Ref>) -> Set<TraceEnd> {
+		var pads: [(figure: Figure, layers: ClosedRange<Int>)] = []
+
+		for case let .footprint(index) in refs where footprints.indices.contains(index) {
+			let footprint = footprints[index]
+			for pad in footprint.placedPads {
+				let layer = footprint.layer(of: pad, in: stack)
+				pads.append((
+					pad.figure,
+					pad.isThrough ? stack.top ... stack.bottom : layer ... layer
+				))
+			}
+		}
+		guard !pads.isEmpty else { return [] }
+
+		var ends: Set<TraceEnd> = []
+		for (index, trace) in traces.enumerated() where !refs.contains(.trace(index)) {
+			for (figure, layers) in pads where layers.contains(trace.layer) {
+				if figure.contains(trace.start) { ends.insert(TraceEnd(trace: index, isStart: true)) }
+				if figure.contains(trace.end) { ends.insert(TraceEnd(trace: index, isStart: false)) }
+			}
+		}
+		return ends
+	}
+
+	/// Moves `refs`, dragging the loose ends of whatever copper lands on a
+	/// moving footprint along with it
 	mutating func move(_ refs: Set<Ref>, by delta: Pt) {
+		let attached = attachedEnds(to: refs)
+
 		for ref in refs {
 			switch ref {
 			case let .trace(index) where traces.indices.contains(index):
@@ -214,6 +254,13 @@ extension Board {
 				footprints[index].at = footprints[index].at + delta
 			default:
 				break
+			}
+		}
+		for end in attached {
+			if end.isStart {
+				traces[end.trace].start = traces[end.trace].start + delta
+			} else {
+				traces[end.trace].end = traces[end.trace].end + delta
 			}
 		}
 	}

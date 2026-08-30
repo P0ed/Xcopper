@@ -34,6 +34,9 @@ While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 `⎋` to cancel.
 
+Moving a footprint takes its copper with it: every trace end sitting on one of
+its pads follows the part, the far end stays put and the segment stretches.
+
 ## Schematic
 
 | Key | Tool |
