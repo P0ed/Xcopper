@@ -27,7 +27,8 @@ scroll and selection.
 
 `1`…`6` pick the active copper layer. `⇥` / `⇧⇥` step through layers, `G` and
 `W` cycle snap spacing and trace width. Grid dots have their own 1.27 mm and
-2.54 mm display spacing setting.
+2.54 mm display spacing setting. `R` rotates a selection clockwise and `⇧R`
+rotates it counterclockwise.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
@@ -43,8 +44,9 @@ click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 | `P` | Place symbol |
 
 `G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
-Wires snap to 90° and chain the same way routing
-does, with the same `⇧`, `⌃` and `⎋` modifiers.
+`R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
+snap to 90° and chain the same way routing does, with the same `⇧`, `⌃` and `⎋`
+modifiers.
 
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
 box with any pin count, and power and ground flags. A flag's value **is** a net

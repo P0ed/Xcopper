@@ -62,10 +62,10 @@ struct Rules: Hashable, Codable {
 
 	static var `default`: Rules {
 		Rules(
-			clearance: .mm(0.2),
-			traceWidth: .mm(0.25),
-			viaDrill: .mm(0.3),
-			viaPad: .mm(0.6)
+			clearance: .mm(0.33),
+			traceWidth: .mm(0.47),
+			viaDrill: .mm(0.5),
+			viaPad: .mm(0.9)
 		)
 	}
 }
