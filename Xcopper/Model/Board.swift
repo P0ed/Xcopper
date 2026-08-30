@@ -1,9 +1,9 @@
-nonisolated struct Net: Hashable, Codable, Identifiable {
+struct Net: Hashable, Codable, Identifiable {
 	var id: Int
 	var name: String
 }
 
-nonisolated struct Trace: Hashable, Codable {
+struct Trace: Hashable, Codable {
 	var start: Pt
 	var end: Pt
 	var width: Nm
@@ -11,7 +11,7 @@ nonisolated struct Trace: Hashable, Codable {
 	var net: Net.ID?
 }
 
-nonisolated struct Via: Hashable, Codable {
+struct Via: Hashable, Codable {
 	var at: Pt
 	var drill: Nm
 	var pad: Nm
@@ -25,12 +25,12 @@ nonisolated struct Via: Hashable, Codable {
 }
 
 /// Non plated mounting hole
-nonisolated struct Hole: Hashable, Codable {
+struct Hole: Hashable, Codable {
 	var at: Pt
 	var diameter: Nm
 }
 
-nonisolated struct Pad: Hashable, Codable {
+struct Pad: Hashable, Codable {
 	enum Shape: Int, Codable { case rect, oval }
 
 	var at: Pt
@@ -44,7 +44,7 @@ nonisolated struct Pad: Hashable, Codable {
 	var isThrough: Bool { drill > 0 }
 }
 
-nonisolated struct Footprint: Hashable, Codable {
+struct Footprint: Hashable, Codable {
 	var reference: String
 	var value: String
 	var at: Pt
@@ -54,7 +54,7 @@ nonisolated struct Footprint: Hashable, Codable {
 	var body: Rect
 }
 
-nonisolated struct Rules: Hashable, Codable {
+struct Rules: Hashable, Codable {
 	var clearance: Nm
 	var traceWidth: Nm
 	var viaDrill: Nm
@@ -70,7 +70,7 @@ nonisolated struct Rules: Hashable, Codable {
 	}
 }
 
-nonisolated struct Board: Equatable, Codable {
+struct Board: Equatable, Codable {
 	var size: Size
 	var stack: Stack
 	var planes: [Net.ID?]

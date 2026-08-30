@@ -1,5 +1,5 @@
 /// Copper or clearance primitive, board coordinates
-nonisolated enum Figure: Hashable {
+enum Figure: Hashable {
 	case rect(Rect)
 	case round(Pt, Nm)
 	case segment(Pt, Pt, Nm)
@@ -38,7 +38,7 @@ extension Figure {
 	}
 }
 
-nonisolated func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
+func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
 	let px = Double(point.x - start.x)
@@ -52,9 +52,9 @@ nonisolated func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 }
 
 /// Tangent of 22.5 degrees, scaled by 1000
-nonisolated let octant = 414
+let octant = 414
 
-nonisolated func snapped45(from start: Pt, to end: Pt) -> Pt {
+func snapped45(from start: Pt, to end: Pt) -> Pt {
 	let dx = end.x - start.x
 	let dy = end.y - start.y
 	guard dx != 0 || dy != 0 else { return end }

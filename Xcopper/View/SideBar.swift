@@ -103,6 +103,7 @@ extension EditorView {
 	}
 }
 
+@MainActor
 struct NetRow: View {
 	var name: String
 	var color: Color
@@ -130,6 +131,7 @@ struct NetRow: View {
 	}
 }
 
+@MainActor
 struct PlaneRow: View {
 	var layer: Int
 	var stack: Stack
@@ -142,7 +144,7 @@ struct PlaneRow: View {
 			Text(stack.name(of: layer))
 				.foregroundStyle(Palette.color(of: layer, in: stack))
 				.frame(width: 34.0, alignment: .leading)
-			Picker("", selection: Binding(get: { plane }, set: select)) {
+			Picker("", selection: Binding(get: { plane }, set: { net in select(net) })) {
 				Text("None").tag(Net.ID?.none)
 				ForEach(nets) { net in
 					Text(net.name).tag(Net.ID?.some(net.id))

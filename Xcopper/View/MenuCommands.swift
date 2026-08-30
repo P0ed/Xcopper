@@ -4,11 +4,13 @@ extension FocusedValues {
 	@Entry var operations: Operations?
 }
 
+@MainActor
 extension Operations? {
 	var actionsDisabled: Bool { self?.state.dialogPresented ?? true }
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
 }
 
+@MainActor
 struct MenuCommands: Commands {
 	@FocusedValue(\.operations) var op
 

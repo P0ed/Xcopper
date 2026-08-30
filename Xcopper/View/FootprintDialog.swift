@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct FootprintDialog: View {
 	@Binding var spec: Footprint.Spec
 	var confirm: () -> Void
@@ -78,6 +79,7 @@ struct FootprintDialog: View {
 	}
 }
 
+@MainActor
 struct NetDialog: View {
 	var confirm: (String) -> Void
 

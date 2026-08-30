@@ -14,7 +14,7 @@ extension EditorView {
 				return .handled
 			}
 
-			func nudge(dx: Int = 0, dy: Int = 0) {
+			@MainActor func nudge(dx: Int = 0, dy: Int = 0) {
 				guard !state.selection.isEmpty else { return }
 				DispatchQueue.main.async { operations.nudge(dx: dx, dy: dy) }
 			}

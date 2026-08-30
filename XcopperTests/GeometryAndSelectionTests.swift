@@ -326,6 +326,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertFalse(state.isVisible(2))
 	}
 
+	@MainActor
 	func testCanvasRendersAPopulatedBoardWithoutFailing() throws {
 		var board = board(.six)
 		board.planes[2] = 0

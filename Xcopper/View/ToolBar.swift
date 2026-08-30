@@ -38,6 +38,7 @@ extension EditorView {
 	}
 }
 
+@MainActor
 struct ToolButton: View {
 	var tool: Tool
 	@Binding
@@ -50,6 +51,7 @@ struct ToolButton: View {
 	}
 }
 
+@MainActor
 struct ActionButton: View {
 	var name: String
 	var image: String
@@ -65,6 +67,7 @@ struct ActionButton: View {
 	}
 }
 
+@MainActor
 private struct Shortcut: ViewModifier {
 	var shortcut: Character?
 	var modifiers: EventModifiers
@@ -78,6 +81,7 @@ private struct Shortcut: ViewModifier {
 	}
 }
 
+@MainActor
 struct LayerButton: View {
 	var layer: Int
 	var stack: Stack
@@ -110,6 +114,7 @@ struct LayerButton: View {
 	}
 }
 
+@MainActor
 struct LayerToggle: View {
 	var name: String
 	var image: String

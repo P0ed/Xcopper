@@ -2,16 +2,16 @@ import Foundation
 import SwiftUI
 
 @propertyWrapper
-struct UserDefault<Value: Codable>: DynamicProperty {
+struct UserDefault<Value: Codable & Sendable>: DynamicProperty {
 	@AppStorage
 	private var data: Data?
-	private var defaultValue: () -> Value
+	private var defaultValue: @Sendable () -> Value
 
 	init(
 		wrappedValue: Value? = .none,
 		key: String = "\(Value.self)",
 		store: UserDefaults = .standard,
-		default: @escaping @autoclosure () -> Value
+		default: @escaping @autoclosure @Sendable () -> Value
 	) {
 		_data = .init(key, store: store)
 		defaultValue = `default`

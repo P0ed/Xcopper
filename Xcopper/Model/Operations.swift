@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct Operations {
 	@Binding var state: EditorState
 	@Binding var board: Board

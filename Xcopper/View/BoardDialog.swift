@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct BoardDialog: View {
 	var size: Size
 	var stack: Stack

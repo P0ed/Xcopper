@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct Dialog<Content: View>: View {
 	var action: String
 	var isValid: Bool = true

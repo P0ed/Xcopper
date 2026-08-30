@@ -3,7 +3,7 @@ import CoreGraphics
 /// Board dimension, nanometers
 typealias Nm = Int32
 
-nonisolated extension Nm {
+extension Nm {
 	static var mm: Nm { 1_000_000 }
 	static var mil: Nm { 25_400 }
 
@@ -14,13 +14,13 @@ nonisolated extension Nm {
 	var mil: Double { Double(self) / 25_400.0 }
 }
 
-nonisolated extension Int {
+extension Int {
 	static func mm(_ value: Double) -> Int { Int((value * 1_000_000.0).rounded()) }
 	static func mil(_ value: Double) -> Int { Int((value * 25_400.0).rounded()) }
 }
 
 /// Board location, nanometers, Y down from the top left corner
-nonisolated struct Pt: Hashable, Codable {
+struct Pt: Hashable, Codable {
 	private var _x: Nm
 	private var _y: Nm
 
@@ -72,7 +72,7 @@ extension Pt {
 	var mirroredX: Pt { Pt(x: -x, y: y) }
 }
 
-nonisolated struct Size: Hashable, Codable {
+struct Size: Hashable, Codable {
 	private var _width: Nm
 	private var _height: Nm
 
@@ -90,7 +90,7 @@ nonisolated struct Size: Hashable, Codable {
 	var isEmpty: Bool { width <= 0 || height <= 0 }
 }
 
-nonisolated struct Rect: Hashable, Codable {
+struct Rect: Hashable, Codable {
 	var origin: Pt
 	var size: Size
 
@@ -155,7 +155,7 @@ nonisolated struct Rect: Hashable, Codable {
 	}
 }
 
-nonisolated enum Rotation: Int, Codable, CaseIterable {
+enum Rotation: Int, Codable, CaseIterable {
 	case r0, r90, r180, r270
 
 	var next: Rotation { Rotation(rawValue: (rawValue + 1) & 0b11) ?? .r0 }
@@ -164,7 +164,7 @@ nonisolated enum Rotation: Int, Codable, CaseIterable {
 	var isQuarter: Bool { rawValue & 1 == 1 }
 }
 
-nonisolated enum Stack: Int, Codable, CaseIterable {
+enum Stack: Int, Codable, CaseIterable {
 	case two = 2, four = 4, six = 6
 
 	var count: Int { rawValue }
@@ -196,7 +196,7 @@ nonisolated enum Stack: Int, Codable, CaseIterable {
 }
 
 /// Reference to an object stored in a `Board` collection
-nonisolated enum Ref: Hashable, Codable {
+enum Ref: Hashable, Codable {
 	case trace(Int)
 	case via(Int)
 	case hole(Int)
