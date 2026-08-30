@@ -17,22 +17,6 @@ final class FabricationTests: XCTestCase {
 		text.split(separator: "\n").map(String.init)
 	}
 
-	/// Coordinates of the lettering in a legend file: everything after the pin
-	/// 1 dot, which the body outline precedes
-	private func lettering(_ text: String) -> [Pt] {
-		let all = lines(text)
-		guard let dot = all.firstIndex(where: { $0.hasSuffix("D03*") }) else { return [] }
-		return all[(dot + 1)...].compactMap(coordinate)
-	}
-
-	private func coordinate(_ line: String) -> Pt? {
-		guard line.hasPrefix("X"), let split = line.firstIndex(of: "Y") else { return nil }
-		let x = Int(line[line.index(after: line.startIndex) ..< split])
-		let y = Int(line[line.index(after: split)...].prefix { $0.isNumber || $0 == "-" })
-		guard let x, let y else { return nil }
-		return Pt(x: x, y: y)
-	}
-
 	private func smd(_ name: String, at: Pt, size: Size) -> Pad {
 		Pad(at: at, size: size, shape: .rect, drill: 0, layer: 0, name: name, net: nil)
 	}
@@ -217,7 +201,7 @@ final class FabricationTests: XCTestCase {
 		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%TO.N,A_B_C*%"))
 	}
 
-	// MARK: Mask, paste and legend
+	// MARK: Mask and paste
 
 	func testTheMaskOpensOverEveryPadGrownByTheMaskExpansion() {
 		var design = design()
@@ -272,55 +256,20 @@ final class FabricationTests: XCTestCase {
 		XCTAssertFalse(file(design, "B_Paste.gbr").contains("D03*"))
 	}
 
-	func testTheLegendFollowsTheSideAPartIsPlacedOn() {
+	func testAFlippedPartTakesItsCopperMaskAndPasteToTheBottomFace() {
 		var design = design()
 		design.board.footprints = [
-			footprint("R1", at: Pt(x: .mm(10), y: .mm(10)), pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]),
-			footprint("R2", at: Pt(x: .mm(20), y: .mm(10)), pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))], flipped: true),
+			footprint(
+				"R1",
+				at: Pt(x: .mm(10), y: .mm(10)),
+				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))],
+				flipped: true
+			),
 		]
-		let top = file(design, "F_Silkscreen.gbr")
-		let bottom = file(design, "B_Silkscreen.gbr")
-
-		XCTAssertTrue(top.contains("%TF.FileFunction,Legend,Top*%"))
-		XCTAssertTrue(bottom.contains("%TF.FileFunction,Legend,Bot*%"))
-
-		// One pin 1 dot each, on the corner of the part it belongs to
-		XCTAssertEqual(lines(top).filter { $0.hasSuffix("D03*") }, ["X11450000Y29050000D03*"])
-		XCTAssertEqual(lines(bottom).filter { $0.hasSuffix("D03*") }, ["X21450000Y29050000D03*"])
-	}
-
-	func testBottomLegendTextIsMirroredAboutThePartSoItReadsThroughTheBoard() {
-		func legend(flipped: Bool) -> [Pt] {
-			var design = design()
-			design.board.footprints = [
-				footprint(
-					"J1",
-					at: Pt(x: .mm(20), y: .mm(10)),
-					pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))],
-					flipped: flipped
-				),
-			]
-			return lettering(file(design, flipped ? "B_Silkscreen.gbr" : "F_Silkscreen.gbr"))
+		for face in ["Cu", "Mask", "Paste"] {
+			XCTAssertFalse(file(design, "F_\(face).gbr").contains("D03*"), face)
+			XCTAssertTrue(file(design, "B_\(face).gbr").contains("D03*"), face)
 		}
-		let top = legend(flipped: false)
-
-		XCTAssertFalse(top.isEmpty)
-		XCTAssertEqual(
-			top.map { point in Pt(x: 2 * Int.mm(20) - point.x, y: point.y) },
-			legend(flipped: true)
-		)
-	}
-
-	func testTheLegendIsLetteredWithTheReferenceDesignator() {
-		var design = design()
-		design.board.footprints = [
-			footprint("R1", at: Pt(x: .mm(10), y: .mm(10)), pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]),
-		]
-		let strokes = lines(file(design, "F_Silkscreen.gbr")).count { $0.hasSuffix("D02*") }
-		// One body outline, one pin 1 dot, then R and 1 in two strokes each
-		XCTAssertEqual(strokes, 5)
-		XCTAssertEqual(StrokeFont.strokes(for: "?").count, 0)
-		XCTAssertEqual(StrokeFont.strokes(for: "R").count, 2)
 	}
 
 	// MARK: Drilling
@@ -410,7 +359,6 @@ final class FabricationTests: XCTestCase {
 				"Board-F_Cu.gbr", "Board-B_Cu.gbr",
 				"Board-F_Mask.gbr", "Board-B_Mask.gbr",
 				"Board-F_Paste.gbr", "Board-B_Paste.gbr",
-				"Board-F_Silkscreen.gbr", "Board-B_Silkscreen.gbr",
 				"Board-Edge_Cuts.gbr",
 				"Board-PTH.drl", "Board-NPTH.drl",
 			]

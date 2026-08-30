@@ -1,6 +1,7 @@
 import Foundation
 
 /// What a fab house is sent: one Gerber per layer plus the two drill programs.
+/// No legend — the board carries no silkscreen.
 enum Fabrication {
 
 	struct File: Hashable {
@@ -43,8 +44,6 @@ extension Design {
 				mask(on: stack.bottom, named: name),
 				paste(on: stack.top, named: name),
 				paste(on: stack.bottom, named: name),
-				silk(on: stack.top, named: name),
-				silk(on: stack.bottom, named: name),
 				profile(named: name),
 				drills(plated: true, named: name),
 				drills(plated: false, named: name),
@@ -102,39 +101,6 @@ private extension Design {
 			gerber.fill(pad.figure)
 		}
 		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Paste")
-	}
-
-	/// Body outline, a pin 1 dot on the nearest corner and the reference
-	/// designator above. Bottom side legend is mirrored, since every Gerber in
-	/// the set is drawn as seen from the top.
-	func silk(on layer: Int, named name: String) -> Fabrication.File {
-		var gerber = Gerber(height: height, function: "Legend,\(board.stack.sideName(of: layer))")
-		let mirrored = layer == board.stack.bottom
-		let width = Gerber.silkWidth
-
-		for footprint in board.footprints where footprint.flipped == mirrored {
-			let body = footprint.placedBody
-			gerber.stroke(body, width: width)
-
-			// The dot clears the outline, on the corner pad 1 sits nearest
-			let corner = body.outset(Int(Gerber.silkDot))
-			let first = footprint.place(footprint.pads.first?.at ?? .zero)
-			gerber.fill(.round(
-				Pt(
-					x: first.x < body.center.x ? corner.minX : corner.maxX,
-					y: first.y < body.center.y ? corner.minY : corner.maxY
-				),
-				Gerber.silkDot
-			))
-			gerber.lettering(
-				footprint.reference,
-				at: Pt(x: body.center.x, y: body.minY - Int(width) * 3),
-				size: Gerber.silkSize,
-				width: width,
-				mirrored: mirrored
-			)
-		}
-		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Silkscreen")
 	}
 
 	/// The board outline, the one file that says where to cut

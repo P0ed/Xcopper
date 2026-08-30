@@ -97,10 +97,10 @@ carries a different net.
 ## Fabrication
 
 `⌘⇧E` writes the manufacturing set into a folder: a Gerber for every copper
-layer, solder mask, paste and legend for both faces, the board outline, and
-Excellon drill programs split into plated and non-plated. Files are named after
-the document — `Amp-F_Cu.gbr`, `Amp-In1_Cu.gbr`, `Amp-PTH.drl` — the way fab
-portals expect to find them.
+layer, solder mask and paste for both faces, the board outline, and Excellon
+drill programs split into plated and non-plated. Files are named after the
+document — `Amp-F_Cu.gbr`, `Amp-In1_Cu.gbr`, `Amp-PTH.drl` — the way fab portals
+expect to find them. There is no silkscreen: the board carries no legend.
 
 Pads open the solder mask and vias do not, so vias come back tented.
 
@@ -109,8 +109,6 @@ written as its own integer and nothing is rounded on the way out. Copper carries
 X2 net attributes, and each file states its own place in the stack. A plane goes
 out the way the layout draws it: poured over the board, cleared back around
 everything on another net, then the copper on that layer drawn over the top.
-Legend text is stroked from a built-in single stroke font and mirrored on the
-bottom, since every Gerber in the set is drawn as seen from above.
 
 ## File format
 

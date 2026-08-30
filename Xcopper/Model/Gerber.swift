@@ -42,9 +42,6 @@ struct Gerber {
 extension Gerber {
 
 	/// Widths and expansions the fabrication set is drawn with
-	static var silkWidth: Nm { .mm(0.15) }
-	static var silkSize: Nm { .mm(1.0) }
-	static var silkDot: Nm { .mm(0.45) }
 	static var outlineWidth: Nm { .mm(0.1) }
 	static var maskExpansion: Nm { .mm(0.05) }
 }
@@ -64,13 +61,9 @@ extension Gerber {
 		}
 	}
 
-	/// An open or closed polyline, for outlines and lettering
-	mutating func stroke(_ points: [Pt], width: Nm) {
-		draw(points, width: width)
-	}
-
+	/// A closed outline, for the one file that says where to cut
 	mutating func stroke(_ rect: Rect, width: Nm) {
-		stroke(rect.corners + [rect.corners[0]], width: width)
+		draw(rect.corners + [rect.corners[0]], width: width)
 	}
 
 	/// A filled polygon, for the plane pour no aperture is big enough to flash
@@ -89,33 +82,6 @@ extension Gerber {
 	/// what a `.dark` pass laid down
 	mutating func polarity(_ polarity: Polarity) {
 		lines.append("%LP\(polarity.rawValue)*%")
-	}
-
-	/// Lettering centered on `at`, standing on it as a baseline and growing
-	/// upward. Bottom side text is mirrored so it reads through the board.
-	mutating func lettering(_ string: String, at: Pt, size: Nm, width: Nm, mirrored: Bool = false) {
-		let characters = Array(string.uppercased())
-		guard !characters.isEmpty else { return }
-
-		let unit = Double(size) / Double(StrokeFont.height)
-		let span = Double(characters.count * StrokeFont.advance - StrokeFont.gap) * unit
-		let left = Double(at.x) - span / 2.0
-
-		for (index, character) in characters.enumerated() {
-			let origin = left + Double(index * StrokeFont.advance) * unit
-			for polyline in StrokeFont.strokes(for: character) {
-				stroke(
-					polyline.map { point in
-						let x = Int((origin + Double(point.x) * unit).rounded())
-						return Pt(
-							x: mirrored ? 2 * at.x - x : x,
-							y: at.y - Int((Double(point.y) * unit).rounded())
-						)
-					},
-					width: width
-				)
-			}
-		}
 	}
 
 	/// The finished file
