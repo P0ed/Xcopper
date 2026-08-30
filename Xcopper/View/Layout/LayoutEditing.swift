@@ -135,7 +135,7 @@ private extension LayoutView {
 
 		let hit: Set<Ref> = session.didDrag
 			? board.refs(in: session.rect, layer: state.layer)
-			: board.hitTest(at: start, layer: state.layer, tolerance: hitTolerance).map { [$0] } ?? []
+			: board.refs(at: start, layer: state.layer, tolerance: hitTolerance)
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

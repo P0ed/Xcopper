@@ -34,6 +34,11 @@ While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 `⎋` to cancel.
 
+Clicking one segment of a route picks up the whole run — the chain of segments
+joined end to end on one layer, up to wherever the copper branches or lands on a
+pad or via. A run selects, moves and deletes as one object, and a rubber band
+that covers only part of one takes none of it.
+
 Moving a footprint takes its copper with it: every trace end sitting on one of
 its pads follows the part, the far end stays put and the segment stretches.
 

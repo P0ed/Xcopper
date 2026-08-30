@@ -173,11 +173,24 @@ extension Board {
 		return nil
 	}
 
+	/// Everything one click picks up. A trace comes with the rest of its run, so
+	/// a route selects, moves and deletes as the single object it was drawn as.
+	func refs(at point: Pt, layer: Int, tolerance: Int) -> Set<Ref> {
+		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
+		guard case let .trace(index) = hit else { return [hit] }
+		return Set(run(of: index).map(Ref.trace))
+	}
+
 	func refs(in rect: Rect, layer: Int) -> Set<Ref> {
 		var result: Set<Ref> = []
 
+		// A run is one object, so a band covering part of one takes none of it
+		var covered: Set<Int> = []
 		for (index, trace) in traces.enumerated()
 		where trace.layer == layer && rect.contains(trace.start) && rect.contains(trace.end) {
+			covered.insert(index)
+		}
+		for index in covered where run(of: index).isSubset(of: covered) {
 			result.insert(.trace(index))
 		}
 		for (index, via) in vias.enumerated() where rect.contains(via.at) {
@@ -210,6 +223,57 @@ extension Board {
 				nil
 			}
 		})
+	}
+
+	/// Segments chained end to end with `index` on its layer. The run stops
+	/// where copper branches or lands on a pad or via, so it spans exactly what
+	/// one routing gesture draws between two terminals.
+	func run(of index: Int) -> Set<Int> {
+		guard traces.indices.contains(index) else { return [] }
+
+		var run: Set<Int> = [index]
+		var pending = [index]
+
+		while let current = pending.popLast() {
+			for point in [traces[current].start, traces[current].end] {
+				guard let next = continuation(of: current, at: point), run.insert(next).inserted
+				else { continue }
+				pending.append(next)
+			}
+		}
+		return run
+	}
+
+	/// The one other segment meeting `index` at `point`, when the junction is a
+	/// plain corner: two ends and no terminal
+	private func continuation(of index: Int, at point: Pt) -> Int? {
+		let layer = traces[index].layer
+		guard !isTerminal(point, layer: layer) else { return nil }
+
+		var corner: Int?
+		for (other, trace) in traces.enumerated()
+		where other != index && trace.layer == layer
+			&& (trace.start == point || trace.end == point) {
+			guard corner == nil else { return nil }
+			corner = other
+		}
+		return corner
+	}
+
+	/// Whether a pad or via lands on `point`, where a run ends
+	private func isTerminal(_ point: Pt, layer: Int) -> Bool {
+		for via in vias
+		where via.spans(layer) && Figure.round(via.at, via.pad).contains(point) {
+			return true
+		}
+		for footprint in footprints {
+			for pad in footprint.placedPads
+			where (pad.isThrough || footprint.layer(of: pad, in: stack) == layer)
+				&& pad.figure.contains(point) {
+				return true
+			}
+		}
+		return false
 	}
 
 	/// Pad, via or trace endpoint worth snapping a route to

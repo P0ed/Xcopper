@@ -103,7 +103,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		var board = board()
 		board.traces = [
 			Trace(start: Pt(x: .mm(1), y: .mm(1)), end: Pt(x: .mm(5), y: .mm(5)), width: .mm(0.25), layer: 0, net: nil),
-			Trace(start: Pt(x: .mm(1), y: .mm(1)), end: Pt(x: .mm(30), y: .mm(30)), width: .mm(0.25), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(6), y: .mm(6)), end: Pt(x: .mm(30), y: .mm(30)), width: .mm(0.25), layer: 0, net: nil),
 			Trace(start: Pt(x: .mm(2), y: .mm(2)), end: Pt(x: .mm(4), y: .mm(4)), width: .mm(0.25), layer: 2, net: nil),
 		]
 		board.holes = [Hole(at: Pt(x: .mm(3), y: .mm(3)), diameter: .mm(3.2))]
@@ -111,6 +111,52 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let rect = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(10), y: .mm(10)))
 		XCTAssertEqual(board.refs(in: rect, layer: 0), [.trace(0), .hole(0)])
 		XCTAssertEqual(board.refs(in: rect, layer: 2), [.trace(2), .hole(0)])
+	}
+
+	func testClickingATraceSelectsTheWholeRunItIsPartOf() {
+		var board = board()
+		board.traces = [
+			Trace(start: Pt(x: .mm(5), y: .mm(10)), end: Pt(x: .mm(10), y: .mm(10)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(10), y: .mm(10)), end: Pt(x: .mm(15), y: .mm(15)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(15), y: .mm(15)), end: Pt(x: .mm(15), y: .mm(20)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(15), y: .mm(15)), end: Pt(x: .mm(25), y: .mm(15)), width: .mm(0.3), layer: 1, net: nil),
+		]
+		XCTAssertEqual(
+			board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0),
+			[.trace(0), .trace(1), .trace(2)]
+		)
+		XCTAssertEqual(board.refs(at: Pt(x: .mm(20), y: .mm(15)), layer: 1, tolerance: 0), [.trace(3)])
+		XCTAssertEqual(board.refs(at: Pt(x: .mm(40), y: .mm(30)), layer: 0, tolerance: 0), [])
+	}
+
+	func testARunStopsWhereCopperBranchesOrMeetsAPad() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Pt(x: .mm(30), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		board.traces = [
+			Trace(start: Pt(x: .mm(10), y: .mm(10)), end: Pt(x: .mm(20), y: .mm(10)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(20), y: .mm(10)), end: pad, width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(20), y: .mm(10)), end: Pt(x: .mm(20), y: .mm(5)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: pad, end: Pt(x: pad.x, y: .mm(20)), width: .mm(0.3), layer: 0, net: nil),
+		]
+		XCTAssertEqual(board.run(of: 0), [0])
+		XCTAssertEqual(board.run(of: 1), [1])
+		XCTAssertEqual(board.run(of: 3), [3])
+	}
+
+	func testARubberBandTakesARunOnlyWhenItCoversAllOfIt() {
+		var board = board()
+		board.traces = [
+			Trace(start: Pt(x: .mm(5), y: .mm(5)), end: Pt(x: .mm(10), y: .mm(5)), width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: Pt(x: .mm(10), y: .mm(5)), end: Pt(x: .mm(20), y: .mm(5)), width: .mm(0.3), layer: 0, net: nil),
+		]
+		let partial = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(12), y: .mm(10)))
+		XCTAssertEqual(board.refs(in: partial, layer: 0), [])
+
+		let whole = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(25), y: .mm(10)))
+		XCTAssertEqual(board.refs(in: whole, layer: 0), [.trace(0), .trace(1)])
 	}
 
 	func testSelectionModesCombineHitsWithTheInitialSelection() {
