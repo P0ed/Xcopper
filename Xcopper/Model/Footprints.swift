@@ -1,7 +1,7 @@
 extension Footprint {
 
 	enum Kind: String, Codable, CaseIterable, Identifiable {
-		case chip, soic, qfp, sot23, dip, header
+		case chip, soic, sot23, dip, header
 
 		var id: String { rawValue }
 
@@ -9,7 +9,6 @@ extension Footprint {
 			switch self {
 			case .chip: "Chip"
 			case .soic: "SOIC"
-			case .qfp: "QFP"
 			case .sot23: "SOT-23"
 			case .dip: "DIP"
 			case .header: "Header"
@@ -19,7 +18,7 @@ extension Footprint {
 		var prefix: String {
 			switch self {
 			case .chip: "R"
-			case .soic, .qfp, .sot23, .dip: "U"
+			case .soic, .sot23, .dip: "U"
 			case .header: "J"
 			}
 		}
@@ -27,7 +26,6 @@ extension Footprint {
 		var hasPins: Bool { self != .chip && self != .sot23 }
 		var hasRows: Bool { self == .header }
 		var hasChip: Bool { self == .chip }
-		var hasPitch: Bool { self == .qfp }
 	}
 
 	enum Chip: String, Codable, CaseIterable, Identifiable {
@@ -52,7 +50,6 @@ extension Footprint {
 		var chip: Chip = .c1206
 		var pins: Int = 8
 		var rows: Int = 1
-		var pitch: Nm = .mm(0.5)
 
 		static var `default`: Spec { Spec() }
 	}
@@ -64,7 +61,6 @@ extension Footprint {
 		let built = switch spec.kind {
 		case .chip: Footprint.chip(spec.chip)
 		case .soic: Footprint.soic(pins: max(2, spec.pins & ~1))
-		case .qfp: Footprint.qfp(pins: max(4, spec.pins - spec.pins % 4), pitch: spec.pitch)
 		case .sot23: Footprint.sot23()
 		case .dip: Footprint.dip(pins: max(2, spec.pins & ~1))
 		case .header: Footprint.header(pins: max(1, spec.pins), rows: max(1, min(2, spec.rows)))
@@ -140,31 +136,6 @@ extension Footprint {
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
 			body: Size(width: .mm(3.9), height: (perSide - 1) * pitch + .mm(1.2))
 		)
-	}
-
-	static func qfp(pins: Int, pitch: Nm) -> Footprint {
-		let pitch = Int(pitch)
-		let perSide = pins / 4
-		let span = (perSide + 1) * pitch + .mm(1.5)
-		let long = Size(width: .mm(1.5), height: Int(Double(pitch) * 0.6))
-		let tall = Size(width: Int(Double(pitch) * 0.6), height: .mm(1.5))
-		let first = -(perSide - 1) * pitch / 2
-		var pads: [Pad] = []
-
-		for index in 0 ..< perSide {
-			pads.append(smd(index + 1, -span / 2, first + index * pitch, long))
-		}
-		for index in 0 ..< perSide {
-			pads.append(smd(perSide + index + 1, first + index * pitch, span / 2, tall))
-		}
-		for index in 0 ..< perSide {
-			pads.append(smd(perSide * 2 + index + 1, span / 2, -first - index * pitch, long))
-		}
-		for index in 0 ..< perSide {
-			pads.append(smd(perSide * 3 + index + 1, -first - index * pitch, -span / 2, tall))
-		}
-		let body = span - .mm(3.0)
-		return make(pads: pads, body: Size(width: body, height: body))
 	}
 
 	static func sot23() -> Footprint {

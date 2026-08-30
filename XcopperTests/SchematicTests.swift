@@ -301,9 +301,7 @@ final class SchematicTests: XCTestCase {
 		XCTAssertThrowsError(try Document.decode(Data(#"{"size":{"_width":0,"_height":0},"stack":2,"planes":[null,null],"traces":[],"vias":[],"holes":[],"footprints":[],"rules":{"clearance":0,"traceWidth":0,"viaDrill":0,"viaPad":0}}"#.utf8)))
 	}
 
-	func testALegacyBoardAtTheRootStillOpens() throws {
-		// Documents written before the schematic existed put Board at the root
-		// and kept the net table inside it.
+	func testDecodeRejectsALegacyBoardAtTheRoot() throws {
 		let legacy = """
 		{
 			"size": { "_width": 50000000, "_height": 40000000 },
@@ -319,15 +317,7 @@ final class SchematicTests: XCTestCase {
 		"""
 		let data = Data(legacy.utf8)
 
-		XCTAssertNil(try? JSONDecoder().decode(Design.self, from: data), "must not read as a Design")
-
-		let design = try Document.decode(data)
-
-		XCTAssertEqual(design.nets.map(\.name), ["GND", "SDA"])
-		XCTAssertEqual(design.nextNetID, 8)
-		XCTAssertEqual(design.board.size, Size(width: .mm(50), height: .mm(40)))
-		XCTAssertTrue(design.schematic.symbols.isEmpty)
-		XCTAssertFalse(design.schematic.size.isEmpty)
+		XCTAssertThrowsError(try Document.decode(data))
 	}
 
 	// MARK: Rendering

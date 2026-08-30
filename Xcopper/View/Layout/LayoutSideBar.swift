@@ -78,7 +78,6 @@ struct LayoutSideBar: View {
 		case .chip: "Chip \(spec.chip.name)"
 		case .sot23: "SOT-23"
 		case .header: "Header \(spec.rows)×\(spec.pins)"
-		case .qfp: "QFP-\(spec.pins) \(spec.pitch.label)mm"
 		default: "\(spec.kind.name)-\(spec.pins)"
 		}
 	}

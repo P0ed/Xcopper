@@ -9,17 +9,14 @@ extension LayoutView {
 		renderSubstrate(in: context, scale: scale, origin: origin)
 		renderGrid(board.bounds, step: state.grid, in: context, scale: scale, origin: origin)
 
-		let layers = board.stack.copper.filter { state.isVisible($0) }
-		for layer in layers where layer != state.layer {
+		for layer in board.stack.copper where layer != state.layer {
 			renderCopper(layer, in: context, scale: scale, origin: origin, dimmed: true)
 		}
-		if layers.contains(state.layer) {
-			renderCopper(state.layer, in: context, scale: scale, origin: origin, dimmed: false)
-		}
+		renderCopper(state.layer, in: context, scale: scale, origin: origin, dimmed: false)
 
-		if state.drillVisible { renderDrills(in: context, scale: scale, origin: origin) }
-		if state.silkVisible { renderSilk(in: context, scale: scale, origin: origin) }
-		if state.ratsVisible { renderRatsnest(in: context, scale: scale, origin: origin) }
+		renderDrills(in: context, scale: scale, origin: origin)
+		renderSilk(in: context, scale: scale, origin: origin)
+		renderRatsnest(in: context, scale: scale, origin: origin)
 
 		renderOutline(in: context, scale: scale, origin: origin)
 		renderSessions(in: context, scale: scale, origin: origin)

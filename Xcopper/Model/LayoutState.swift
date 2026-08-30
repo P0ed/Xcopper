@@ -70,7 +70,6 @@ struct LayoutState: Equatable {
 		}
 	}
 	var layer: Int = 0
-	var visibleLayers: Int = ~0
 	var net: Net.ID?
 	var grid: Nm = .mm(0.25)
 	var traceWidth: Nm = .mm(0.25)
@@ -83,19 +82,6 @@ struct LayoutState: Equatable {
 }
 
 extension LayoutState {
-
-	static let silkBit = 8
-	static let drillBit = 9
-	static let ratsBit = 10
-
-	func isVisible(_ layer: Int) -> Bool { visibleLayers & 1 << layer != 0 }
-	var silkVisible: Bool { visibleLayers & 1 << Self.silkBit != 0 }
-	var drillVisible: Bool { visibleLayers & 1 << Self.drillBit != 0 }
-	var ratsVisible: Bool { visibleLayers & 1 << Self.ratsBit != 0 }
-
-	mutating func toggleVisible(_ bit: Int) {
-		visibleLayers ^= 1 << bit
-	}
 
 	mutating func cancelSessions() {
 		traceSession = nil

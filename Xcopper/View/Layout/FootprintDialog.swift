@@ -49,14 +49,6 @@ struct FootprintDialog: View {
 					}
 					.pickerStyle(.segmented)
 				}
-				if current.kind.hasPitch {
-					Picker("Pitch", selection: binding.pitch) {
-						Text("0.4 mm").tag(Nm.mm(0.4))
-						Text("0.5 mm").tag(Nm.mm(0.5))
-						Text("0.65 mm").tag(Nm.mm(0.65))
-						Text("0.8 mm").tag(Nm.mm(0.8))
-					}
-				}
 			}
 			.frame(width: 240.0)
 		}
@@ -64,7 +56,6 @@ struct FootprintDialog: View {
 
 	private var pinRange: ClosedRange<Int> {
 		switch current.kind {
-		case .qfp: 8 ... 128
 		case .header: 1 ... 40
 		default: 2 ... 64
 		}
@@ -72,7 +63,6 @@ struct FootprintDialog: View {
 
 	private var pinStep: Int {
 		switch current.kind {
-		case .qfp: 4
 		case .header: 1
 		default: 2
 		}

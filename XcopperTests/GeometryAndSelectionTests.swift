@@ -130,7 +130,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		for spec in [
 			Footprint.Spec(kind: .soic, pins: 8),
 			Footprint.Spec(kind: .dip, pins: 14),
-			Footprint.Spec(kind: .qfp, pins: 32, pitch: .mm(0.5)),
 			Footprint.Spec(kind: .sot23),
 			Footprint.Spec(kind: .chip),
 		] {
@@ -307,7 +306,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNil(state.traceSession)
 	}
 
-	func testLayerVisibilityAndCyclingWrapAroundTheStack() {
+	func testLayerCyclingWrapsAroundTheStack() {
 		var state = LayoutState()
 		state.nextLayer(.four)
 		state.nextLayer(.four)
@@ -320,10 +319,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 
 		state.clampLayer(.two)
 		XCTAssertEqual(state.layer, 1)
-
-		XCTAssertTrue(state.isVisible(2))
-		state.toggleVisible(2)
-		XCTAssertFalse(state.isVisible(2))
 	}
 
 	@MainActor

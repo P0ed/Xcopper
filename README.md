@@ -10,7 +10,7 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
-- Built-in parametric footprints: chip, SOIC, QFP, SOT-23, DIP, headers
+- Built-in parametric footprints: chip, SOIC, SOT-23, DIP, headers
 
 `⌘1` and `⌘2` switch between layout and schematic. Each side keeps its own zoom,
 scroll and selection.
@@ -25,8 +25,8 @@ scroll and selection.
 | `H` | Hole |
 | `F` | Place footprint |
 
-`1`…`6` pick the active copper layer; pressing the active layer's key hides it.
-`⇥` / `⇧⇥` step through layers, `G` and `W` cycle grid and trace width.
+`1`…`6` pick the active copper layer. `⇥` / `⇧⇥` step through layers, `G` and
+`W` cycle grid and trace width.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
@@ -67,8 +67,7 @@ footprints in no schematic, and pins with no pad.
 
 The layout then draws a ratsnest for every net whose copper does not yet join all
 of it, as a minimum spanning tree over the disconnected islands. Route one of
-those connections and its line goes away. Toggle it from the toolbar next to the
-silk and drill toggles.
+those connections and its line goes away.
 
 ## Layers
 
@@ -79,6 +78,4 @@ carries a different net.
 
 ## File format
 
-One JSON document holding `nets`, `board` and `schematic`. Files written before
-schematic capture existed had `Board` at the root with the nets inside it; those
-still open, and are rewritten in the new shape on save.
+One JSON document holding `nets`, `board` and `schematic`.

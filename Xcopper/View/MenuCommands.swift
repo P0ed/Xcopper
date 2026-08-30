@@ -131,13 +131,6 @@ struct MenuCommands: Commands {
 				disabled: op.layoutDisabled,
 				action: { op.map { op in op.layout.nextLayer(op.design.board.stack) } }
 			)
-			ActionButton(
-				name: "Toggle layer",
-				image: "square.3.layers.3d",
-				shortcut: " ",
-				disabled: op.layoutDisabled,
-				action: { op.map { op in op.layout.toggleVisible(op.layout.layer) } }
-			)
 		}
 		CommandMenu("Objects") {
 			ActionButton(
