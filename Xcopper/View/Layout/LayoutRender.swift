@@ -2,19 +2,24 @@ import SwiftUI
 
 extension LayoutView {
 
-	/// The board as the drag in progress would leave it. Drawing this rather
-	/// than the stored board is what puts a move on the canvas as it happens:
-	/// the copper it stretches, the planes it clears again and the ratsnest it
+	/// The board as the drag in progress would leave it, and the selection as
+	/// it lands on that board. Drawing this rather than the stored board is
+	/// what puts a move on the canvas as it happens: the copper it stretches,
+	/// the segments it fuses, the planes it clears again and the ratsnest it
 	/// satisfies all follow the pointer.
-	private var drawn: Board {
-		guard let session = state.moveSession, session.didMove else { return board }
-		return modifying(board) { $0.move(state.selection, by: session.delta) }
+	private var drawn: (board: Board, selection: Set<Ref>) {
+		guard let session = state.moveSession, session.didMove else {
+			return (board, state.selection)
+		}
+		var moved = board
+		let selection = moved.move(state.selection, by: session.delta)
+		return (moved, selection)
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let board = drawn
+		let (board, selection) = drawn
 
 		renderSubstrate(board, in: context, scale: scale, origin: origin)
 		renderGrid(
@@ -37,7 +42,7 @@ extension LayoutView {
 
 		renderOutline(board, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
-		renderSelection(board, in: context, scale: scale, origin: origin)
+		renderSelection(board, selection, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
 
@@ -200,12 +205,13 @@ extension LayoutView {
 
 	private func renderSelection(
 		_ board: Board,
+		_ selection: Set<Ref>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
 	) {
 		var path = Path()
-		for ref in state.selection {
+		for ref in selection {
 			guard let bounds = board.bounds(of: [ref]) else { continue }
 			path.addRect(bounds.outset(Int(Nm.mm(0.1))).cg(scale, origin: origin))
 		}

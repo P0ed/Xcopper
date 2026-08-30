@@ -410,8 +410,60 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.footprints[0].at, Pt(x: .mm(12), y: .mm(9)))
 		XCTAssertEqual(board.traces[0].start, pad + delta)
 		XCTAssertEqual(board.traces[1].start, pad)
-		XCTAssertEqual(board.traces[2].start, away)
-		XCTAssertEqual(board.traces.last?.end, away)
+
+		// The leg the stretch folded off runs straight on into the segment past
+		// `away`, so the two arrive as the one segment they look like
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(board.traces[2].start, board.traces[0].end)
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(35), y: .mm(10)))
+	}
+
+	func testDraggingASegmentAlongItsOwnLineLeavesOneSegmentNotTwo() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: 0), to: Pt(x: .mm(5), y: .mm(5))),
+			trace(from: Pt(x: .mm(5), y: .mm(5)), to: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let moved = board.move([.trace(0)], by: Pt(x: .mm(1), y: .mm(1)))
+
+		XCTAssertEqual(board.traces.count, 1)
+		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(1)))
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(10)))
+
+		// The selection follows the copper it was holding into the fused segment
+		XCTAssertEqual(moved, [.trace(0)])
+	}
+
+	func testASegmentDraggedOntoItsNeighboursFarEndLeavesNoStub() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: 0), to: Pt(x: .mm(10), y: 0)),
+			trace(from: Pt(x: .mm(10), y: 0), to: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let moved = board.move([.trace(0)], by: Pt(x: 0, y: .mm(10)))
+
+		XCTAssertEqual(board.traces.count, 1)
+		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(10)))
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(10)))
+		XCTAssertEqual(moved, [.trace(0)])
+	}
+
+	func testCollinearCopperMeetingOnAPadStaysTwoSegments() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		board.traces = [
+			trace(from: Pt(x: pad.x - .mm(10), y: pad.y), to: pad),
+			trace(from: pad, to: Pt(x: pad.x + .mm(10), y: pad.y)),
+		]
+		let delta = Pt(x: .mm(1), y: 0)
+		board.move([.footprint(0)], by: delta)
+
+		XCTAssertEqual(board.traces.count, 2)
+		XCTAssertEqual(board.traces[0].end, pad + delta)
+		XCTAssertEqual(board.traces[1].start, pad + delta)
 	}
 
 	func testAStretchedSegmentFoldsIntoTwoLegsRatherThanLeaveTheGrid() {

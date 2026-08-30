@@ -132,7 +132,9 @@ private extension LayoutView {
 	func endSelection(from start: Pt, to current: Pt) {
 		if let session = state.moveSession {
 			if session.didMove {
-				undoGroup("Move") { board.move(state.selection, by: session.delta) }
+				undoGroup("Move") {
+					state.selection = board.move(state.selection, by: session.delta)
+				}
 			}
 			state.moveSession = nil
 			return

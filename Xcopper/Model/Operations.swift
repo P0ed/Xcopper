@@ -108,7 +108,7 @@ extension Operations {
 	func nudge(dx: Int = 0, dy: Int = 0) {
 		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
-		case .layout: design.board.move(layout.selection, by: delta)
+		case .layout: layout.selection = design.board.move(layout.selection, by: delta)
 		case .schematic: design.schematic.move(schematic.selection, by: delta)
 		}
 	}

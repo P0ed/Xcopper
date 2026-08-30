@@ -49,6 +49,11 @@ on the 45° grid — the corner it runs into slides along to absorb the move, an
 where there is no corner to slide, a pad, a via or a branch, the segment folds
 into two legs instead. Copper drawn at a free angle keeps it.
 
+A drag never leaves a straight line in pieces: segments that come to rest end to
+end in line fuse back into the one segment they look like, and a segment
+squashed down to nothing goes away. Copper meeting on a pad or a via is joined
+there rather than bent, so that stays two segments.
+
 The board is redrawn as the pointer moves, so a drag shows the copper it
 stretches, the planes it clears again and the ratsnest it satisfies rather than
 an outline of where the selection is headed.

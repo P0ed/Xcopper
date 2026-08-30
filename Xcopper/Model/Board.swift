@@ -268,9 +268,12 @@ extension Board {
 	}
 
 	/// Moves `refs`, dragging the loose ends of whatever copper it is soldered
-	/// to along with it and putting the segments it stretched back on the 45
-	/// degree grid
-	mutating func move(_ refs: Set<Ref>, by delta: Pt) {
+	/// to along with it, putting the segments it stretched back on the 45
+	/// degree grid and fusing what it leaves running straight. Returns `refs`
+	/// as they stand afterwards, since fusing renumbers the copper.
+	@discardableResult
+	mutating func move(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
+		let before = traces
 		let attached = attachedEnds(to: refs)
 		let headings = headings(of: attached)
 
@@ -296,6 +299,87 @@ extension Board {
 			guard let heading = headings[end] else { continue }
 			realign(end, heading: heading, moving: attached, with: refs)
 		}
+
+		let fused = fuse(touching: before)
+		return Set(refs.compactMap { ref -> Ref? in
+			guard case let .trace(index) = ref else { return ref }
+			return fused[index].map(Ref.trace)
+		})
+	}
+
+	/// Leaves the copper a move touched the way it would have been drawn:
+	/// segments that now run head to tail in a straight line become the one
+	/// segment they look like, and segments dragged down to nothing go away.
+	/// `before` is the copper as it stood, so nothing the move left alone is
+	/// disturbed. Returns where each old index went — a swallowed segment
+	/// reports the one it is now part of, a collapsed one reports nothing.
+	private mutating func fuse(touching before: [Trace]) -> [Int: Int] {
+		var dead: Set<Int> = []
+		var absorbed: [Int: Int] = [:]
+		var pending: [(point: Pt, layer: Int)] = []
+
+		for index in traces.indices
+		where index >= before.count || traces[index] != before[index] {
+			let trace = traces[index]
+			if trace.start == trace.end { dead.insert(index) }
+			pending.append((trace.start, trace.layer))
+			pending.append((trace.end, trace.layer))
+		}
+		while let (point, layer) = pending.popLast() {
+			guard let (kept, gone) = straightJoint(at: point, layer: layer, ignoring: dead)
+			else { continue }
+
+			let far = self[point: gone.other]
+			self[point: kept] = far
+			dead.insert(gone.trace)
+			absorbed[gone.trace] = kept.trace
+			pending.append((far, layer))
+		}
+
+		var moved: [Int: Int] = [:]
+		var surviving = 0
+		for index in traces.indices where !dead.contains(index) {
+			moved[index] = surviving
+			surviving += 1
+		}
+		for (index, into) in absorbed {
+			var target = into
+			while let next = absorbed[target] { target = next }
+			moved[index] = moved[target]
+		}
+		traces.remove(at: dead)
+		return moved
+	}
+
+	/// The two segment ends meeting at `point` when the copper runs straight
+	/// through it: a plain corner with no bend, no branch and no terminal, both
+	/// sides drawn alike. The first is the end that stays, the second the end
+	/// of the segment it swallows.
+	private func straightJoint(
+		at point: Pt,
+		layer: Int,
+		ignoring dead: Set<Int>
+	) -> (TraceEnd, TraceEnd)? {
+		guard !isTerminal(point, layer: layer) else { return nil }
+
+		var ends: [TraceEnd] = []
+		for (index, trace) in traces.enumerated()
+		where !dead.contains(index) && trace.layer == layer {
+			if trace.start == point { ends.append(TraceEnd(trace: index, isStart: true)) }
+			if trace.end == point { ends.append(TraceEnd(trace: index, isStart: false)) }
+			guard ends.count <= 2 else { return nil }
+		}
+		guard ends.count == 2,
+			traces[ends[0].trace].width == traces[ends[1].trace].width,
+			traces[ends[0].trace].net == traces[ends[1].trace].net
+		else { return nil }
+
+		// Straight through: the two sides leave the point in opposite directions
+		let a = self[point: ends[0].other] - point
+		let b = self[point: ends[1].other] - point
+		guard a.x * b.y == a.y * b.x, a.x * b.x + a.y * b.y < 0 else { return nil }
+
+		return (ends[0], ends[1])
 	}
 
 	/// Direction each end ran along before the move. A segment drawn at a free
