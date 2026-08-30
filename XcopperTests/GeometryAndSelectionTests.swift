@@ -8,6 +8,15 @@ final class GeometryAndSelectionTests: XCTestCase {
 		Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack)
 	}
 
+	func testNewDesignDefaultsToFourBySixInchesAndSixLayers() {
+		let design = Design()
+		XCTAssertEqual(design.board.size, Size(width: .inches(4), height: .inches(6)))
+		XCTAssertEqual(design.board.stack, .six)
+		XCTAssertEqual(design.board.planes, Array(repeating: nil, count: 6))
+		XCTAssertEqual(design.nets.map(\.name), ["GND", "VCC", "VEE"])
+		XCTAssertEqual(design.net(2)?.name, "VEE")
+	}
+
 	func testSnap45PicksNearestOctantAndProjectsOntoIt() {
 		let origin = Pt.zero
 

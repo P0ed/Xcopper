@@ -9,7 +9,11 @@ struct Design: Equatable, Codable {
 extension Design {
 
 	init(board: Board = Board(), schematic: Schematic = Schematic()) {
-		nets = [Net(id: 0, name: "GND"), Net(id: 1, name: "VCC")]
+		nets = [
+			Net(id: 0, name: "GND"),
+			Net(id: 1, name: "VCC"),
+			Net(id: 2, name: "VEE"),
+		]
 		self.board = board
 		self.schematic = schematic
 	}

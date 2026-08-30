@@ -20,6 +20,7 @@ extension Nm {
 extension Int {
 	static func mm(_ value: Double) -> Int { Int((value * 1_000_000.0).rounded()) }
 	static func mil(_ value: Double) -> Int { Int((value * 25_400.0).rounded()) }
+	static func inches(_ value: Double) -> Int { Int((value * 25_400_000.0).rounded()) }
 }
 
 /// Board location, nanometers, Y down from the top left corner

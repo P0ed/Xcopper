@@ -83,7 +83,7 @@ struct Board: Equatable, Codable {
 
 extension Board {
 
-	init(size: Size = .init(width: .mm(50), height: .mm(50)), stack: Stack = .two) {
+	init(size: Size = .init(width: .inches(4), height: .inches(6)), stack: Stack = .six) {
 		self.size = size
 		self.stack = stack
 		planes = .init(repeating: nil, count: stack.count)
