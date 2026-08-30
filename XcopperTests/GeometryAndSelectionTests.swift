@@ -363,9 +363,74 @@ final class GeometryAndSelectionTests: XCTestCase {
 
 		XCTAssertEqual(board.footprints[0].at, Pt(x: .mm(12), y: .mm(9)))
 		XCTAssertEqual(board.traces[0].start, pad + delta)
-		XCTAssertEqual(board.traces[0].end, away)
 		XCTAssertEqual(board.traces[1].start, pad)
 		XCTAssertEqual(board.traces[2].start, away)
+		XCTAssertEqual(board.traces.last?.end, away)
+	}
+
+	func testAStretchedSegmentFoldsIntoTwoLegsRatherThanLeaveTheGrid() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		let via = Pt(x: pad.x + .mm(10), y: pad.y)
+		board.vias = [Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.traces = [Trace(start: pad, end: via, width: .mm(0.3), layer: 0, net: nil)]
+
+		let delta = Pt(x: 0, y: .mm(-1))
+		board.move([.footprint(0)], by: delta)
+
+		XCTAssertEqual(board.traces.count, 2)
+		XCTAssertEqual(board.traces[0].start, pad + delta)
+		XCTAssertEqual(board.traces[0].end, Pt(x: pad.x + .mm(1), y: pad.y))
+		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
+		XCTAssertEqual(board.traces[1].end, via)
+		XCTAssertEqual(board.traces[1].width, board.traces[0].width)
+		XCTAssertEqual(board.traces[1].layer, board.traces[0].layer)
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+	}
+
+	func testAPlainCornerSlidesAlongInsteadOfCollectingAnotherSegment() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		let corner = Pt(x: pad.x + .mm(10), y: pad.y)
+		let far = Pt(x: corner.x + .mm(5), y: corner.y + .mm(5))
+		board.traces = [
+			Trace(start: pad, end: corner, width: .mm(0.3), layer: 0, net: nil),
+			Trace(start: corner, end: far, width: .mm(0.3), layer: 0, net: nil),
+		]
+
+		let delta = Pt(x: 0, y: .mm(-1))
+		board.move([.footprint(0)], by: delta)
+
+		let slid = Pt(x: pad.x + .mm(9), y: pad.y - .mm(1))
+		XCTAssertEqual(board.traces.count, 2)
+		XCTAssertEqual(board.traces[0].start, pad + delta)
+		XCTAssertEqual(board.traces[0].end, slid)
+		XCTAssertEqual(board.traces[1].start, slid)
+		XCTAssertEqual(board.traces[1].end, far)
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+	}
+
+	func testASegmentDrawnAtAFreeAngleKeepsIt() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+		]
+		let pad = board.footprints[0].placedPads[0].at
+		let away = Pt(x: pad.x + .mm(20), y: pad.y + .mm(5))
+		board.traces = [Trace(start: pad, end: away, width: .mm(0.3), layer: 0, net: nil)]
+
+		let delta = Pt(x: 0, y: .mm(-1))
+		board.move([.footprint(0)], by: delta)
+
+		XCTAssertEqual(board.traces.count, 1)
+		XCTAssertEqual(board.traces[0].start, pad + delta)
+		XCTAssertEqual(board.traces[0].end, away)
 	}
 
 	func testATraceMovedWithItsFootprintDoesNotShiftTwice() {

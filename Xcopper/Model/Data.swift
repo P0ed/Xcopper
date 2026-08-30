@@ -40,6 +40,7 @@ struct Pt: Hashable, Codable {
 
 	static func + (lhs: Pt, rhs: Pt) -> Pt { Pt(x: lhs.x + rhs.x, y: lhs.y + rhs.y) }
 	static func - (lhs: Pt, rhs: Pt) -> Pt { Pt(x: lhs.x - rhs.x, y: lhs.y - rhs.y) }
+	static func * (lhs: Pt, rhs: Int) -> Pt { Pt(x: lhs.x * rhs, y: lhs.y * rhs) }
 }
 
 extension Pt {

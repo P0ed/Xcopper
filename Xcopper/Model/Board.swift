@@ -16,6 +16,13 @@ struct Trace: Hashable, Codable {
 struct TraceEnd: Hashable {
 	var trace: Int
 	var isStart: Bool
+
+	/// The other end of the same segment, what this one runs to
+	var other: TraceEnd { TraceEnd(trace: trace, isStart: !isStart) }
+
+	static func order(_ lhs: TraceEnd, _ rhs: TraceEnd) -> Bool {
+		(lhs.trace, lhs.isStart ? 0 : 1) < (rhs.trace, rhs.isStart ? 0 : 1)
+	}
 }
 
 struct Via: Hashable, Codable {
@@ -236,10 +243,24 @@ extension Board {
 		return ends
 	}
 
+	/// The point one end of a trace sits on
+	private subscript(point end: TraceEnd) -> Pt {
+		get { end.isStart ? traces[end.trace].start : traces[end.trace].end }
+		set {
+			if end.isStart {
+				traces[end.trace].start = newValue
+			} else {
+				traces[end.trace].end = newValue
+			}
+		}
+	}
+
 	/// Moves `refs`, dragging the loose ends of whatever copper lands on a
-	/// moving footprint along with it
+	/// moving footprint along with it and putting the segments it stretched
+	/// back on the 45 degree grid
 	mutating func move(_ refs: Set<Ref>, by delta: Pt) {
 		let attached = attachedEnds(to: refs)
+		let headings = headings(of: attached)
 
 		for ref in refs {
 			switch ref {
@@ -257,12 +278,74 @@ extension Board {
 			}
 		}
 		for end in attached {
-			if end.isStart {
-				traces[end.trace].start = traces[end.trace].start + delta
-			} else {
-				traces[end.trace].end = traces[end.trace].end + delta
-			}
+			self[point: end] = self[point: end] + delta
 		}
+		for end in attached.sorted(by: TraceEnd.order) {
+			guard let heading = headings[end] else { continue }
+			realign(end, heading: heading, moving: attached, with: refs)
+		}
+	}
+
+	/// Direction each end ran along before the move. A segment drawn at a free
+	/// angle has none, and is left the way it was drawn.
+	private func headings(of ends: Set<TraceEnd>) -> [TraceEnd: Pt] {
+		var headings: [TraceEnd: Pt] = [:]
+		for end in ends {
+			let offset = self[point: end.other] - self[point: end]
+			guard offset.isOctilinear else { continue }
+			headings[end] = offset.heading
+		}
+		return headings
+	}
+
+	/// Puts a segment one end of which followed a footprint back on the 45
+	/// degree grid, sliding the corner it runs into when that corner is free to
+	/// take up the slack and folding the segment in two when it is not
+	private mutating func realign(
+		_ end: TraceEnd,
+		heading: Pt,
+		moving: Set<TraceEnd>,
+		with refs: Set<Ref>
+	) {
+		let moved = self[point: end]
+		let anchor = self[point: end.other]
+		guard !(anchor - moved).isOctilinear else { return }
+		guard !slide(end, heading: heading, moving: moving, with: refs) else { return }
+
+		let corner = bend(from: moved, to: anchor, heading: heading)
+		traces.append(modifying(traces[end.trace]) { trace in
+			trace.start = corner
+			trace.end = anchor
+		})
+		self[point: end.other] = corner
+	}
+
+	/// Slides the corner `end` runs into, so that both segments meeting there
+	/// keep the direction they were drawn at. Fails on a corner that cannot
+	/// take the move: a pad, a via, a branch, copper that is moving too, or a
+	/// pair of directions that never meet.
+	private mutating func slide(
+		_ end: TraceEnd,
+		heading: Pt,
+		moving: Set<TraceEnd>,
+		with refs: Set<Ref>
+	) -> Bool {
+		let anchor = self[point: end.other]
+		guard let next = continuation(of: end.trace, at: anchor), !refs.contains(.trace(next))
+		else { return false }
+
+		let corner = TraceEnd(trace: next, isStart: traces[next].start == anchor)
+		guard !moving.contains(corner), !moving.contains(corner.other) else { return false }
+
+		let far = self[point: corner.other]
+		let offset = anchor - far
+		guard offset.isOctilinear,
+			let slid = crossing(self[point: end], heading, far, offset.heading)
+		else { return false }
+
+		self[point: end.other] = slid
+		self[point: corner] = slid
+		return true
 	}
 
 	mutating func remove(_ refs: Set<Ref>) {

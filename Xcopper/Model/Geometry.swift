@@ -71,6 +71,41 @@ func snapped45(from start: Pt, to end: Pt) -> Pt {
 	return Pt(x: start.x + sx * length, y: start.y + sy * length)
 }
 
+extension Pt {
+
+	/// Whether an offset runs along one of the eight routing directions
+	var isOctilinear: Bool { x == 0 || y == 0 || abs(x) == abs(y) }
+
+	/// The eight way step an octilinear offset runs along, zero for no offset
+	var heading: Pt { Pt(x: x.signum(), y: y.signum()) }
+}
+
+/// Corner of the two legged 45 degree route from `start` to `end`. The bend
+/// sits by `start`, the end that moved, unless the route already ran into
+/// `end` along `heading` and the diagonal leg can keep that approach.
+func bend(from start: Pt, to end: Pt, heading: Pt) -> Pt {
+	let offset = end - start
+	let diagonal = offset.heading
+	let leg = diagonal * min(abs(offset.x), abs(offset.y))
+	return heading == diagonal ? end - leg : start + leg
+}
+
+/// Where the ray leaving `a` along `da` meets the one leaving `b` along `db`,
+/// nil unless they cross ahead of both on a whole nanometer
+func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
+	let determinant = db.x * da.y - da.x * db.y
+	guard determinant != 0 else { return nil }
+
+	// How far along each ray the crossing lies, both scaled by the determinant
+	let offset = b - a
+	let fromA = db.x * offset.y - db.y * offset.x
+	let fromB = da.x * offset.y - da.y * offset.x
+	guard fromA.isMultiple(of: determinant), fromB.isMultiple(of: determinant) else { return nil }
+	guard fromA / determinant > 0, fromB / determinant > 0 else { return nil }
+
+	return a + da * (fromA / determinant)
+}
+
 /// Nearest orthogonal projection, the convention for schematic wires
 func snapped90(from start: Pt, to end: Pt) -> Pt {
 	let dx = end.x - start.x
@@ -253,7 +288,7 @@ extension Board {
 
 	/// The one other segment meeting `index` at `point`, when the junction is a
 	/// plain corner: two ends and no terminal
-	private func continuation(of index: Int, at point: Pt) -> Int? {
+	func continuation(of index: Int, at point: Pt) -> Int? {
 		let layer = traces[index].layer
 		guard !isTerminal(point, layer: layer) else { return nil }
 

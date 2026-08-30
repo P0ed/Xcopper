@@ -41,7 +41,10 @@ pad or via. A run selects, moves and deletes as one object, and a rubber band
 that covers only part of one takes none of it.
 
 Moving a footprint takes its copper with it: every trace end sitting on one of
-its pads follows the part, the far end stays put and the segment stretches.
+its pads follows the part while the far end stays put, and the stretched
+segment stays on the 45° grid. The corner it runs into slides along to absorb
+the move; where there is no corner to slide — a pad, a via, a branch — the
+segment folds into two legs instead. Copper drawn at a free angle keeps it.
 
 ## Schematic
 
