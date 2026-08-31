@@ -70,6 +70,13 @@ struct PreviewSideBar: View {
 struct PartRow: View {
 	var footprint: Footprint
 
+	/// How tall the part stands, or a dash for one the board only carries the
+	/// pads of, which stands on the panel rather than on the board
+	private var height: String {
+		let package = footprint.package
+		return package.stands ? "\(package.height.label) mm" : "—"
+	}
+
 	var body: some View {
 		HStack(spacing: 6.0) {
 			RoundedRectangle(cornerRadius: 2.0)
@@ -79,7 +86,7 @@ struct PartRow: View {
 			Spacer(minLength: 0.0)
 			Text(footprint.flipped ? "B" : "T")
 				.foregroundStyle(.tertiary)
-			Text("\(footprint.package.height.label) mm")
+			Text(height)
 				.foregroundStyle(.secondary)
 		}
 		.font(.caption.monospacedDigit())

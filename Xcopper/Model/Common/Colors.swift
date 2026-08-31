@@ -80,6 +80,11 @@ enum Mask: String, CaseIterable, Identifiable {
 		case .clear: RGBA(r: 0.56, g: 0.47, b: 0.33)
 		}
 	}
+
+	/// Whether the coating masks the copper off. Clear is not a colour of mask
+	/// so much as the want of one: nothing is covered, so the finish that
+	/// plates the pads plates every other piece of copper on the face too.
+	var covers: Bool { self != .clear }
 }
 
 enum Plating: String, CaseIterable, Identifiable {

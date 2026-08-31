@@ -13,6 +13,20 @@ extension Nm {
 	static var thicknesses: [Nm] { [.mm(0.8), .mm(1.6), .mm(2.0)] }
 }
 
+extension Finish {
+
+	/// How the copper between the pads reads. Under a coloured mask it is the
+	/// same coating lifted and warmed by what lies beneath, which is how a
+	/// trace shows through a finished board. A clear mask covers nothing, so
+	/// the copper it leaves open is plated along with the pads and the whole
+	/// face comes back gold.
+	var coating: RGBA {
+		mask.covers
+			? mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
+			: plating.rgb
+	}
+}
+
 /// One face of the board and everything that belongs to it. Both sides are
 /// built by the same code, which only has to know which way is out.
 struct Side {
@@ -159,7 +173,7 @@ extension Board {
 	/// How far the tallest part on one side of the board stands off it
 	func standing(on underside: Bool) -> Double {
 		footprints
-			.filter { footprint in footprint.flipped == underside }
+			.filter { footprint in footprint.flipped == underside && footprint.package.stands }
 			.map { footprint in Double(footprint.package.height + footprint.package.standoff).mm }
 			.max() ?? 0.0
 	}
@@ -209,12 +223,10 @@ extension Board {
 		}
 	}
 
-	/// The outer layer: traces and tented vias reading through the mask, and
-	/// the pads it leaves open
+	/// The outer layer: traces and tented vias reading through whatever covers
+	/// them, and the pads the mask leaves open
 	private func copper(into model: inout Model, finish: Finish, side: Side) {
-		// Mask over copper is the same coating lifted and warmed by what is
-		// under it, which is how a trace shows through a finished board
-		let coated = finish.mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
+		let coated = finish.coating
 
 		for trace in traces where trace.layer == side.layer {
 			model.add(
@@ -263,6 +275,10 @@ extension Board {
 		into model: inout Model
 	) {
 		let package = footprint.package
+		// A part the board only carries the pads of is held somewhere else, so
+		// there is nothing of it to raise: no body, no leads and no tails
+		guard package.stands else { return }
+
 		let standoff = Double(package.standoff).mm
 		let height = Double(package.height).mm
 		let placed = footprint.placedPads
@@ -270,7 +286,7 @@ extension Board {
 		if package.leads {
 			for pad in placed where !pad.isThrough {
 				model.add(
-					prism: pad.figure.polygon(arc: 2),
+					prism: pad.leg.polygon(arc: 2),
 					from: side.z,
 					to: side.lift(standoff + 0.12),
 					color: Palette.solder,
@@ -305,6 +321,8 @@ extension Board {
 		let center = footprint.placedBody.center
 
 		switch package.shell {
+		case .none:
+			break
 		case .block:
 			model.add(
 				prism: footprint.placedBody.outset(-Int(package.inset)).corners,

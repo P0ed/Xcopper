@@ -163,6 +163,27 @@ final class PreviewTests: XCTestCase {
 		XCTAssertTrue(bare.pieces.allSatisfy { abs($0.level) <= 10 })
 	}
 
+	func testAClearMaskLeavesEveryPieceOfCopperPlated() {
+		var board = board()
+		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
+		board.vias.append(Via(at: Pt(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil))
+		board.footprints = [chip(at: Pt(x: .mm(10), y: .mm(10)))]
+
+		let gold = Plating.gold.rgb
+		let clear = board.model(finish: modifying(Finish()) { $0.mask = .clear })
+		let green = board.model(finish: Finish())
+
+		func copper(of model: Model) -> [Piece] {
+			model.pieces.filter { piece in (20 ... 25).contains(abs(piece.level)) }
+		}
+
+		// Clear is the want of a mask rather than a colour of one: nothing is
+		// covered, so the finish that plates the pads plates the rest as well
+		XCTAssertFalse(copper(of: clear).isEmpty)
+		XCTAssertTrue(copper(of: clear).allSatisfy { $0.color == gold })
+		XCTAssertTrue(copper(of: green).contains { $0.color != gold }, "a trace under green is not")
+	}
+
 	// MARK: packages
 
 	func testAPackageIsReadOffTheLandPatternWhenTheLibraryDoesNotKnowThePart() {
@@ -177,6 +198,33 @@ final class PreviewTests: XCTestCase {
 		XCTAssertTrue(header.package.posts, "a header carries pins through its moulding")
 		XCTAssertFalse(header.package.leads)
 		XCTAssertGreaterThan(soic.package.height, chip.package.height)
+	}
+
+	func testASurfaceMountLegIsThinnerThanTheLandItIsSolderedTo() throws {
+		let soic = Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: .zero)
+		let pad = try XCTUnwrap(soic.placedPads.first)
+
+		let land = pad.figure.bounds
+		let leg = pad.leg.bounds
+
+		XCTAssertLessThan(leg.size.height, land.size.height, "the solder fillets either side")
+		XCTAssertLessThan(leg.size.width, land.size.width)
+		XCTAssertEqual(leg.center, land.center, "the leg sits in the middle of its land")
+	}
+
+	func testAPartTheBoardOnlyCarriesThePadsOfStandsNowhereOnIt() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Pt(x: .mm(20), y: .mm(15))),
+		]
+
+		let model = board.model(finish: Finish())
+
+		XCTAssertFalse(board.footprints[0].package.stands, "a panel jack is held by the panel")
+		XCTAssertEqual(board.standing(on: false), 0.0)
+		// The ring and the barrel through it are the board's; nothing of the
+		// jack itself is raised over either face
+		XCTAssertEqual(model.pieces.count { abs($0.level) == 50 }, 0)
 	}
 
 	func testTheLibraryOverridesALandPatternThatWouldReadWrong() {

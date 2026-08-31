@@ -187,11 +187,21 @@ arrow keys to step around it. `⌘9` frames the whole board and the usual `⌘-`
 thickness, and switches copper and parts on and off. It also lists what is
 stuffed, which side each part is on and how tall it stands.
 
+Clear is not a colour of mask so much as the want of one: nothing is covered, so
+the finish that plates the pads plates the traces and the vias with them and the
+whole face comes back gold.
+
 Only the outer copper layers are on show, since those are the only ones a
 finished board lets you see. Part heights come from the library for the parts it
 knows and are read off the land pattern for everything else — two lands and no
 holes is a chip, holes inside the outline are pins coming up through a moulding,
 holes outside it are a package sitting beside them.
+
+A surface mount lead is drawn thinner than the land it is soldered to, since a
+land pattern is cut wider than the lead it takes so the solder has somewhere to
+fillet. A part the board only carries the pads of stands nowhere on it: a panel
+jack is held by the panel, so the ring its solder tab lands on is all there is
+to show and the sidebar gives it no height.
 
 ## Fabrication
 
@@ -215,10 +225,7 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Clear mask should expose gold.
 - Use RealityKit to render model.
-- Remove pomona1581 model from preview.
-- SO package legs should be thinner than footprint pads.
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.

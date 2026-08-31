@@ -5,6 +5,9 @@ struct Package: Equatable {
 
 	/// The solid raised over the footprint
 	enum Shell: Equatable {
+		/// Nothing at all: the part is held somewhere other than the board,
+		/// which carries its land pattern and no more
+		case none
 		/// A moulded body over the footprint outline
 		case block
 		/// A round body of the given diameter, centred on the outline
@@ -26,6 +29,9 @@ struct Package: Equatable {
 	var posts = false
 	/// Whether solder covered metal shows over each surface mount pad
 	var leads: Bool = false
+
+	/// Whether anything of the part stands on the board to be drawn
+	var stands: Bool { shell != .none }
 }
 
 extension Footprint {
@@ -76,7 +82,8 @@ extension Package {
 	}
 
 	/// The library parts whose land pattern reads wrong on its own: a lens is
-	/// not a header, and a jack is not the flat thing its pads suggest.
+	/// not a header, a jack is not the flat thing its pads suggest, and a panel
+	/// jack is not on the board at all.
 	init?(_ component: Component) {
 		switch component {
 		case .hlmpWL02:
@@ -89,8 +96,24 @@ extension Package {
 			self.init(shell: .block, height: .mm(9.4), color: Palette.nylon)
 		case .that2180:
 			self.init(shell: .block, height: .mm(9.0))
+		case .pomona1581:
+			// A panel jack is bolted through the panel and reaches back to the
+			// board, which carries the ring its solder tab lands on and nothing
+			// standing on it
+			self.init(shell: .none, height: 0)
 		default:
 			return nil
 		}
+	}
+}
+
+extension Pad {
+
+	/// The leg standing on a surface mount pad. A land pattern is drawn wider
+	/// and longer than the lead it takes so that the solder has somewhere to
+	/// fillet, and a leg raised over the whole pad would cover exactly the
+	/// margin that shows it.
+	var leg: Figure {
+		figure.outset(-min(.mm(0.1), min(size.width, size.height) / 4))
 	}
 }
