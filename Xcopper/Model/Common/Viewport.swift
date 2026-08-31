@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Pan, zoom and cursor for one canvas
 struct Viewport: Equatable {
 	var cursor: Pt = .zero
 	var size: CGSize = .zero
@@ -11,7 +10,6 @@ struct Viewport: Equatable {
 
 extension Viewport {
 
-	/// Portion of a scrollable canvas currently on screen, in canvas coordinates.
 	func visibleRect(in contentSize: CGSize) -> CGRect {
 		guard size.width > 0.0, size.height > 0.0, !frame.isEmpty else {
 			return CGRect(origin: .zero, size: contentSize)
@@ -25,7 +23,7 @@ extension Viewport {
 	}
 
 	mutating func setScale(_ scale: CGFloat) {
-		let scale = min(max(scale, 0.5), 400.0)
+		let scale = min(max(scale, 4.0), 256.0)
 		let frame = frame
 		let size = size
 		let dm = scale / magnification
