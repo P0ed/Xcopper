@@ -44,7 +44,7 @@ extension Nm {
 	}
 
 	static var widths: [Nm] {
-		[.mm(0.33), .mm(0.47), .mm(0.68), .mm(1.0), .mm(1.5), .mm(2.2)]
+		[.mm(0.4), .mm(1.2)]
 	}
 
 	static var sheetSnapGrids: [Nm] {
@@ -52,7 +52,7 @@ extension Nm {
 	}
 
 	static var displayGrids: [Nm] {
-		[.mm(1.27), .mm(2.54)]
+		[.mil(100), .inches(1)]
 	}
 
 	var coordinate: String { String(format: "%.2f", mm) }
@@ -74,9 +74,9 @@ struct LayoutState: Equatable {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var snap: Nm = .mil(10)
-	var grid: Nm = .mm(1.27)
-	var traceWidth: Nm = .mm(0.25)
+	var snap: Nm = .snapGrids.last!
+	var grid: Nm = .displayGrids.first!
+	var traceWidth: Nm = .widths.first!
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []
 	var traceSession: TraceSession?
