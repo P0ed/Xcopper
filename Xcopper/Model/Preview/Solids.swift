@@ -4,14 +4,13 @@ import Foundation
 struct Finish: Equatable {
 	var mask: Mask = .green
 	var plating: Plating = .gold
-	var thickness: Nm = .mm(1.6)
+	var thickness: Nm = .thicknesses[1]
 	var copper = true
 	var components = true
 }
 
 extension Nm {
-
-	static var thicknesses: [Nm] { [.mm(0.8), .mm(1.0), .mm(1.6), .mm(2.0)] }
+	static var thicknesses: [Nm] { [.mm(0.8), .mm(1.6), .mm(2.0)] }
 }
 
 /// One face of the board and everything that belongs to it. Both sides are
