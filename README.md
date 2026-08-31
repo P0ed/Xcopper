@@ -174,3 +174,14 @@ everything on another net, then the copper on that layer drawn over the top.
 ## File format
 
 One JSON document holding `nets`, `board` and `schematic`.
+
+## Roadmap
+
+- Selected items are brigter instead of running ants
+- Inspector for selected item in sidebar with editable properties like resistance value
+- Editing a trace should change current and neighboring segments length. 
+  E.g. U shaped trace bottom segment becomes longer if dragged to top, and its neighbors shorter.
+  At the moment segment lenght doesn't change, changes only neighbors and neighbors of neighbors.
+  Want to match behavior of EasyEDA or KiCad.
+- Clear mask should expose gold.
+- Use RealityKit to render model.
