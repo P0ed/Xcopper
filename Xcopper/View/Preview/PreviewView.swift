@@ -1,21 +1,28 @@
 import AppKit
+import RealityKit
 import SwiftUI
 
 /// The board as it will come back from the fab: substrate, mask, copper and
-/// the parts standing on it, painted back to front.
+/// the parts standing on it, handed to RealityKit as a scene to render.
 @MainActor
 struct PreviewView: View {
 	var board: Board
 	@Binding var state: PreviewState
 
-	@State private var model = Model()
+	@State private var scene = PreviewScene()
 	@GestureState private var grab: Grab?
 	@GestureState private var pinch: Double?
 
 	var body: some View {
 		GeometryReader { geo in
-			Canvas { context, size in
-				render(model, in: context, size: size)
+			RealityView { content in
+				// The board is looked at from a camera of its own rather than
+				// from wherever a scene would otherwise be read
+				content.camera = .virtual
+				content.add(scene.root)
+				show()
+			} update: { _ in
+				show()
 			}
 			.background(Palette.backdrop)
 			.gesture(controller)
@@ -29,13 +36,14 @@ struct PreviewView: View {
 				if !state.framed { state.frame(board) }
 			}
 		}
-		.onChange(of: board, initial: true) { _, _ in rebuild() }
-		.onChange(of: state.finish) { _, _ in rebuild() }
 		.overlay(alignment: .bottomLeading) { readout }
 	}
 
-	private func rebuild() {
-		model = board.model(finish: state.finish)
+	/// The scene knows the board it is already showing, so this is the turn of
+	/// the camera that a drag asks for and nothing more
+	private func show() {
+		scene.show(board, finish: state.finish)
+		scene.aim(state.camera)
 	}
 
 	private var readout: some View {

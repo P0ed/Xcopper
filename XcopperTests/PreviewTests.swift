@@ -1,10 +1,11 @@
+import simd
 import SwiftUI
 import XCTest
 @testable import Xcopper
 
-/// The 3D preview turns the board into flat polygons and paints them back to
-/// front, which only works while every loop is wound the way the layout draws
-/// it and every level stays in its place in the stack.
+/// The 3D preview turns the board into flat faces, cuts those into triangles
+/// and hands them to a renderer, which only works while every loop is wound the
+/// way the layout draws it and every level keeps its place in the stack.
 final class PreviewTests: XCTestCase {
 
 	private func board(_ stack: Stack = .two) -> Board {
@@ -67,14 +68,19 @@ final class PreviewTests: XCTestCase {
 			model.add(prism: outline, from: from, to: to, color: Palette.moulding, level: 0)
 			XCTAssertEqual(model.pieces.count, 5, "four walls and a cap")
 
-			let normals = model.pieces.map(\.normal)
 			// The cap looks away from the board and no wall leans inwards
-			XCTAssertEqual(normals.last?.z ?? 0.0, to > from ? 1.0 : -1.0, accuracy: 0.0001)
-			for normal in normals.dropLast() {
-				XCTAssertEqual(normal.z, 0.0, accuracy: 0.0001)
-				let outward = model.pieces[normals.firstIndex(of: normal)!].at
+			XCTAssertEqual(
+				model.pieces.last?.normal.z ?? 0.0,
+				to > from ? 1.0 : -1.0,
+				accuracy: 0.0001
+			)
+			for wall in model.pieces.dropLast() {
+				XCTAssertEqual(wall.normal.z, 0.0, accuracy: 0.0001)
+				// The prism stands on the middle, so a corner of a wall is the
+				// way out of it
+				let corner = wall.loop[0]
 				XCTAssertGreaterThan(
-					normal.dot(V3(x: outward.x, y: outward.y, z: 0.0)),
+					wall.normal.dot(V3(x: corner.x, y: corner.y, z: 0.0)),
 					0.0,
 					"a wall of a prism looks away from its middle"
 				)
@@ -134,7 +140,7 @@ final class PreviewTests: XCTestCase {
 
 		XCTAssertGreaterThan(model.pieces.count { $0.level == -50 }, 0)
 		XCTAssertEqual(model.pieces.count { $0.level == 50 }, 0)
-		XCTAssertTrue(model.pieces.allSatisfy { $0.at.z <= 0.0 })
+		XCTAssertTrue(model.pieces.allSatisfy { piece in piece.loop.allSatisfy { $0.z <= 0.0 } })
 	}
 
 	func testTheBoardCarriesNoLegend() {
@@ -182,6 +188,148 @@ final class PreviewTests: XCTestCase {
 		XCTAssertFalse(copper(of: clear).isEmpty)
 		XCTAssertTrue(copper(of: clear).allSatisfy { $0.color == gold })
 		XCTAssertTrue(copper(of: green).contains { $0.color != gold }, "a trace under green is not")
+	}
+
+	// MARK: triangles
+
+	/// How much a face cut into triangles covers, which is the whole of what
+	/// it stood for and no more
+	private func area(of triangles: [V3]) -> Double {
+		stride(from: 0, to: triangles.count, by: 3).reduce(0.0) { total, corner in
+			let a = triangles[corner + 1] - triangles[corner]
+			let b = triangles[corner + 2] - triangles[corner]
+			return total + a.cross(b).length / 2.0
+		}
+	}
+
+	/// Every triangle looks the way the face it was cut from does. One turned
+	/// the other way about would be dropped by the renderer as a back face.
+	private func assertFacing(_ triangles: [V3], _ facing: Double) {
+		XCTAssertFalse(triangles.isEmpty)
+		XCTAssertEqual(triangles.count % 3, 0)
+
+		for corner in stride(from: 0, to: triangles.count, by: 3) {
+			let a = triangles[corner + 1] - triangles[corner]
+			let b = triangles[corner + 2] - triangles[corner]
+			XCTAssertEqual(a.cross(b).normalized.z, facing, accuracy: 0.0001)
+		}
+	}
+
+	/// How much a drill covers once it is drawn as the twelve sided ring the
+	/// model builds it out of, which is a little under the circle it stands for
+	private func punched(_ diameter: Double) -> Double {
+		let radius = diameter / 2.0
+		let sides = 12.0
+		return sides * radius * radius * sin(2.0 * .pi / sides) / 2.0
+	}
+
+	private var square: [V3] {
+		Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20)))
+			.corners.map { $0.v3(0.0) }
+	}
+
+	func testAFaceIsCutIntoTrianglesThatCoverIt() {
+		let triangles = triangulate(square, holes: [], facing: V3(x: 0.0, y: 0.0, z: 1.0))
+
+		XCTAssertEqual(triangles.count, 6, "a square is two triangles")
+		XCTAssertEqual(area(of: triangles), 400.0, accuracy: 0.001)
+		assertFacing(triangles, 1.0)
+	}
+
+	func testADrillIsCutRoundRatherThanCoveredOver() {
+		let drill = circle(at: Pt(x: .mm(10), y: .mm(10)), diameter: .mm(6))
+		let triangles = triangulate(
+			square,
+			holes: [drill.map { $0.v3(0.0) }],
+			facing: V3(x: 0.0, y: 0.0, z: 1.0)
+		)
+
+		XCTAssertEqual(area(of: triangles), 400.0 - punched(6.0), accuracy: 0.01)
+		assertFacing(triangles, 1.0)
+	}
+
+	func testEveryDrillIsCutRoundEvenWhereTheyCrowdTheFace() {
+		let drills = (0 ..< 9).map { index -> [Pt] in
+			let across = Double(4 + 6 * (index % 3))
+			let down = Double(4 + 6 * (index / 3))
+			return circle(at: Pt(x: .mm(across), y: .mm(down)), diameter: .mm(3))
+		}
+		let triangles = triangulate(
+			square,
+			holes: drills.map { drill in drill.map { $0.v3(0.0) } },
+			facing: V3(x: 0.0, y: 0.0, z: 1.0)
+		)
+
+		XCTAssertEqual(area(of: triangles), 400.0 - 9.0 * punched(3.0), accuracy: 0.02)
+		assertFacing(triangles, 1.0)
+	}
+
+	func testTheUndersideOfTheBoardIsCutTheSameWayRound() {
+		let side = Side(up: false, z: -1.6, layer: 1)
+		let outline = side.loop(Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20))).corners)
+		let drill = side.loop(circle(at: Pt(x: .mm(10), y: .mm(10)), diameter: .mm(6)))
+
+		let triangles = triangulate(outline, holes: [drill], facing: V3(x: 0.0, y: 0.0, z: -1.0))
+
+		XCTAssertEqual(area(of: triangles), 400.0 - punched(6.0), accuracy: 0.01)
+		XCTAssertTrue(triangles.allSatisfy { $0.z == -1.6 })
+		assertFacing(triangles, -1.0)
+	}
+
+	func testAHoleThatIsNotInTheFaceLeavesItWhole() {
+		let stray = circle(at: Pt(x: .mm(40), y: .mm(10)), diameter: .mm(4)).map { $0.v3(0.0) }
+		let triangles = triangulate(square, holes: [stray], facing: V3(x: 0.0, y: 0.0, z: 1.0))
+
+		XCTAssertEqual(area(of: triangles), 400.0, accuracy: 0.001)
+		assertFacing(triangles, 1.0)
+	}
+
+	// MARK: surfaces
+
+	func testTheModelIsGatheredIntoOneSurfacePerColour() {
+		var board = board()
+		board.traces = (0 ..< 4).map { index -> Trace in
+			let down = Nm.mm(Double(2 + 3 * index))
+			return Trace(
+				start: Pt(x: .mm(2), y: Int(down)),
+				end: Pt(x: .mm(12), y: Int(down)),
+				width: .mm(0.3),
+				layer: 0,
+				net: nil
+			)
+		}
+		board.footprints = [chip(at: Pt(x: .mm(20), y: .mm(20)))]
+
+		let model = board.model(finish: Finish())
+		let surfaces = model.surfaces
+
+		XCTAssertEqual(surfaces.count, Set(model.pieces.map(\.color)).count)
+		XCTAssertEqual(Set(surfaces.map(\.color)), Set(model.pieces.map(\.color)))
+		for surface in surfaces {
+			XCTAssertEqual(surface.corners.count, surface.normals.count)
+			XCTAssertEqual(surface.corners.count % 3, 0, "three corners to a triangle")
+			XCTAssertFalse(surface.corners.isEmpty)
+		}
+	}
+
+	func testEachLevelStandsClearOfTheOneUnderIt() {
+		var board = board()
+		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
+		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
+
+		let pieces = board.model(finish: Finish()).pieces
+		func lift(_ level: Int) -> Double {
+			pieces.first { $0.level == level }?.lift.z ?? .nan
+		}
+
+		// The copper reads over the mask on the face it is on, which on the
+		// underside means below it
+		XCTAssertGreaterThan(lift(20), lift(10))
+		XCTAssertGreaterThan(lift(10), 0.0)
+		XCTAssertLessThan(lift(-20), lift(-10))
+		XCTAssertLessThan(lift(-10), 0.0)
+		// And no lift is anything the eye or the fab would call a gap
+		XCTAssertLessThan(abs(lift(20)), 0.05)
 	}
 
 	// MARK: packages
@@ -262,47 +410,44 @@ final class PreviewTests: XCTestCase {
 		}
 	}
 
-	func testAPointInFrontOfTheEyeLandsWhereTheCameraIsPointed() {
+	func testTheEyeStandsWhereTheCameraIsAndLooksTheWayItIsTurned() {
 		var camera = Camera(target: V3(x: 20.0, y: 15.0, z: 0.0), distance: 100.0)
 		camera.aim(at: .top)
-		let projector = Projector(camera: camera, size: CGSize(width: 800.0, height: 600.0))
+		let pose = camera.pose
 
-		let middle = projector.project(camera.target)
-		XCTAssertEqual(middle.x, 400.0, accuracy: 0.001)
-		XCTAssertEqual(middle.y, 300.0, accuracy: 0.001)
+		func axis(_ column: SIMD4<Float>) -> SIMD3<Float> {
+			SIMD3(column.x, column.y, column.z)
+		}
 
-		// Further along board Y is further down the screen, as on the layout
-		XCTAssertGreaterThan(
-			projector.project(camera.target + V3(x: 0.0, y: 5.0, z: 0.0)).y,
-			middle.y
-		)
-		XCTAssertGreaterThan(
-			projector.project(camera.target + V3(x: 5.0, y: 0.0, z: 0.0)).x,
-			middle.x
-		)
+		// A hundred millimeters over the middle of the board is a tenth of a
+		// metre up the scene's own Y
+		XCTAssertEqual(pose.columns.3.x, 0.020, accuracy: 0.0001)
+		XCTAssertEqual(pose.columns.3.y, 0.100, accuracy: 0.0001)
+		XCTAssertEqual(pose.columns.3.z, 0.015, accuracy: 0.0001)
+
+		// A camera looks along its own negative Z, which from up there is
+		// straight down at the board, and board Y still runs down the screen
+		XCTAssertEqual(axis(pose.columns.2).y, 1.0, accuracy: 0.0001)
+		XCTAssertEqual(axis(pose.columns.0).x, 1.0, accuracy: 0.0001)
+		XCTAssertEqual(axis(pose.columns.1).z, -1.0, accuracy: 0.0001)
+
+		// Right crossed into up is back, or the view comes out mirrored
+		let handedness = simd_cross(axis(pose.columns.0), axis(pose.columns.1))
+		XCTAssertEqual(handedness.y, axis(pose.columns.2).y, accuracy: 0.0001)
 	}
 
-	func testTheNearPlaneCutsAFaceRatherThanLosingIt() {
-		let straddling = [
-			V3(x: -1.0, y: 0.0, z: -1.0),
-			V3(x: 1.0, y: 0.0, z: -1.0),
-			V3(x: 1.0, y: 0.0, z: 4.0),
-			V3(x: -1.0, y: 0.0, z: 4.0),
-		]
+	func testTurningTheBoardIntoASceneTurnsItsWindingRound() {
+		let face = Rect(origin: .zero, size: Size(width: .mm(10), height: .mm(10)))
+			.corners.map { $0.v3(0.0) }
+		XCTAssertEqual(face.normal, V3(x: 0.0, y: 0.0, z: 1.0), "out of the top copper")
+		XCTAssertEqual(face.normal.turned, SIMD3<Float>(0.0, 1.0, 0.0), "up the scene")
 
-		let clipped = clippedToNear(straddling)
-		XCTAssertEqual(clipped.count, 4)
-		XCTAssertTrue(clipped.allSatisfy { $0.z >= Projector.near - 0.0001 })
-		XCTAssertTrue(clippedToNear(straddling.map { V3(x: $0.x, y: $0.y, z: -5.0) }).isEmpty)
-	}
-
-	func testOnlyTheFaceTurnedTowardsTheEyeIsDrawn() {
-		var camera = Camera(target: .zero, distance: 50.0)
-		camera.aim(at: .top)
-		let projector = Projector(camera: camera, size: CGSize(width: 800.0, height: 600.0))
-
-		XCTAssertTrue(projector.faces(V3(x: 0.0, y: 0.0, z: 1.0), at: .zero))
-		XCTAssertFalse(projector.faces(V3(x: 0.0, y: 0.0, z: -1.0), at: .zero))
+		// The same corners in the same order wind the other way about that
+		// normal once the space has been turned over, which is why a face is
+		// handed to the renderer backwards
+		let turned = face.map(\.turned)
+		let normal = simd_normalize(simd_cross(turned[1] - turned[0], turned[2] - turned[0]))
+		XCTAssertEqual(normal.y, -1.0, accuracy: 0.0001)
 	}
 
 	// MARK: framing
@@ -317,13 +462,16 @@ final class PreviewTests: XCTestCase {
 		XCTAssertEqual(state.camera.target.y, 15.0, accuracy: 0.001)
 		XCTAssertEqual(state.camera.distance, state.reach, accuracy: 0.001)
 
-		let projector = Projector(camera: state.camera, size: state.canvas)
+		let camera = state.camera
+		let vertical = tan(camera.fov / 2.0)
+		let horizontal = vertical * Double(state.canvas.width / state.canvas.height)
 		for corner in board().bounds.corners {
-			let point = projector.project(corner.v3(0.0))
-			XCTAssertTrue(
-				CGRect(origin: .zero, size: state.canvas).contains(point),
-				"corner \(corner) landed at \(point)"
-			)
+			let offset = corner.v3(0.0) - camera.eye
+			let depth = offset.dot(camera.forward)
+
+			XCTAssertGreaterThan(depth, Camera.near, "corner \(corner) is behind the eye")
+			XCTAssertLessThanOrEqual(abs(offset.dot(camera.right)), depth * horizontal)
+			XCTAssertLessThanOrEqual(abs(offset.dot(camera.up)), depth * vertical)
 		}
 	}
 

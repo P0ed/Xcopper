@@ -1,4 +1,5 @@
 import CoreGraphics
+import simd
 import SwiftUI
 
 /// A point in board space: millimeters, X right and Y down as on the layout,
@@ -81,16 +82,6 @@ extension [V3] {
 			previous = point
 		}
 		return normal.normalized
-	}
-
-	var centroid: V3 {
-		var sum = V3.zero
-		var count = 0.0
-		for point in self {
-			sum = sum + point
-			count += 1.0
-		}
-		return count > 0.0 ? sum * (1.0 / count) : sum
 	}
 }
 
@@ -214,74 +205,51 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 	}
 }
 
-/// A camera resolved against a canvas, ready to turn board space into points
-/// to draw at
-struct Projector {
-	let eye: V3
-	let right: V3
-	let up: V3
-	let forward: V3
-	let focal: Double
-	let center: CGPoint
-	let overTop: Bool
+/// Board space as a renderer reads a scene: metres, Y standing up out of the
+/// board and the eye looking along its own back to front.
+extension V3 {
 
-	/// Nothing closer than this to the eye is drawn, in millimeters
+	/// This direction turned the way a scene is read. The board's Z, which
+	/// stands up out of the copper, is the scene's up, and the board's Y, which
+	/// runs down the layout, is the scene's depth. Swapping two axes turns the
+	/// space over, which is exactly what a layout read with Y down needs: a
+	/// loop wound one way on the board is wound the other way in the scene, so
+	/// a face is handed over with its corners in the reverse order.
+	var turned: SIMD3<Float> { SIMD3(Float(x), Float(z), Float(y)) }
+
+	/// This point where the scene puts it, in metres, so the board stands
+	/// there at the size it is made
+	var placed: SIMD3<Float> { turned * Float(V3.metre) }
+
+	/// Millimeters, which the board is measured in, to the metres a scene is
+	static let metre = 0.001
+}
+
+extension Camera {
+
+	/// Nothing nearer the eye than this is drawn, in millimeters. The eye is
+	/// never let closer to what it looks at than a fraction of the board, so
+	/// this only ever cuts a part the view has climbed inside of.
 	static let near = 0.25
+	/// Nor anything further off than this, which is further than the eye is
+	/// ever stood back
+	static let far = 10_000.0
 
-	init(camera: Camera, size: CGSize) {
-		eye = camera.eye
-		right = camera.right
-		up = camera.up
-		forward = camera.forward
-		focal = Double(size.height) / 2.0 / tan(camera.fov / 2.0)
-		center = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
-		overTop = camera.overTop
+	/// Where the eye stands and which way it is turned, as a scene wants it:
+	/// right, up and back, the last of the three because a camera looks along
+	/// its own negative Z.
+	var pose: simd_float4x4 {
+		simd_float4x4(columns: (
+			SIMD4(right.turned, 0.0),
+			SIMD4(up.turned, 0.0),
+			SIMD4((-forward).turned, 0.0),
+			SIMD4(eye.placed, 1.0)
+		))
 	}
-
-	/// Camera space: X right, Y up, Z the distance in front of the eye
-	func view(_ point: V3) -> V3 {
-		let offset = point - eye
-		return V3(x: offset.dot(right), y: offset.dot(up), z: offset.dot(forward))
-	}
-
-	/// A camera space point on the canvas
-	func point(_ view: V3) -> CGPoint {
-		let scale = focal / max(view.z, Projector.near)
-		return CGPoint(x: center.x + view.x * scale, y: center.y - view.y * scale)
-	}
-
-	func project(_ point: V3) -> CGPoint { self.point(view(point)) }
-
-	/// Whether a face with this normal turns its front towards the eye
-	func faces(_ normal: V3, at point: V3) -> Bool { (point - eye).dot(normal) < 0.0 }
 }
 
-/// Sutherland–Hodgman against the near plane, so a loop the eye is inside of
-/// still draws the part of it that is in front
-func clippedToNear(_ loop: [V3]) -> [V3] {
-	let near = Projector.near
-	guard loop.contains(where: { $0.z < near }) else { return loop }
-	guard loop.contains(where: { $0.z >= near }) else { return [] }
-
-	var result: [V3] = []
-	result.reserveCapacity(loop.count + 2)
-
-	var previous = loop[loop.count - 1]
-	for point in loop {
-		let inside = point.z >= near
-		let wasInside = previous.z >= near
-		if inside != wasInside {
-			let t = (near - previous.z) / (point.z - previous.z)
-			result.append(previous + (point - previous) * t)
-		}
-		if inside { result.append(point) }
-		previous = point
-	}
-	return result
-}
-
-/// Plain colour components, so a face can be shaded without going through
-/// `Color` and back out again
+/// Plain colour components, so the model can carry the colour of a face
+/// without going through `Color` and back out again
 struct RGBA: Hashable {
 	var r: Double
 	var g: Double
@@ -307,16 +275,4 @@ extension RGBA {
 	}
 
 	func opacity(_ value: Double) -> RGBA { modifying(self) { $0.a = value } }
-}
-
-extension Projector {
-
-	/// Lambert from a key light over the viewer's shoulder, plus enough ambient
-	/// that nothing goes to black. The light rides with the camera, so whatever
-	/// side of the board is turned towards you is the side that is lit.
-	func shade(_ color: RGBA, normal: V3) -> Color {
-		let key = (-forward + up * 0.45 - right * 0.35).normalized
-		let lambert = max(0.0, normal.dot(key))
-		return color.scaled(0.42 + 0.72 * lambert).color
-	}
 }

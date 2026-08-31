@@ -39,9 +39,10 @@ struct Side {
 
 extension Side {
 
-	/// Painting order, the bottom of the board first. Everything sitting at
-	/// one height forms a group of its own, so copper never fights with the
-	/// substrate it lies on: only what shares a level is sorted by distance.
+	/// Where a thing sits in the stack, counted out from the laminate and
+	/// signed by the side it belongs to. Everything on one level lies at one
+	/// height, and a level stands a hair clear of the one under it, so the
+	/// copper never fights the substrate it is laid on.
 	static let core = 0
 
 	var mask: Int { up ? 10 : -10 }
@@ -58,14 +59,12 @@ extension Side {
 	}
 }
 
-/// One flat polygon of the model, waiting for a camera to say where it lands
+/// One flat face of the model, waiting to be cut into triangles
 struct Piece {
 	var loop: [V3]
-	/// Punched out of the loop, so what was painted under it reads through
+	/// Punched out of the loop, so that a drill reads through the face
 	var holes: [[V3]]
 	var normal: V3
-	/// Where it sits, for ordering it against the rest of its level
-	var at: V3
 	var color: RGBA
 	var level: Int
 }
@@ -83,7 +82,6 @@ extension Model {
 			loop: loop,
 			holes: holes,
 			normal: loop.normal,
-			at: loop.centroid,
 			color: color,
 			level: level
 		))
