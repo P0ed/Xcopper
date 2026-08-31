@@ -215,3 +215,7 @@ One JSON document holding `nets`, `board` and `schematic`.
 - Use RealityKit to render model.
 - Remove pomona1581 model from preview.
 - SO package legs should be thinner than footprint pads.
+- Include in BOM toggle for component.
+- BOM export.
+- Pick and place export.
+- Tool to check component value against part number and availability on `jlcpcb.com/parts`.
