@@ -282,23 +282,23 @@ func clippedToNear(_ loop: [V3]) -> [V3] {
 
 /// Plain colour components, so a face can be shaded without going through
 /// `Color` and back out again
-struct Rgb: Hashable {
+struct RGBA: Hashable {
 	var r: Double
 	var g: Double
 	var b: Double
 	var a: Double = 1.0
 }
 
-extension Rgb {
+extension RGBA {
 
 	var color: Color { Color(red: r, green: g, blue: b, opacity: a) }
 
-	func scaled(_ factor: Double) -> Rgb {
-		Rgb(r: min(r * factor, 1.0), g: min(g * factor, 1.0), b: min(b * factor, 1.0), a: a)
+	func scaled(_ factor: Double) -> RGBA {
+		RGBA(r: min(r * factor, 1.0), g: min(g * factor, 1.0), b: min(b * factor, 1.0), a: a)
 	}
 
-	func mixed(with other: Rgb, _ amount: Double) -> Rgb {
-		Rgb(
+	func mixed(with other: RGBA, _ amount: Double) -> RGBA {
+		RGBA(
 			r: r + (other.r - r) * amount,
 			g: g + (other.g - g) * amount,
 			b: b + (other.b - b) * amount,
@@ -306,7 +306,7 @@ extension Rgb {
 		)
 	}
 
-	func opacity(_ value: Double) -> Rgb { modifying(self) { $0.a = value } }
+	func opacity(_ value: Double) -> RGBA { modifying(self) { $0.a = value } }
 }
 
 extension Projector {
@@ -314,7 +314,7 @@ extension Projector {
 	/// Lambert from a key light over the viewer's shoulder, plus enough ambient
 	/// that nothing goes to black. The light rides with the camera, so whatever
 	/// side of the board is turned towards you is the side that is lit.
-	func shade(_ color: Rgb, normal: V3) -> Color {
+	func shade(_ color: RGBA, normal: V3) -> Color {
 		let key = (-forward + up * 0.45 - right * 0.35).normalized
 		let lambert = max(0.0, normal.dot(key))
 		return color.scaled(0.42 + 0.72 * lambert).color

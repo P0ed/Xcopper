@@ -20,7 +20,7 @@ struct Package: Equatable {
 	var standoff: Nm = 0
 	/// How far the moulding sits inside the footprint outline
 	var inset: Nm = 0
-	var color: Rgb = Palette.moulding
+	var color: RGBA = Palette.moulding
 	/// Whether pins come up through the moulding, as a pin header carries.
 	/// They are as thick as the hole they pass through.
 	var posts = false
@@ -83,8 +83,6 @@ extension Package {
 			self.init(shell: .dome(.mm(5.0)), height: .mm(8.6), color: Palette.lens)
 		case .bourns51:
 			self.init(shell: .block, height: .mm(6.5), inset: .mm(0.2), color: Palette.trimmer)
-		case .pomona1581:
-			self.init(shell: .can(.mm(9.5)), height: .mm(9.0))
 		case .nkkMN12, .nkkMN15:
 			self.init(shell: .block, height: .mm(10.0), inset: .mm(0.1), color: Palette.metal)
 		case .mta1563, .mta1564:

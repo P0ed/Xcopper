@@ -53,7 +53,7 @@ struct Piece {
 	var normal: V3
 	/// Where it sits, for ordering it against the rest of its level
 	var at: V3
-	var color: Rgb
+	var color: RGBA
 	var level: Int
 }
 
@@ -64,7 +64,7 @@ struct Model {
 
 extension Model {
 
-	mutating func add(_ loop: [V3], holes: [[V3]] = [], color: Rgb, level: Int) {
+	mutating func add(_ loop: [V3], holes: [[V3]] = [], color: RGBA, level: Int) {
 		guard loop.count >= 3 else { return }
 		pieces.append(Piece(
 			loop: loop,
@@ -84,7 +84,7 @@ extension Model {
 		prism outline: [Pt],
 		from: Double,
 		to: Double,
-		color: Rgb,
+		color: RGBA,
 		level: Int,
 		capped: Bool = true
 	) {
@@ -107,7 +107,7 @@ extension Model {
 		at lowerZ: Double,
 		to upper: [Pt],
 		at upperZ: Double,
-		color: Rgb,
+		color: RGBA,
 		level: Int
 	) {
 		guard lower.count == upper.count, lower.count >= 3, lowerZ != upperZ else { return }
@@ -341,7 +341,7 @@ extension Board {
 		diameter: Int,
 		from base: Double,
 		height: Double,
-		color: Rgb,
+		color: RGBA,
 		side: Side,
 		into model: inout Model
 	) {

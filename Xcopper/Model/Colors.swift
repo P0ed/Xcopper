@@ -47,59 +47,51 @@ enum Palette {
 	}
 }
 
-/// Solder mask colour, the one thing about a bare board people pick by eye
 enum Mask: String, CaseIterable, Identifiable {
-	case green, red, blue, black, white, purple
+	case green, black, clear
 
 	var id: String { rawValue }
 	var name: String { rawValue.capitalized }
 
-	var rgb: Rgb {
+	var rgb: RGBA {
 		switch self {
-		case .green: Rgb(r: 0.05, g: 0.33, b: 0.17)
-		case .red: Rgb(r: 0.46, g: 0.08, b: 0.08)
-		case .blue: Rgb(r: 0.06, g: 0.17, b: 0.46)
-		case .black: Rgb(r: 0.10, g: 0.10, b: 0.11)
-		case .white: Rgb(r: 0.86, g: 0.86, b: 0.84)
-		case .purple: Rgb(r: 0.24, g: 0.09, b: 0.37)
+		case .green: RGBA(r: 0.05, g: 0.33, b: 0.17)
+		case .black: RGBA(r: 0.10, g: 0.10, b: 0.11)
+		case .clear: RGBA(r: 0.56, g: 0.47, b: 0.33)
 		}
 	}
 }
 
-/// What the fab leaves on the pads the mask does not cover
 enum Plating: String, CaseIterable, Identifiable {
-	case gold, tin
+	case gold
 
 	var id: String { rawValue }
-	var name: String { self == .gold ? "ENIG" : "HASL" }
+	var name: String { "ENIG" }
 
-	var rgb: Rgb {
+	var rgb: RGBA {
 		switch self {
-		case .gold: Rgb(r: 0.85, g: 0.68, b: 0.31)
-		case .tin: Rgb(r: 0.76, g: 0.78, b: 0.80)
+		case .gold: RGBA(r: 0.82, g: 0.68, b: 0.33)
 		}
 	}
 }
 
-/// Materials for the 3D preview. Kept as components rather than `Color` so a
-/// face can be shaded by scaling it before it reaches the canvas.
 extension Palette {
 	/// Bare copper, seen through the mask rather than on its own
-	static let bareCopper = Rgb(r: 0.72, g: 0.45, b: 0.20)
+	static let bareCopper = RGBA(r: 0.72, g: 0.45, b: 0.20)
 	/// Cut edge of the laminate, and the wall of an unplated hole
-	static let laminate = Rgb(r: 0.76, g: 0.68, b: 0.42)
+	static let laminate = RGBA(r: 0.76, g: 0.68, b: 0.42)
 	/// Solder, and the leads it covers
-	static let solder = Rgb(r: 0.70, g: 0.71, b: 0.73)
+	static let solder = RGBA(r: 0.70, g: 0.71, b: 0.73)
 	/// Moulded epoxy, the body of most packages
-	static let moulding = Rgb(r: 0.13, g: 0.13, b: 0.14)
+	static let moulding = RGBA(r: 0.13, g: 0.13, b: 0.14)
 	/// Ceramic and film chips
-	static let chip = Rgb(r: 0.19, g: 0.17, b: 0.16)
+	static let chip = RGBA(r: 0.19, g: 0.17, b: 0.16)
 	/// Natural nylon, what connector shrouds are moulded from
-	static let nylon = Rgb(r: 0.85, g: 0.84, b: 0.79)
-	static let trimmer = Rgb(r: 0.11, g: 0.24, b: 0.58)
+	static let nylon = RGBA(r: 0.85, g: 0.84, b: 0.79)
+	static let trimmer = RGBA(r: 0.11, g: 0.24, b: 0.58)
 	/// A clear lens, which the board shows through
-	static let lens = Rgb(r: 0.92, g: 0.92, b: 0.94, a: 0.82)
-	static let metal = Rgb(r: 0.62, g: 0.63, b: 0.66)
+	static let lens = RGBA(r: 0.92, g: 0.92, b: 0.94, a: 0.82)
+	static let metal = RGBA(r: 0.62, g: 0.63, b: 0.66)
 
 	/// Behind the board, dark enough that a black mask still reads against it
 	static let backdrop = Color(red: 0.07, green: 0.08, blue: 0.09)
