@@ -25,6 +25,12 @@ struct TraceEnd: Hashable {
 	}
 }
 
+/// A point on one layer, where copper meets copper
+struct Junction: Hashable {
+	var point: Pt
+	var layer: Int
+}
+
 struct Via: Hashable, Codable {
 	var at: Pt
 	var drill: Nm
@@ -271,9 +277,18 @@ extension Board {
 	/// to along with it, putting the segments it stretched back on the 45
 	/// degree grid and fusing what it leaves running straight. Returns `refs`
 	/// as they stand afterwards, since fusing renumbers the copper.
+	///
+	/// No drag leaves copper turning a right angle: a corner that comes out
+	/// square is broken into the two 45 degree bends it is really made of, on
+	/// a `grid` step of either leg. A corner no chain of 45s reaches, copper
+	/// doubled back on itself or a leg with no step to spare, refuses the
+	/// whole move: the board is left as it stood and nil comes back, so a
+	/// refused drag is an edit that never happened rather than one that
+	/// changed nothing.
 	@discardableResult
-	mutating func move(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
-		let before = traces
+	mutating func move(_ refs: Set<Ref>, by delta: Pt, grid: Nm) -> Set<Ref>? {
+		let stored = self
+		let held = heldPoints(movedBy: refs)
 		let attached = attachedEnds(to: refs)
 		let headings = headings(of: attached)
 
@@ -300,40 +315,166 @@ extension Board {
 			realign(end, heading: heading, moving: attached, with: refs)
 		}
 
-		let fused = fuse(touching: before)
+		// A move that takes a pad or a via out from under a junction leaves a
+		// plain corner where the copper used to be joined, so that counts as
+		// disturbed too. A joint reached from both sides is only worth looking
+		// over once.
+		let changed = disturbed(from: stored.traces)
+		var seen: Set<Junction> = []
+		let touched = (changed + held.filter { !isTerminal($0.point, layer: $0.layer) })
+			.filter { seen.insert($0).inserted }
+		let fused = fuse(touching: stored.traces, disturbed: changed)
+
+		for junction in touched where !chamfer(at: junction, grid: grid) {
+			guard stored.wasSharp(at: junction, movedBy: delta) else {
+				self = stored
+				return nil
+			}
+		}
 		return Set(refs.compactMap { ref -> Ref? in
 			guard case let .trace(index) = ref else { return ref }
 			return fused[index].map(Ref.trace)
 		})
 	}
 
+	/// Joints held by a pad or a via that `refs` carries off, where the copper
+	/// is joined rather than bent. Only a terminal that moves can be taken out
+	/// from under a joint, so the copper the rest of the board holds down never
+	/// comes into it and a drag costs the size of the edit, not of the document.
+	private func heldPoints(movedBy refs: Set<Ref>) -> [Junction] {
+		var figures: [(figure: Figure, layers: ClosedRange<Int>)] = []
+
+		for ref in refs {
+			switch ref {
+			case let .footprint(index) where footprints.indices.contains(index):
+				let footprint = footprints[index]
+				for pad in footprint.placedPads {
+					let layer = footprint.layer(of: pad, in: stack)
+					figures.append((
+						pad.figure,
+						pad.isThrough ? stack.top ... stack.bottom : layer ... layer
+					))
+				}
+			case let .via(index) where vias.indices.contains(index):
+				let via = vias[index]
+				figures.append((Figure.round(via.at, via.pad), via.span))
+			default:
+				break
+			}
+		}
+		guard !figures.isEmpty else { return [] }
+
+		var held: [Junction] = []
+		for trace in traces {
+			for (figure, layers) in figures where layers.contains(trace.layer) {
+				if figure.contains(trace.start) {
+					held.append(Junction(point: trace.start, layer: trace.layer))
+				}
+				if figure.contains(trace.end) {
+					held.append(Junction(point: trace.end, layer: trace.layer))
+				}
+			}
+		}
+		return held
+	}
+
+	/// Every joint a move left different from `before`, the copper it has to
+	/// look over again
+	private func disturbed(from before: [Trace]) -> [Junction] {
+		var points: [Junction] = []
+		for index in traces.indices
+		where index >= before.count || traces[index] != before[index] {
+			points.append(Junction(point: traces[index].start, layer: traces[index].layer))
+			points.append(Junction(point: traces[index].end, layer: traces[index].layer))
+		}
+		return points
+	}
+
+	/// How hard the copper turns at `junction`, in eighths of a turn. Nil where
+	/// nothing turns there: a straight run, a branch, a terminal joining the
+	/// copper instead, or a leg drawn at a free angle.
+	func turn(at junction: Junction) -> Int? {
+		guard let (first, second) = joint(at: junction) else { return nil }
+		let arriving = junction.point - self[point: first.other]
+		return arriving.turn(to: self[point: second.other] - junction.point)
+	}
+
+	/// Whether the copper was already turning harder than a board is built with
+	/// where `junction` is now, or where a drag of `delta` brought it from.
+	/// Copper found that sharp is left as sharp as it was found rather than
+	/// holding the drag hostage.
+	private func wasSharp(at junction: Junction, movedBy delta: Pt) -> Bool {
+		isSharp(at: junction)
+			|| isSharp(at: Junction(point: junction.point - delta, layer: junction.layer))
+	}
+
+	/// Whether the copper turns harder at `junction` than a board is built with
+	private func isSharp(at junction: Junction) -> Bool {
+		guard let (first, second) = joint(at: junction) else { return false }
+		let arriving = junction.point - self[point: first.other]
+		return !arriving.bends(to: self[point: second.other] - junction.point)
+	}
+
+	/// Breaks the right angle at `junction` into the two 45 degree bends it is
+	/// really made of: each leg gives up one grid step and a short segment
+	/// joins where they left off, the way the corner would have been drawn.
+	/// Reports whether the copper there is something a board can be built
+	/// with afterwards, which is how a move that cannot be squared away at
+	/// all comes to be refused.
+	private mutating func chamfer(at junction: Junction, grid: Nm) -> Bool {
+		guard let (first, second) = joint(at: junction) else { return true }
+
+		let point = junction.point
+		let legs = (self[point: first.other] - point, self[point: second.other] - point)
+		let arriving = -legs.0
+		guard !arriving.bends(to: legs.1) else { return true }
+		guard arriving.turn(to: legs.1) == 2 else { return false }
+
+		let step = Int(grid)
+		guard step > 0,
+			max(abs(legs.0.x), abs(legs.0.y)) > step,
+			max(abs(legs.1.x), abs(legs.1.y)) > step
+		else { return false }
+
+		// The wider of the two carries the corner, so breaking it never necks
+		// the copper down
+		let width = max(traces[first.trace].width, traces[second.trace].width)
+		let net = traces[first.trace].net ?? traces[second.trace].net
+		let corners = (point + legs.0.heading * step, point + legs.1.heading * step)
+
+		self[point: first] = corners.0
+		self[point: second] = corners.1
+		traces.append(
+			Trace(start: corners.0, end: corners.1, width: width, layer: junction.layer, net: net)
+		)
+		return true
+	}
+
 	/// Leaves the copper a move touched the way it would have been drawn:
 	/// segments that now run head to tail in a straight line become the one
 	/// segment they look like, and segments dragged down to nothing go away.
 	/// `before` is the copper as it stood, so nothing the move left alone is
-	/// disturbed. Returns where each old index went — a swallowed segment
+	/// disturbed, and `disturbed` is the joints it left different, already
+	/// worked out. Returns where each old index went — a swallowed segment
 	/// reports the one it is now part of, a collapsed one reports nothing.
-	private mutating func fuse(touching before: [Trace]) -> [Int: Int] {
-		var dead: Set<Int> = []
+	private mutating func fuse(touching before: [Trace], disturbed: [Junction]) -> [Int: Int] {
 		var absorbed: [Int: Int] = [:]
-		var pending: [(point: Pt, layer: Int)] = []
+		var pending = disturbed
 
-		for index in traces.indices
-		where index >= before.count || traces[index] != before[index] {
-			let trace = traces[index]
-			if trace.start == trace.end { dead.insert(index) }
-			pending.append((trace.start, trace.layer))
-			pending.append((trace.end, trace.layer))
+		var dead: Set<Int> = []
+		for (index, trace) in traces.enumerated()
+		where (index >= before.count || trace != before[index]) && trace.start == trace.end {
+			dead.insert(index)
 		}
-		while let (point, layer) = pending.popLast() {
-			guard let (kept, gone) = straightJoint(at: point, layer: layer, ignoring: dead)
+		while let junction = pending.popLast() {
+			guard let (kept, gone) = straightJoint(at: junction, ignoring: dead)
 			else { continue }
 
 			let far = self[point: gone.other]
 			self[point: kept] = far
 			dead.insert(gone.trace)
 			absorbed[gone.trace] = kept.trace
-			pending.append((far, layer))
+			pending.append(Junction(point: far, layer: junction.layer))
 		}
 
 		var moved: [Int: Int] = [:]
@@ -351,35 +492,43 @@ extension Board {
 		return moved
 	}
 
-	/// The two segment ends meeting at `point` when the copper runs straight
-	/// through it: a plain corner with no bend, no branch and no terminal, both
-	/// sides drawn alike. The first is the end that stays, the second the end
-	/// of the segment it swallows.
-	private func straightJoint(
-		at point: Pt,
-		layer: Int,
-		ignoring dead: Set<Int>
+	/// The two segment ends meeting at `junction` when the copper simply turns
+	/// there: two ends, no branch, and no pad or via joining them instead
+	private func joint(
+		at junction: Junction,
+		ignoring dead: Set<Int> = []
 	) -> (TraceEnd, TraceEnd)? {
-		guard !isTerminal(point, layer: layer) else { return nil }
+		guard !isTerminal(junction.point, layer: junction.layer) else { return nil }
 
 		var ends: [TraceEnd] = []
 		for (index, trace) in traces.enumerated()
-		where !dead.contains(index) && trace.layer == layer {
-			if trace.start == point { ends.append(TraceEnd(trace: index, isStart: true)) }
-			if trace.end == point { ends.append(TraceEnd(trace: index, isStart: false)) }
+		where !dead.contains(index) && trace.layer == junction.layer {
+			if trace.start == junction.point { ends.append(TraceEnd(trace: index, isStart: true)) }
+			if trace.end == junction.point { ends.append(TraceEnd(trace: index, isStart: false)) }
 			guard ends.count <= 2 else { return nil }
 		}
-		guard ends.count == 2,
-			traces[ends[0].trace].width == traces[ends[1].trace].width,
-			traces[ends[0].trace].net == traces[ends[1].trace].net
+		guard ends.count == 2 else { return nil }
+		return (ends[0], ends[1])
+	}
+
+	/// The joint at `junction` when the copper runs straight through it, with
+	/// no bend and both sides drawn alike. The first is the end that stays, the
+	/// second the end of the segment it swallows.
+	private func straightJoint(
+		at junction: Junction,
+		ignoring dead: Set<Int>
+	) -> (TraceEnd, TraceEnd)? {
+		guard let (first, second) = joint(at: junction, ignoring: dead),
+			traces[first.trace].width == traces[second.trace].width,
+			traces[first.trace].net == traces[second.trace].net
 		else { return nil }
 
 		// Straight through: the two sides leave the point in opposite directions
-		let a = self[point: ends[0].other] - point
-		let b = self[point: ends[1].other] - point
+		let a = self[point: first.other] - junction.point
+		let b = self[point: second.other] - junction.point
 		guard a.x * b.y == a.y * b.x, a.x * b.x + a.y * b.y < 0 else { return nil }
 
-		return (ends[0], ends[1])
+		return (first, second)
 	}
 
 	/// Direction each end ran along before the move. A segment drawn at a free
@@ -396,7 +545,9 @@ extension Board {
 
 	/// Puts a segment one end of which followed a footprint back on the 45
 	/// degree grid, sliding the corner it runs into when that corner is free to
-	/// take up the slack and folding the segment in two when it is not
+	/// take up the slack and folding the segment in two when it is not. The
+	/// fold leaves the end that moved along a heading the copper still soldered
+	/// to it can turn into, so a drag never squares a corner off.
 	private mutating func realign(
 		_ end: TraceEnd,
 		heading: Pt,
@@ -408,7 +559,8 @@ extension Board {
 		guard !(anchor - moved).isOctilinear else { return }
 		guard !slide(end, heading: heading, moving: moving, with: refs) else { return }
 
-		let corner = bend(from: moved, to: anchor, heading: heading)
+		let joint = self.heading(leaving: moved, layer: traces[end.trace].layer, ignoring: end.trace)
+		let corner = bend(from: moved, to: anchor, heading: heading, leaving: joint ?? .zero)
 		traces.append(modifying(traces[end.trace]) { trace in
 			trace.start = corner
 			trace.end = anchor

@@ -129,7 +129,13 @@ extension Operations {
 	func nudge(dx: Int = 0, dy: Int = 0) {
 		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
-		case .layout: layout.selection = design.board.move(layout.selection, by: delta)
+		case .layout:
+			// A nudge the copper cannot take leaves the document alone, the
+			// same way a refused drag does
+			var board = design.board
+			guard let selection = board.move(layout.selection, by: delta, grid: snap) else { return }
+			design.board = board
+			layout.selection = selection
 		case .schematic: design.schematic.move(schematic.selection, by: delta)
 		case .preview: break
 		}

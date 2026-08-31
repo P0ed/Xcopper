@@ -169,7 +169,7 @@ extension SchematicView {
 	}
 
 	private func renderSessions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		if let session = state.wireSession, session.start != session.end {
+		if let session = state.wireSession, session.didDraw {
 			var path = Path()
 			path.move(to: session.start.cg(scale, origin: origin))
 			path.addLine(to: session.end.cg(scale, origin: origin))

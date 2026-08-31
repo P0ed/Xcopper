@@ -5,14 +5,18 @@ extension LayoutView {
 	/// The board as the drag in progress would leave it, and the selection as
 	/// it lands on that board. Drawing this rather than the stored board is
 	/// what puts a move on the canvas as it happens: the copper it stretches,
-	/// the segments it fuses, the planes it clears again and the ratsnest it
-	/// satisfies all follow the pointer.
+	/// the corners it breaks, the segments it fuses, the planes it clears
+	/// again and the ratsnest it satisfies all follow the pointer — and a drag
+	/// the copper cannot take leaves the board where it is, so the selection
+	/// visibly stops rather than bending square.
 	private var drawn: (board: Board, selection: Set<Ref>) {
 		guard let session = state.moveSession, session.didMove else {
 			return (board, state.selection)
 		}
 		var moved = board
-		let selection = moved.move(state.selection, by: session.delta)
+		guard let selection = moved.move(state.selection, by: session.delta, grid: state.snap) else {
+			return (board, state.selection)
+		}
 		return (moved, selection)
 	}
 
@@ -186,7 +190,7 @@ extension LayoutView {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		if let session = state.traceSession, session.start != session.end {
+		if let session = state.traceSession, session.didDraw {
 			let figure = Figure.segment(session.start, session.end, state.traceWidth)
 			context.fill(
 				figure.path(scale, origin: origin),

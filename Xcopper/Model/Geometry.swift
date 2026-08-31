@@ -53,8 +53,15 @@ func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 	return (ox * ox + oy * oy).squareRoot()
 }
 
-/// Tangent of 22.5 degrees, scaled by 1000
-let octant = 414
+/// Tangent of 22.5 degrees, scaled by 1000: where one routing direction gives
+/// way to the next
+let octantEdge = 414
+
+/// The eight directions copper is routed along, counted round from east
+let compass = [
+	Pt(x: 1, y: 0), Pt(x: 1, y: 1), Pt(x: 0, y: 1), Pt(x: -1, y: 1),
+	Pt(x: -1, y: 0), Pt(x: -1, y: -1), Pt(x: 0, y: -1), Pt(x: 1, y: -1),
+]
 
 func snapped45(from start: Pt, to end: Pt) -> Pt {
 	let dx = end.x - start.x
@@ -64,13 +71,38 @@ func snapped45(from start: Pt, to end: Pt) -> Pt {
 	let ax = abs(dx)
 	let ay = abs(dy)
 
-	if ay * 1000 <= ax * octant { return Pt(x: end.x, y: start.y) }
-	if ax * 1000 <= ay * octant { return Pt(x: start.x, y: end.y) }
+	if ay * 1000 <= ax * octantEdge { return Pt(x: end.x, y: start.y) }
+	if ax * 1000 <= ay * octantEdge { return Pt(x: start.x, y: end.y) }
 
 	let sx = dx < 0 ? -1 : 1
 	let sy = dy < 0 ? -1 : 1
 	let length = (ax + ay) / 2
 	return Pt(x: start.x + sx * length, y: start.y + sy * length)
+}
+
+/// Nearest routing direction copper arriving along `heading` is allowed to
+/// leave along, projected onto the way `snapped45` does. Straight on and the
+/// two 45 degree turns are the whole of it: a route that would square the
+/// corner is swung back to the nearer of the two.
+func snapped45(from start: Pt, to end: Pt, after heading: Pt) -> Pt {
+	let free = snapped45(from: start, to: end)
+	guard let arriving = heading.octant, let wanted = (free - start).octant,
+		!heading.bends(to: free - start)
+	else { return free }
+
+	// Swung back onto whichever of the two 45s lies nearer, counting round the
+	// compass the short way
+	let turn = (wanted - arriving + 8) % 8
+	let direction = compass[(arriving + (turn <= 4 ? 1 : 7)) % 8]
+	return start + direction * projection(of: end - start, onto: direction)
+}
+
+/// How far along `direction` an offset reaches, in whole steps of it, never
+/// behind the start
+private func projection(of offset: Pt, onto direction: Pt) -> Int {
+	let along = offset.x * direction.x + offset.y * direction.y
+	let step = direction.x != 0 && direction.y != 0 ? 2 : 1
+	return max(0, along / step)
 }
 
 extension Pt {
@@ -80,16 +112,42 @@ extension Pt {
 
 	/// The eight way step an octilinear offset runs along, zero for no offset
 	var heading: Pt { Pt(x: x.signum(), y: y.signum()) }
+
+	/// Where the step an offset runs along sits on the compass, nil for no
+	/// offset and for one drawn at a free angle
+	var octant: Int? { isOctilinear ? compass.firstIndex(of: heading) : nil }
+
+	/// How far, in eighths of a turn, copper running along self has to swing to
+	/// leave along `next`: none carries straight on, one is the 45 degree bend
+	/// copper is drawn with and two squares the corner. Nil where either side
+	/// runs at a free angle, which is not this rule's to judge.
+	func turn(to next: Pt) -> Int? {
+		guard let from = octant, let to = next.octant else { return nil }
+		let eighths = abs(to - from)
+		return min(eighths, 8 - eighths)
+	}
+
+	/// Whether copper running along self may leave along `next`. A board turns
+	/// 45 degrees at a time, so a right angle, and anything sharper, is a
+	/// corner the copper is not allowed to make.
+	func bends(to next: Pt) -> Bool { turn(to: next).map { $0 <= 1 } ?? true }
 }
 
 /// Corner of the two legged 45 degree route from `start` to `end`. The bend
 /// sits by `start`, the end that moved, unless the route already ran into
-/// `end` along `heading` and the diagonal leg can keep that approach.
-func bend(from start: Pt, to end: Pt, heading: Pt) -> Pt {
+/// `end` along `heading` and the diagonal leg can keep that approach. Copper
+/// running on from `start` along `leaving` outranks both: the leg order that
+/// turns gently there wins, since a right angle is no corner to leave behind.
+func bend(from start: Pt, to end: Pt, heading: Pt, leaving: Pt) -> Pt {
 	let offset = end - start
 	let diagonal = offset.heading
 	let leg = diagonal * min(abs(offset.x), abs(offset.y))
-	return heading == diagonal ? end - leg : start + leg
+
+	let (kept, other) = heading == diagonal ? (end - leg, start + leg) : (start + leg, end - leg)
+
+	func turn(_ corner: Pt) -> Int { (-leaving).turn(to: corner - start) ?? 0 }
+	let bend = turn(kept)
+	return bend <= 1 || bend <= turn(other) ? kept : other
 }
 
 /// Where the ray leaving `a` along `da` meets the one leaving `b` along `db`,
@@ -305,6 +363,24 @@ extension Board {
 			corner = other
 		}
 		return corner
+	}
+
+	/// The one heading copper leaves `point` along, passing over `ignoring`,
+	/// when the junction is a corner a bend has to keep to. A pad or a via
+	/// joins copper rather than bending it, and neither a branch nor copper
+	/// drawn at a free angle has one heading, so none of them tie a route down.
+	func heading(leaving point: Pt, layer: Int, ignoring skipped: Int? = nil) -> Pt? {
+		guard !isTerminal(point, layer: layer) else { return nil }
+
+		var heading: Pt?
+		for (index, trace) in traces.enumerated()
+		where index != skipped && trace.layer == layer
+			&& (trace.start == point || trace.end == point) {
+			let offset = (trace.start == point ? trace.end : trace.start) - point
+			guard heading == nil, offset.isOctilinear, offset != .zero else { return nil }
+			heading = offset.heading
+		}
+		return heading
 	}
 
 	/// Whether a pad or via lands on `point`, where a run ends

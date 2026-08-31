@@ -44,10 +44,14 @@ struct TraceSession: Equatable {
 	var layer: Int
 	var net: Net.ID?
 	var phase: RoutePhase
+
+	var didDraw: Bool { start != end }
 }
 
 struct WireSession: Equatable {
 	var start: Pt
 	var end: Pt
 	var phase: RoutePhase
+
+	var didDraw: Bool { start != end }
 }

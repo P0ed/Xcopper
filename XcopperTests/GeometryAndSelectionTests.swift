@@ -12,6 +12,22 @@ final class GeometryAndSelectionTests: XCTestCase {
 		Trace(start: start, end: end, width: .mm(0.3), layer: layer, net: nil)
 	}
 
+	/// The sharpest corner the copper turns anywhere on the board, in eighths
+	/// of a turn: none runs straight through, one is the 45 degree bend copper
+	/// is drawn with and two squares the corner off. Asks the board the same
+	/// question a move asks it, so these assertions cannot drift from the rule
+	/// the drag actually enforces.
+	private func sharpestTurn(_ board: Board) -> Int {
+		var sharpest = 0
+		for trace in board.traces {
+			for point in [trace.start, trace.end] {
+				let turn = board.turn(at: Junction(point: point, layer: trace.layer))
+				sharpest = max(sharpest, turn ?? 0)
+			}
+		}
+		return sharpest
+	}
+
 	func testSchematicIsTheFirstAndDefaultEditorMode() {
 		XCTAssertEqual(Mode.allCases, [.schematic, .layout, .preview])
 		XCTAssertEqual(Mode.schematic.shortcutCharacter, "1")
@@ -44,6 +60,53 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(diagonal.x, -diagonal.y)
 		XCTAssertEqual(diagonal.x, .mm(9))
 		XCTAssertEqual(snapped45(from: origin, to: origin), origin)
+	}
+
+	func testCopperTurns45DegreesAtATimeOrCarriesStraightOn() {
+		let east = Pt(x: 1, y: 0)
+
+		XCTAssertEqual(east.turn(to: Pt(x: .mm(10), y: 0)), 0)
+		XCTAssertEqual(east.turn(to: Pt(x: .mm(10), y: .mm(10))), 1)
+		XCTAssertEqual(east.turn(to: Pt(x: 0, y: .mm(10))), 2)
+		XCTAssertEqual(east.turn(to: Pt(x: .mm(-10), y: .mm(10))), 3)
+		XCTAssertEqual(east.turn(to: Pt(x: .mm(-10), y: 0)), 4)
+
+		XCTAssertTrue(east.bends(to: Pt(x: .mm(5), y: .mm(-5))))
+		XCTAssertFalse(east.bends(to: Pt(x: 0, y: .mm(5))))
+		XCTAssertFalse(east.bends(to: Pt(x: .mm(-5), y: .mm(5))))
+
+		// A free angle is copper this has nothing to say about
+		XCTAssertNil(east.turn(to: Pt(x: .mm(10), y: .mm(3))))
+		XCTAssertTrue(east.bends(to: Pt(x: .mm(10), y: .mm(3))))
+	}
+
+	func testARouteChainingOnCopperWillNotSquareTheCorner() {
+		let start = Pt.zero
+		let east = Pt(x: 1, y: 0)
+
+		// Straight on and either 45 degree turn are drawn as the pointer asks
+		XCTAssertEqual(
+			snapped45(from: start, to: Pt(x: .mm(10), y: 0), after: east),
+			Pt(x: .mm(10), y: 0)
+		)
+		XCTAssertEqual(
+			snapped45(from: start, to: Pt(x: .mm(10), y: .mm(9)), after: east),
+			Pt(x: .mm(9.5), y: .mm(9.5))
+		)
+
+		// Square to the copper it chains off, the route swings back onto the
+		// nearer of the two turns rather than drawing the right angle asked for
+		XCTAssertEqual(
+			snapped45(from: start, to: Pt(x: .mm(1), y: .mm(10)), after: east),
+			Pt(x: .mm(5.5), y: .mm(5.5))
+		)
+		XCTAssertEqual(
+			snapped45(from: start, to: Pt(x: .mm(1), y: .mm(-10)), after: east),
+			Pt(x: .mm(5.5), y: .mm(-5.5))
+		)
+
+		// Behind the copper there is no gentle turn at all, so nothing is drawn
+		XCTAssertEqual(snapped45(from: start, to: Pt(x: .mm(-10), y: .mm(1)), after: east), start)
 	}
 
 	func testGridSnapRoundsToNearestStepInBothDirections() {
@@ -406,7 +469,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: away, end: Pt(x: .mm(35), y: .mm(10)), width: .mm(0.3), layer: 0, net: nil),
 		]
 		let delta = Pt(x: .mm(2), y: .mm(-1))
-		board.move([.footprint(0)], by: delta)
+		board.move([.footprint(0)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.footprints[0].at, Pt(x: .mm(12), y: .mm(9)))
 		XCTAssertEqual(board.traces[0].start, pad + delta)
@@ -425,7 +488,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: Pt(x: 0, y: 0), to: Pt(x: .mm(5), y: .mm(5))),
 			trace(from: Pt(x: .mm(5), y: .mm(5)), to: Pt(x: .mm(10), y: .mm(10))),
 		]
-		let moved = board.move([.trace(0)], by: Pt(x: .mm(1), y: .mm(1)))
+		let moved = board.move([.trace(0)], by: Pt(x: .mm(1), y: .mm(1)), grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 1)
 		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(1)))
@@ -441,7 +504,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: Pt(x: 0, y: 0), to: Pt(x: .mm(10), y: 0)),
 			trace(from: Pt(x: .mm(10), y: 0), to: Pt(x: .mm(10), y: .mm(10))),
 		]
-		let moved = board.move([.trace(0)], by: Pt(x: 0, y: .mm(10)))
+		let moved = board.move([.trace(0)], by: Pt(x: 0, y: .mm(10)), grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 1)
 		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(10)))
@@ -460,7 +523,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: pad, to: Pt(x: pad.x + .mm(10), y: pad.y)),
 		]
 		let delta = Pt(x: .mm(1), y: 0)
-		board.move([.footprint(0)], by: delta)
+		board.move([.footprint(0)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 2)
 		XCTAssertEqual(board.traces[0].end, pad + delta)
@@ -478,7 +541,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		board.traces = [Trace(start: pad, end: via, width: .mm(0.3), layer: 0, net: nil)]
 
 		let delta = Pt(x: 0, y: .mm(-1))
-		board.move([.footprint(0)], by: delta)
+		board.move([.footprint(0)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 2)
 		XCTAssertEqual(board.traces[0].start, pad + delta)
@@ -504,7 +567,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 
 		let delta = Pt(x: 0, y: .mm(-1))
-		board.move([.footprint(0)], by: delta)
+		board.move([.footprint(0)], by: delta, grid: .mm(1))
 
 		let slid = Pt(x: pad.x + .mm(9), y: pad.y - .mm(1))
 		XCTAssertEqual(board.traces.count, 2)
@@ -525,7 +588,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		board.traces = [Trace(start: pad, end: away, width: .mm(0.3), layer: 0, net: nil)]
 
 		let delta = Pt(x: 0, y: .mm(-1))
-		board.move([.footprint(0)], by: delta)
+		board.move([.footprint(0)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 1)
 		XCTAssertEqual(board.traces[0].start, pad + delta)
@@ -542,7 +605,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: Pt(x: .mm(30), y: .mm(20)), to: Pt(x: .mm(35), y: .mm(15))),
 		]
 		let delta = Pt(x: 0, y: .mm(-1))
-		board.move([.trace(2)], by: delta)
+		board.move([.trace(2)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.traces.count, 5)
 		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(15), y: .mm(14)))
@@ -568,15 +631,73 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: via, to: Pt(x: .mm(10), y: .mm(10))),
 			trace(from: Pt(x: .mm(10), y: .mm(10)), to: Pt(x: .mm(15), y: .mm(15))),
 		]
-		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-1)))
+		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-1)), grid: .mm(1))
 
+		// The via holds its end, so the stretch folds rather than slides, and
+		// it folds the way round that leaves the joint it hangs off: the
+		// diagonal leg would meet the segment that moved at a right angle
 		XCTAssertEqual(board.traces.count, 3)
-		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(9), y: .mm(10)))
+		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(9)))
 		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(9)))
 		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
 		XCTAssertEqual(board.traces[2].start, board.traces[0].start)
 		XCTAssertEqual(board.traces[2].end, via)
 		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testOnlyCopperLeavingAPlainEndTiesARouteDown() {
+		var board = board()
+		let end = Pt(x: .mm(10), y: 0)
+		board.traces = [trace(from: .zero, to: end)]
+
+		XCTAssertEqual(board.heading(leaving: end, layer: 0), Pt(x: -1, y: 0))
+		XCTAssertEqual(board.heading(leaving: .zero, layer: 0), Pt(x: 1, y: 0))
+		XCTAssertNil(board.heading(leaving: end, layer: 1))
+		XCTAssertNil(board.heading(leaving: Pt(x: .mm(5), y: 0), layer: 0))
+
+		// A branch has no one heading to keep to, and a via joins copper
+		// rather than bending it, so neither says which way a route may leave
+		board.traces.append(trace(from: end, to: Pt(x: .mm(15), y: .mm(5))))
+		XCTAssertNil(board.heading(leaving: end, layer: 0))
+
+		board.traces.removeLast()
+		board.vias = [Via(at: end, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		XCTAssertNil(board.heading(leaving: end, layer: 0))
+	}
+
+	func testAChainedRouteCarriesOnFromTheSegmentItJustDrew() throws {
+		var board = board()
+		board.traces = [trace(from: .zero, to: Pt(x: .mm(10), y: 0))]
+
+		let start = Pt(x: .mm(10), y: 0)
+		let leaving = try XCTUnwrap(board.heading(leaving: start, layer: 0))
+		XCTAssertEqual(leaving, Pt(x: -1, y: 0))
+
+		// The pointer is all but square to the copper drawn so far, so the next
+		// segment takes the 45 nearest it instead
+		let end = snapped45(from: start, to: Pt(x: .mm(11), y: .mm(10)), after: -leaving)
+		XCTAssertEqual(end, Pt(x: .mm(15.5), y: .mm(5.5)))
+		XCTAssertTrue((start - .zero).bends(to: end - start))
+	}
+
+	func testCopperThatAlreadyTurnedHardIsNotHeldHostage() {
+		var board = board()
+		// A corner sharper than a drag is allowed to leave, the way an older
+		// document may well carry one
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(10), y: .mm(20))),
+			trace(from: Pt(x: .mm(10), y: .mm(20)), to: Pt(x: .mm(5), y: .mm(25))),
+		]
+		let delta = Pt(x: .mm(1), y: .mm(1))
+		board.move([.trace(0), .trace(1)], by: delta, grid: .mm(1))
+
+		// Carried along as it was drawn rather than refused for a corner the
+		// drag did not make
+		XCTAssertEqual(board.traces.count, 2)
+		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(21)))
+		XCTAssertEqual(board.traces[1].end, Pt(x: .mm(6), y: .mm(26)))
+		XCTAssertEqual(sharpestTurn(board), 3)
 	}
 
 	func testATraceMovedWithItsFootprintDoesNotShiftTwice() {
@@ -589,7 +710,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		board.traces = [Trace(start: pad, end: away, width: .mm(0.3), layer: 2, net: nil)]
 
 		let delta = Pt(x: .mm(1), y: 0)
-		board.move([.footprint(0), .trace(0)], by: delta)
+		board.move([.footprint(0), .trace(0)], by: delta, grid: .mm(1))
 
 		XCTAssertEqual(board.traces[0].start, pad + delta)
 		XCTAssertEqual(board.traces[0].end, away + delta)
@@ -673,6 +794,90 @@ final class GeometryAndSelectionTests: XCTestCase {
 				.frame(width: 480.0, height: 400.0)
 		)
 		XCTAssertNotNil(renderer.nsImage)
+	}
+
+	func testADragThatWouldSquareACornerBreaksItIntoTwo45s() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(10), y: .mm(20))),
+			trace(from: Pt(x: .mm(10), y: .mm(20)), to: Pt(x: .mm(20), y: .mm(30))),
+		]
+		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(1))
+
+		// The stretched segment lands back on the grid on its own, but it meets
+		// the copper that moved square, so the corner comes apart: both legs
+		// give up a grid step and a short segment joins where they left off
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(20)))
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(9), y: .mm(11)))
+		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(9), y: .mm(11)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(11), y: .mm(11)))
+		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(11), y: .mm(11)))
+		XCTAssertEqual(board.traces[1].end, Pt(x: .mm(20), y: .mm(20)))
+
+		XCTAssertEqual(board.traces[2].width, board.traces[0].width)
+		XCTAssertEqual(board.traces[2].layer, board.traces[0].layer)
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testAViaCarriedOffAJunctionLeavesACornerThatComesApart() {
+		var board = board()
+		let junction = Pt(x: .mm(10), y: .mm(20))
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: junction),
+			trace(from: junction, to: Pt(x: .mm(10), y: .mm(30))),
+		]
+		board.vias = [Via(at: junction, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+
+		// Square copper is fine while a via joins it rather than bending it
+		XCTAssertEqual(sharpestTurn(board), 0)
+
+		board.move([.via(0)], by: Pt(x: .mm(5), y: .mm(5)), grid: .mm(1))
+
+		// The via gone, the copper it held is a plain corner turning square, so
+		// it comes apart into the two 45s it is really made of
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(9), y: .mm(20)))
+		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(10), y: .mm(21)))
+		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(9), y: .mm(20)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(10), y: .mm(21)))
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testADragThatDoublesCopperBackOnItselfIsRefusedWhole() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(10), y: .mm(20))),
+			trace(from: Pt(x: .mm(10), y: .mm(20)), to: Pt(x: .mm(20), y: .mm(10))),
+		]
+		let stored = board
+
+		// Nothing short of a loop turns that corner 45 degrees at a time, so
+		// the copper does not follow the pointer at all
+		let moved = board.move([.trace(1)], by: Pt(x: .mm(-10), y: .mm(10)), grid: .mm(1))
+		XCTAssertNil(moved)
+		XCTAssertEqual(board, stored)
+	}
+
+	func testADragIsRefusedWhereALegHasNoGridStepToGive() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(10), y: .mm(20))),
+			trace(from: Pt(x: .mm(10), y: .mm(20)), to: Pt(x: .mm(11), y: .mm(21))),
+		]
+		let stored = board
+
+		// The same drag as the corner that comes apart, but the leg that would
+		// have to give up a grid step is only one step long to begin with
+		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(1))
+		XCTAssertEqual(board, stored)
+
+		// On a finer grid the same corner has a step to spare
+		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(0.25))
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(sharpestTurn(board), 1)
 	}
 
 	func testBoardRoundTripsThroughJSON() throws {

@@ -159,7 +159,7 @@ extension LayoutState {
 		guard var session = traceSession else { return }
 		session.end = point
 		if case let .gesture(committable) = session.phase {
-			session.phase = .gesture(committable: committable || point != session.start)
+			session.phase = .gesture(committable: committable || session.didDraw)
 		}
 		traceSession = session
 	}
@@ -174,7 +174,9 @@ extension LayoutState {
 		guard let session = traceSession, case let .gesture(committable) = session.phase else {
 			return nil
 		}
-		guard committable else {
+		// A route held to a gentle bend has nowhere to go straight back the way
+		// it came, so a gesture that asks for it draws nothing and waits
+		guard committable, session.didDraw else {
 			traceSession = modifying(session) { session in session.phase = .pending }
 			return nil
 		}

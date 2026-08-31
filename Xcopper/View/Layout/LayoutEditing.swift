@@ -99,7 +99,9 @@ private extension LayoutView {
 		return snapped
 	}
 
-	/// Object snap wins, then free angle while shift is held, 45 degrees otherwise
+	/// Object snap wins, then free angle while shift is held, 45 degrees
+	/// otherwise — and never a right angle onto the copper the route chains
+	/// off, which leaves it three of the eight headings to carry on along
 	func routeEnd(_ point: Pt) -> Pt {
 		guard let session = state.traceSession else {
 			return snapped(point, layer: state.layer).0
@@ -110,7 +112,8 @@ private extension LayoutView {
 		}
 		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
 
-		let projected = snapped45(from: session.start, to: point)
+		let arriving = board.heading(leaving: session.start, layer: session.layer) ?? .zero
+		let projected = snapped45(from: session.start, to: point, after: -arriving)
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
@@ -132,8 +135,14 @@ private extension LayoutView {
 	func endSelection(from start: Pt, to current: Pt) {
 		if let session = state.moveSession {
 			if session.didMove {
-				undoGroup("Move") {
-					state.selection = board.move(state.selection, by: session.delta)
+				// A drag the copper cannot take is no edit at all, so it leaves
+				// nothing on the undo stack either
+				var moved = board
+				if let selection = moved.move(state.selection, by: session.delta, grid: state.snap) {
+					undoGroup("Move") {
+						board = moved
+						state.selection = selection
+					}
 				}
 			}
 			state.moveSession = nil

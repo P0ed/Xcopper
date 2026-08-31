@@ -37,6 +37,13 @@ click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 `⎋` to cancel. Landing on a pad, a via or copper already drawn ends the route
 there and hands the tool back to Select.
 
+Copper never turns a right angle. A route chaining on from a segment already
+drawn keeps to the three headings that carry straight on or bend 45° either
+way, so a square corner has to be drawn as the two bends it is really made of,
+and there is no heading at all straight back the way the route came. Copper
+joined on a pad or a via is joined rather than bent, and so is copper the route
+branches off, so neither ties down which way the next segment leaves.
+
 Clicking picks up the one segment under the pointer, and a rubber band takes
 every segment that fits inside it whole. Hold `⌘` to take the run instead — the
 chain of segments joined end to end on one layer, up to wherever the copper
@@ -48,7 +55,17 @@ sitting on a pad of a moving footprint, and every joint at the end of a moving
 segment, follows along while the far end stays put. The stretched segment stays
 on the 45° grid — the corner it runs into slides along to absorb the move, and
 where there is no corner to slide, a pad, a via or a branch, the segment folds
-into two legs instead. Copper drawn at a free angle keeps it.
+into two legs instead. The fold picks the leg order that leaves the joint it
+hangs off gently, rather than the one that would meet it square. Copper drawn at
+a free angle keeps it.
+
+No drag leaves copper turning a right angle either. Where a corner comes out
+square anyway, it comes apart into the two 45° bends it is really made of: each
+leg gives up one snap grid step and a short segment joins where they left off.
+Where even that will not do — copper doubled right back on itself, or a leg with
+no step to spare — the drag is refused whole. The board is left exactly as it
+stood, so the copper visibly stops following the pointer rather than bending
+square, and a refused drag leaves nothing on the undo stack.
 
 A drag never leaves a straight line in pieces: segments that come to rest end to
 end in line fuse back into the one segment they look like, and a segment
