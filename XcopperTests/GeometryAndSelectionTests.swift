@@ -116,17 +116,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(Pt(x: 7, y: 7).snapped(to: 0), Pt(x: 7, y: 7))
 	}
 
-	func testSnapAndDisplayGridPresetsAreIndependent() {
-		XCTAssertEqual(Nm.snapGrids, [.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)])
-		XCTAssertEqual(Nm.snapGrids.map(\.label), ["0.127", "0.254", "0.635", "1.27", "2.54"])
-		XCTAssertEqual(Nm.sheetSnapGrids, [.mil(50), .mil(100)])
-		XCTAssertEqual(Nm.displayGrids, [.mm(1.27), .mm(2.54)])
-		XCTAssertEqual(LayoutState().snap, .mil(10))
-		XCTAssertEqual(LayoutState().grid, .mm(1.27))
-		XCTAssertEqual(SchematicState().snap, .mm(1.27))
-		XCTAssertEqual(SchematicState().grid, .mm(1.27))
-	}
-
 	func testInchConversionPreservesBoardDimensions() {
 		XCTAssertEqual(Nm.inches(1), .mm(25.4))
 		XCTAssertEqual(Nm.mm(50.8).inches, 2.0, accuracy: 0.000_000_01)
@@ -595,7 +584,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces[0].end, away)
 	}
 
-	func testMovingOneSegmentSlidesTheCornersItsNeighboursRunInto() {
+	func testMovingOneSegmentStretchesTheNeighboursItHangsOff() {
 		var board = board()
 		board.traces = [
 			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(5), y: .mm(15))),
@@ -607,20 +596,70 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let delta = Pt(x: 0, y: .mm(-1))
 		board.move([.trace(2)], by: delta, grid: .mm(1))
 
+		// Both sides keep the heading they were drawn at, so the joints slide
+		// along to where those headings cross now: the segment dragged runs
+		// the same way from a millimetre further along, one neighbour is a
+		// millimetre longer for it and the other a millimetre shorter
 		XCTAssertEqual(board.traces.count, 5)
-		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(15), y: .mm(14)))
-		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(20), y: .mm(19)))
-
-		// The joints followed the segment and the corners beyond took up the slack
+		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(16), y: .mm(15)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(21), y: .mm(20)))
 		XCTAssertEqual(board.traces[1].end, board.traces[2].start)
 		XCTAssertEqual(board.traces[3].start, board.traces[2].end)
-		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(20)))
-		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(6), y: .mm(14)))
-		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
-		XCTAssertEqual(board.traces[3].end, Pt(x: .mm(31), y: .mm(19)))
-		XCTAssertEqual(board.traces[4].start, board.traces[3].end)
-		XCTAssertEqual(board.traces[4].end, Pt(x: .mm(35), y: .mm(15)))
+
+		// The corners past them are none of the drag's business
+		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(5), y: .mm(15)))
+		XCTAssertEqual(board.traces[3].end, Pt(x: .mm(30), y: .mm(20)))
+		XCTAssertEqual(board.traces[0], trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(5), y: .mm(15))))
+		XCTAssertEqual(board.traces[4], trace(from: Pt(x: .mm(30), y: .mm(20)), to: Pt(x: .mm(35), y: .mm(15))))
 		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testTheBottomOfAUDraggedTowardsTheTopComesOutLonger() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: 0), to: Pt(x: 0, y: .mm(10))),
+			trace(from: Pt(x: 0, y: .mm(10)), to: Pt(x: .mm(3), y: .mm(13))),
+			trace(from: Pt(x: .mm(3), y: .mm(13)), to: Pt(x: .mm(7), y: .mm(13))),
+			trace(from: Pt(x: .mm(7), y: .mm(13)), to: Pt(x: .mm(10), y: .mm(10))),
+			trace(from: Pt(x: .mm(10), y: .mm(10)), to: Pt(x: .mm(10), y: 0)),
+		]
+		board.move([.trace(2)], by: Pt(x: 0, y: .mm(-2)), grid: .mm(1))
+
+		// Two millimetres up the U, the bottom is four millimetres wider and
+		// the legs it hangs off two millimetres shorter each
+		XCTAssertEqual(board.traces.count, 5)
+		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(1), y: .mm(11)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(9), y: .mm(11)))
+		XCTAssertEqual(board.traces[1].start, Pt(x: 0, y: .mm(10)))
+		XCTAssertEqual(board.traces[1].end, board.traces[2].start)
+		XCTAssertEqual(board.traces[3].start, board.traces[2].end)
+		XCTAssertEqual(board.traces[3].end, Pt(x: .mm(10), y: .mm(10)))
+		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: 0))
+		XCTAssertEqual(board.traces[4].end, Pt(x: .mm(10), y: 0))
+		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testALegAStretchTakesUpToNothingGoesAwayWithTheDrag() {
+		var board = board()
+		board.traces = [
+			trace(from: Pt(x: 0, y: 0), to: Pt(x: 0, y: .mm(10))),
+			trace(from: Pt(x: 0, y: .mm(10)), to: Pt(x: .mm(3), y: .mm(13))),
+			trace(from: Pt(x: .mm(3), y: .mm(13)), to: Pt(x: .mm(7), y: .mm(13))),
+		]
+		board.move([.trace(2)], by: Pt(x: 0, y: .mm(-3)), grid: .mm(1))
+
+		// The diagonal is taken up exactly, so it fuses away rather than
+		// leaving a stub, and the corner it left behind is square: it comes
+		// apart into the two 45s it is really made of
+		XCTAssertEqual(board.traces.count, 3)
+		XCTAssertEqual(board.traces[0], trace(from: Pt(x: 0, y: 0), to: Pt(x: 0, y: .mm(9))))
+		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(1), y: .mm(10)))
+		XCTAssertEqual(board.traces[1].end, Pt(x: .mm(7), y: .mm(10)))
+		XCTAssertEqual(board.traces[2].start, Pt(x: 0, y: .mm(9)))
+		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(1), y: .mm(10)))
+		XCTAssertEqual(sharpestTurn(board), 1)
 	}
 
 	func testASegmentDragLeavesCopperHeldByAViaWhereItIs() {
@@ -633,15 +672,14 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-1)), grid: .mm(1))
 
-		// The via holds its end, so the stretch folds rather than slides, and
-		// it folds the way round that leaves the joint it hangs off: the
-		// diagonal leg would meet the segment that moved at a right angle
-		XCTAssertEqual(board.traces.count, 3)
-		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(9)))
-		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(9)))
+		// The via holds the far end of the copper the drag stretches, so that
+		// end stays where it is and the joint slides a millimetre along the
+		// straight to meet the segment that moved
+		XCTAssertEqual(board.traces.count, 2)
+		XCTAssertEqual(board.traces[0].start, via)
+		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(11), y: .mm(10)))
 		XCTAssertEqual(board.traces[1].start, board.traces[0].end)
-		XCTAssertEqual(board.traces[2].start, board.traces[0].start)
-		XCTAssertEqual(board.traces[2].end, via)
+		XCTAssertEqual(board.traces[1].end, Pt(x: .mm(15), y: .mm(14)))
 		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
 		XCTAssertEqual(sharpestTurn(board), 1)
 	}

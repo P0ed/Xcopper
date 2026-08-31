@@ -120,6 +120,18 @@ extension Pt {
 	/// The eight way step an octilinear offset runs along, zero for no offset
 	var heading: Pt { Pt(x: x.signum(), y: y.signum()) }
 
+	/// The shortest whole step along the same line, which every whole point on
+	/// that line is a number of. The heading for copper on the routing grid,
+	/// and the nearest thing to one for copper drawn at a free angle.
+	var step: Pt {
+		let divisor = gcd(x, y)
+		return divisor > 1 ? Pt(x: x / divisor, y: y / divisor) : self
+	}
+
+	/// Whether an offset runs the way `direction` does rather than back against
+	/// it. Only worth asking of two that lie along the one line.
+	func runsAlong(_ direction: Pt) -> Bool { x * direction.x + y * direction.y > 0 }
+
 	/// Where the step an offset runs along sits on the compass, nil for no
 	/// offset and for one drawn at a free angle
 	var octant: Int? { isOctilinear ? compass.firstIndex(of: heading) : nil }
@@ -140,6 +152,13 @@ extension Pt {
 	func bends(to next: Pt) -> Bool { turn(to: next).map { $0 <= 1 } ?? true }
 }
 
+/// Greatest common divisor, what reduces an offset to the step it is made of
+private func gcd(_ a: Int, _ b: Int) -> Int {
+	var (a, b) = (abs(a), abs(b))
+	while b != 0 { (a, b) = (b, a % b) }
+	return a
+}
+
 /// Corner of the two legged 45 degree route from `start` to `end`. The bend
 /// sits by `start`, the end that moved, unless the route already ran into
 /// `end` along `heading` and the diagonal leg can keep that approach. Copper
@@ -157,20 +176,34 @@ func bend(from start: Pt, to end: Pt, heading: Pt, leaving: Pt) -> Pt {
 	return bend <= 1 || bend <= turn(other) ? kept : other
 }
 
-/// Where the ray leaving `a` along `da` meets the one leaving `b` along `db`,
-/// nil unless they cross ahead of both on a whole nanometer
-func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
+/// Where the line through `a` along `da` meets the one through `b` along `db`,
+/// nil unless they meet at all, meet on a whole nanometer, and meet somewhere
+/// a board coordinate reaches: two headings that all but agree cross a long
+/// way past anything a drag was asking about.
+func crossing(line a: Pt, _ da: Pt, line b: Pt, _ db: Pt) -> Pt? {
+	let (da, db) = (da.step, db.step)
 	let determinant = db.x * da.y - da.x * db.y
 	guard determinant != 0 else { return nil }
 
-	// How far along each ray the crossing lies, both scaled by the determinant
+	// How far along `da` the crossing lies. Counted in whole steps of it, since
+	// the shortest step along a line reaches every whole point on it.
 	let offset = b - a
-	let fromA = db.x * offset.y - db.y * offset.x
-	let fromB = da.x * offset.y - da.y * offset.x
-	guard fromA.isMultiple(of: determinant), fromB.isMultiple(of: determinant) else { return nil }
-	guard fromA / determinant > 0, fromB / determinant > 0 else { return nil }
+	let along = db.x * offset.y - db.y * offset.x
+	guard along.isMultiple(of: determinant) else { return nil }
 
-	return a + da * (fromA / determinant)
+	let steps = along / determinant
+	let reach = max(abs(da.x), abs(da.y))
+	guard abs(steps) <= Int(Nm.max) / reach else { return nil }
+	return a + da * steps
+}
+
+/// Where the ray leaving `a` along `da` meets the one leaving `b` along `db`,
+/// nil unless they cross ahead of both on a whole nanometer
+func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
+	guard let at = crossing(line: a, da, line: b, db),
+		(at - a).runsAlong(da), (at - b).runsAlong(db)
+	else { return nil }
+	return at
 }
 
 /// Nearest orthogonal projection, the convention for schematic wires

@@ -273,10 +273,16 @@ extension Board {
 		}
 	}
 
-	/// Moves `refs`, dragging the loose ends of whatever copper it is soldered
-	/// to along with it, putting the segments it stretched back on the 45
-	/// degree grid and fusing what it leaves running straight. Returns `refs`
-	/// as they stand afterwards, since fusing renumbers the copper.
+	/// Moves `refs`, taking the copper it is soldered to along with it, putting
+	/// the segments it stretched back on the 45 degree grid and fusing what it
+	/// leaves running straight. Returns `refs` as they stand afterwards, since
+	/// fusing renumbers the copper.
+	///
+	/// A segment dragged off a corner stretches the segment it hangs off
+	/// rather than carrying it: both keep the heading they were drawn at and
+	/// the joint slides to where those headings cross now, so either one
+	/// changes length. Copper a pad carries off has no such say and follows
+	/// the pad, and so does a joint the stretch cannot work out.
 	///
 	/// No drag leaves copper turning a right angle: a corner that comes out
 	/// square is broken into the two 45 degree bends it is really made of, on
@@ -290,6 +296,7 @@ extension Board {
 		let stored = self
 		let held = heldPoints(movedBy: refs)
 		let attached = attachedEnds(to: refs)
+		let stretched = stretchedJoints(of: refs, following: attached, by: delta)
 		let headings = headings(of: attached)
 
 		for ref in refs {
@@ -310,7 +317,10 @@ extension Board {
 		for end in attached {
 			self[point: end] = self[point: end] + delta
 		}
-		for end in attached.sorted(by: TraceEnd.order) {
+		for (end, point) in stretched {
+			self[point: end] = point
+		}
+		for end in attached.sorted(by: TraceEnd.order) where stretched[end] == nil {
 			guard let heading = headings[end] else { continue }
 			realign(end, heading: heading, moving: attached, with: refs)
 		}
@@ -335,6 +345,78 @@ extension Board {
 			guard case let .trace(index) = ref else { return ref }
 			return fused[index].map(Ref.trace)
 		})
+	}
+
+	/// Where the joints between copper that moved and copper left behind come
+	/// to rest, worked out on the board as it stands before anything does.
+	/// Both sides keep the heading they were drawn at and the joint slides to
+	/// where those headings cross now, so the segment dragged changes length
+	/// and so does the one it hangs off: the bottom of a U dragged towards the
+	/// top comes out longer and the legs it hangs off shorter. A leg taken up
+	/// to nothing is fused away with the rest.
+	///
+	/// Empty where the copper will not have it — a branch, which has no one
+	/// heading to keep; two headings that never meet or meet off the
+	/// nanometer; a leg the drag would run backwards; a dragged segment
+	/// squeezed out of existence — and the drag falls back on carrying the
+	/// joint along and folding the copper to suit. All of them or none: a
+	/// gesture that stretched one joint and folded the next would be two
+	/// edits wearing one drag.
+	private func stretchedJoints(
+		of refs: Set<Ref>,
+		following attached: Set<TraceEnd>,
+		by delta: Pt
+	) -> [TraceEnd: Pt] {
+		var joints: [(moved: TraceEnd, stayed: TraceEnd)] = []
+
+		for case let .trace(index) in refs where traces.indices.contains(index) {
+			for isStart in [true, false] {
+				let moved = TraceEnd(trace: index, isStart: isStart)
+				let point = self[point: moved]
+				let layer = traces[index].layer
+				guard !isTerminal(point, layer: layer) else { continue }
+
+				var others: [TraceEnd] = []
+				for (other, trace) in traces.enumerated()
+				where other != index && trace.layer == layer {
+					if trace.start == point { others.append(TraceEnd(trace: other, isStart: true)) }
+					if trace.end == point { others.append(TraceEnd(trace: other, isStart: false)) }
+				}
+				guard others.count <= 1 else { return [:] }
+				guard let stayed = others.first, !refs.contains(.trace(stayed.trace)) else { continue }
+				joints.append((moved, stayed))
+			}
+		}
+		guard !joints.isEmpty else { return [:] }
+
+		var points: [TraceEnd: Pt] = [:]
+		for (moved, stayed) in joints {
+			let point = self[point: moved]
+			let leg = point - self[point: moved.other]
+			let stem = point - self[point: stayed.other]
+			guard let crossing = crossing(line: point + delta, leg, line: point, stem)
+			else { return [:] }
+
+			points[moved] = crossing
+			points[stayed] = crossing
+		}
+
+		func settled(_ end: TraceEnd) -> Pt {
+			if let point = points[end] { return point }
+			let follows = refs.contains(.trace(end.trace)) || attached.contains(end)
+			return self[point: end] + (follows ? delta : .zero)
+		}
+		for end in points.keys {
+			let before = self[point: end] - self[point: end.other]
+			let after = settled(end) - settled(end.other)
+			// Copper the stretch would run backwards is copper the drag has
+			// pulled through itself. The segment left behind may be taken up
+			// to nothing, since that fuses away, but the one dragged has to
+			// come out of its own drag as copper.
+			guard after.runsAlong(before) || (after == .zero && !refs.contains(.trace(end.trace)))
+			else { return [:] }
+		}
+		return points
 	}
 
 	/// Joints held by a pad or a via that `refs` carries off, where the copper

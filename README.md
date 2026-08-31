@@ -57,14 +57,22 @@ chain of segments joined end to end on one layer, up to wherever the copper
 branches or lands on a pad or via. A run selects, moves and deletes as one
 object, and a `⌘` band that covers only part of one takes none of it.
 
-Moving copper takes the copper it is soldered to with it: every trace end
-sitting on a pad of a moving footprint, and every joint at the end of a moving
-segment, follows along while the far end stays put. The stretched segment stays
-on the 45° grid — the corner it runs into slides along to absorb the move, and
-where there is no corner to slide, a pad, a via or a branch, the segment folds
-into two legs instead. The fold picks the leg order that leaves the joint it
-hangs off gently, rather than the one that would meet it square. Copper drawn at
-a free angle keeps it.
+Dragging a segment stretches the copper it is soldered to rather than carrying
+it along. Both sides keep the heading they were drawn at and the joint slides to
+where those headings now cross, so the segment dragged changes length and so does
+the one it hangs off, while the far end of it stays put: drag the bottom of a U
+towards the top and it comes out longer, the legs either side of it shorter. A
+leg taken up to nothing goes away with the drag.
+
+Copper a pad carries off has no such say. Every trace end sitting on a pad of a
+moving footprint follows the pad exactly, and the segment it stretches is put
+back on the 45° grid — the corner it runs into slides along to absorb the move,
+and where there is no corner to slide, a pad, a via or a branch, the segment
+folds into two legs instead. The fold picks the leg order that leaves the joint
+it hangs off gently, rather than the one that would meet it square. A joint no
+stretch can work out is carried and folded the same way: one at a branch, which
+has no single heading to keep, or between two headings that never meet. Copper
+drawn at a free angle keeps it.
 
 No drag leaves copper turning a right angle either. Where a corner comes out
 square anyway, it comes apart into the two 45° bends it is really made of: each
@@ -207,10 +215,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Editing a trace should change current and neighboring segments length.
-  E.g. U shaped trace bottom segment becomes longer if dragged to top, and its neighbors shorter.
-  At the moment segment lenght doesn't change, changes only neighbors and neighbors of neighbors.
-  Want to match behavior of EasyEDA or KiCad.
 - Clear mask should expose gold.
 - Use RealityKit to render model.
 - Remove pomona1581 model from preview.
