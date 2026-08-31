@@ -40,7 +40,6 @@ protocol ToolKind: Hashable, CaseIterable {
 	var shortcutCharacter: Character { get }
 }
 
-/// State the shell owns, shared by both modes
 struct EditorState: Equatable {
 	var mode: Mode = .schematic
 	var sheet: Sheet?

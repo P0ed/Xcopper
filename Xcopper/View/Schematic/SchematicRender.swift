@@ -2,9 +2,6 @@ import SwiftUI
 
 extension SchematicView {
 
-	/// The sheet as the drag in progress would leave it, so a move draws where
-	/// the wires, symbols and net names actually end up rather than an outline
-	/// of where the selection is headed.
 	private var drawn: Schematic {
 		guard let session = state.moveSession, session.didMove else { return schematic }
 		return modifying(schematic) { $0.move(state.selection, by: session.delta) }
@@ -116,7 +113,6 @@ extension SchematicView {
 		for symbol in schematic.symbols {
 			let extent = symbol.placedExtent.cg(scale, origin: origin)
 
-			// A power flag has no designator worth showing, only the net it names
 			if symbol.kind.isPower {
 				context.draw(
 					Text(symbol.value)

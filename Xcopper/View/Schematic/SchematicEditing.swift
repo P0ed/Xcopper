@@ -11,7 +11,6 @@ extension SchematicView {
 
 	var hitTolerance: Int { Int(Nm.mm(1.2) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
-	/// Grid position, overridden by a nearby pin tip or wire end
 	func snapped(_ point: Pt) -> Pt {
 		if !modifierFlags.contains(.control),
 			let target = schematic.snapTarget(near: point, radius: snapRadius) {
@@ -84,7 +83,6 @@ private extension SchematicView {
 		undoManager?.endUndoGrouping()
 	}
 
-	/// Object snap wins, then a free angle while shift is held, orthogonal otherwise
 	func wireEnd(_ point: Pt) -> Pt {
 		guard let session = state.wireSession else { return snapped(point) }
 

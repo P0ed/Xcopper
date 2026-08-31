@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// Board dimension, nanometers
 typealias Nm = Int32
 
 extension Nm {
@@ -23,7 +22,6 @@ extension Int {
 	static func inches(_ value: Double) -> Int { Int((value * 25_400_000.0).rounded()) }
 }
 
-/// Board location, nanometers, Y down from the top left corner
 struct Pt: Hashable, Codable {
 	private var _x: Nm
 	private var _y: Nm
