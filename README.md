@@ -7,6 +7,7 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - Schematic capture with parametric symbols, a built-in component library and net labels
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
+- Inspector in the sidebar with the properties of whatever is selected
 - 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
@@ -43,6 +44,12 @@ way, so a square corner has to be drawn as the two bends it is really made of,
 and there is no heading at all straight back the way the route came. Copper
 joined on a pad or a via is joined rather than bent, and so is copper the route
 branches off, so neither ties down which way the next segment leaves.
+
+Whatever is selected is drawn lit rather than boxed in: a glow spreads past
+its edge and the object itself is redrawn in a brighter shade of its own
+colour, so a picked trace still reads as the layer it is on and nothing is
+hidden under an outline. A hole lights up round its rim rather than filling in,
+since a hole is a hole because it is dark. Only the rubber band is dashed.
 
 Clicking picks up the one segment under the pointer, and a rubber band takes
 every segment that fits inside it whole. Hold `⌘` to take the run instead — the
@@ -90,6 +97,9 @@ an outline of where the selection is headed.
 snap to 90° and chain the same way routing does, with the same `⇧`, `⌃` and `⎋`
 modifiers.
 
+A selected symbol, wire or label lights up the way copper does on the layout,
+with the glow carrying the selection on a symbol already drawn near white.
+
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
 box with any pin count, and power and ground flags. A flag's value **is** a net
 name — dropping a `GND` flag on a wire names that net, no label needed.
@@ -98,6 +108,26 @@ The part picker also contains manufacturer-specific symbols with named pins and
 matching footprints. Package variants use SOIC where the manufacturer offers it.
 Pomona 1581 includes a custom plated panel-hole footprint with an auxiliary wire
 hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
+
+## Inspector
+
+The top of either sidebar describes what is selected and lets it be edited in
+place. A trace gives its width, layer, net and length; a via its drill, pad,
+the layers it spans and its net; a hole its drill; a footprint its reference,
+value, side, rotation and position. On the sheet a symbol gives its reference
+and value — the resistance, the capacitance, the part number — along with its
+rotation, whether it is mirrored and where it stands, and a label the net name
+it carries. A wire reports the net it lands in and how long it is, both read
+back out of the drawing rather than stored.
+
+Only one object at a time: a selection of several has no properties in common,
+so the inspector counts it and leaves it alone. A net can still be given to the
+whole selection at once from the Nets panel.
+
+While a field has the keyboard the plain key shortcuts stand down, so a value
+typed into it cannot pick a tool and a backspace cannot delete the very object
+being described. Clicking back on the drawing hands the keyboard to the canvas
+again.
 
 ## Nets
 
@@ -177,8 +207,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Selected items are brigter instead of running ants.
-- Inspector for selected item in sidebar with editable properties like resistance value.
 - Editing a trace should change current and neighboring segments length.
   E.g. U shaped trace bottom segment becomes longer if dragged to top, and its neighbors shorter.
   At the moment segment lenght doesn't change, changes only neighbors and neighbors of neighbors.

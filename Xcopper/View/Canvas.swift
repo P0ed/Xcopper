@@ -157,7 +157,7 @@ func renderGrid(
 	context.fill(major, with: .color(Palette.gridMajor))
 }
 
-/// Selection outline, legible over any fill
+/// Rubber band outline, legible over any fill
 func marching(_ path: Path, in context: GraphicsContext) {
 	context.stroke(path, with: .color(.black), lineWidth: 2.0)
 	context.stroke(
@@ -165,6 +165,50 @@ func marching(_ path: Path, in context: GraphicsContext) {
 		with: .color(Palette.highlight),
 		style: StrokeStyle(lineWidth: 1.0, dash: [4.0, 4.0])
 	)
+}
+
+/// Selection drawn as the object lit up rather than as a border round it: a
+/// halo spreads past its edge and the object is laid over that in a brighter
+/// shade of its own colour, so nothing the selection covers is hidden and a
+/// trace still reads as the layer it is on.
+enum Lit {
+	/// How far the glow reaches past what is picked
+	static let spread: CGFloat = 4.0
+
+	/// A filled object: copper, a pad, a drilled hole
+	static func fill(_ path: Path, _ color: Color, in context: GraphicsContext) {
+		guard !path.isEmpty else { return }
+		context.stroke(
+			path,
+			with: .color(Palette.halo),
+			style: StrokeStyle(lineWidth: spread, lineJoin: .round)
+		)
+		context.fill(path, with: .color(color))
+	}
+
+	/// A stroked object: a wire, a pin leg, a symbol outline
+	static func stroke(
+		_ path: Path,
+		_ color: Color,
+		lineWidth: CGFloat,
+		in context: GraphicsContext
+	) {
+		guard !path.isEmpty else { return }
+		context.stroke(
+			path,
+			with: .color(Palette.halo),
+			style: StrokeStyle(lineWidth: lineWidth + spread, lineCap: .round, lineJoin: .round)
+		)
+		context.stroke(path, with: .color(color), lineWidth: lineWidth)
+	}
+
+	/// The glow behind a piece of text, which has no outline to spread from
+	static func plate(_ frame: CGRect, in context: GraphicsContext) {
+		context.fill(
+			Path(roundedRect: frame.insetBy(dx: -spread, dy: -spread / 2.0), cornerRadius: spread),
+			with: .color(Palette.halo)
+		)
+	}
 }
 
 /// Crosshair at the snapped cursor position

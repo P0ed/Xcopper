@@ -4,6 +4,8 @@ import SwiftUI
 struct SchematicView: View {
 	@Binding var design: Design
 	@Binding var state: SchematicState
+	/// Called as a gesture starts, to take the keyboard back from the inspector
+	var claimKeyboard: () -> Void = ø
 
 	@Environment(\.undoManager) var undoManager
 

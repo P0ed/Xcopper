@@ -4,6 +4,8 @@ import SwiftUI
 struct LayoutView: View {
 	@Binding var design: Design
 	@Binding var state: LayoutState
+	/// Called as a gesture starts, to take the keyboard back from the inspector
+	var claimKeyboard: () -> Void = ø
 
 	@Environment(\.undoManager) var undoManager
 

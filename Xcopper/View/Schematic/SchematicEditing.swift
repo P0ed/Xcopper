@@ -22,6 +22,7 @@ extension SchematicView {
 	var editingController: some Gesture {
 		DragGesture(minimumDistance: 0.0)
 			.onChanged { gesture in
+				claimKeyboard()
 				let start = point(at: gesture.startLocation)
 				let current = point(at: gesture.location)
 

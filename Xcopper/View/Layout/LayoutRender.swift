@@ -36,17 +36,32 @@ extension LayoutView {
 		)
 
 		for layer in board.stack.copper where layer != state.layer {
-			renderCopper(layer, of: board, in: context, scale: scale, origin: origin, dimmed: true)
+			renderCopper(
+				layer,
+				of: board,
+				selection,
+				in: context,
+				scale: scale,
+				origin: origin,
+				dimmed: true
+			)
 		}
-		renderCopper(state.layer, of: board, in: context, scale: scale, origin: origin, dimmed: false)
+		renderCopper(
+			state.layer,
+			of: board,
+			selection,
+			in: context,
+			scale: scale,
+			origin: origin,
+			dimmed: false
+		)
 
-		renderDrills(board, in: context, scale: scale, origin: origin)
-		renderSilk(board, in: context, scale: scale, origin: origin)
+		renderDrills(board, selection, in: context, scale: scale, origin: origin)
+		renderSilk(board, selection, in: context, scale: scale, origin: origin)
 		renderRatsnest(board, in: context, scale: scale, origin: origin)
 
 		renderOutline(board, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
-		renderSelection(board, selection, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
 
@@ -75,6 +90,7 @@ extension LayoutView {
 	private func renderCopper(
 		_ layer: Int,
 		of board: Board,
+		_ selection: Set<Ref>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint,
@@ -100,6 +116,12 @@ extension LayoutView {
 			path.addPath(figure.path(scale, origin: origin))
 		}
 		context.fill(path, with: .color(color.opacity(opacity)))
+
+		var picked = Path()
+		for figure in board.figures(on: layer, of: selection) {
+			picked.addPath(figure.path(scale, origin: origin))
+		}
+		Lit.fill(picked, Palette.lit(color).opacity(opacity), in: context)
 	}
 
 	private func renderPlane(
@@ -145,6 +167,7 @@ extension LayoutView {
 
 	private func renderDrills(
 		_ board: Board,
+		_ selection: Set<Ref>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
@@ -154,23 +177,42 @@ extension LayoutView {
 			path.addPath(figure.path(scale, origin: origin))
 		}
 		context.fill(path, with: .color(Palette.drill))
+
+		// A hole is a hole because it is dark, so a picked one lights up round
+		// its rim rather than filling in
+		var picked = Path()
+		for case let .hole(index) in selection where board.holes.indices.contains(index) {
+			let hole = board.holes[index]
+			picked.addPath(Figure.round(hole.at, hole.diameter).path(scale, origin: origin))
+		}
+		Lit.stroke(picked, Palette.lit(Palette.silk), lineWidth: 1.5, in: context)
 	}
 
 	private func renderSilk(
 		_ board: Board,
+		_ selection: Set<Ref>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
 	) {
 		var path = Path()
-		for footprint in board.footprints {
+		var picked = Path()
+		for (index, footprint) in board.footprints.enumerated() {
 			let body = footprint.placedBody.cg(scale, origin: origin)
-			path.addRect(body)
 			let marker = footprint.place(footprint.pads.first?.at ?? .zero)
 				.cg(scale, origin: origin)
-			path.addEllipse(in: CGRect(center: marker, radius: max(1.0, scale * 0.12)))
+
+			var outline = Path()
+			outline.addRect(body)
+			outline.addEllipse(in: CGRect(center: marker, radius: max(1.0, scale * 0.12)))
+			if selection.contains(.footprint(index)) {
+				picked.addPath(outline)
+			} else {
+				path.addPath(outline)
+			}
 		}
 		context.stroke(path, with: .color(Palette.silk.opacity(0.55)), lineWidth: 1.0)
+		Lit.stroke(picked, Palette.lit(Palette.silk), lineWidth: 1.0, in: context)
 
 		guard scale >= 6.0 else { return }
 		for footprint in board.footprints {
@@ -205,21 +247,5 @@ extension LayoutView {
 		if let session = state.selectSession, session.didDrag {
 			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
 		}
-	}
-
-	private func renderSelection(
-		_ board: Board,
-		_ selection: Set<Ref>,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint
-	) {
-		var path = Path()
-		for ref in selection {
-			guard let bounds = board.bounds(of: [ref]) else { continue }
-			path.addRect(bounds.outset(Int(Nm.mm(0.1))).cg(scale, origin: origin))
-		}
-		guard !path.isEmpty else { return }
-		marching(path, in: context)
 	}
 }

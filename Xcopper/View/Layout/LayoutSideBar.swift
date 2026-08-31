@@ -4,14 +4,20 @@ import SwiftUI
 struct LayoutSideBar: View {
 	@Binding var design: Design
 	@Binding var state: LayoutState
-	@Binding var sheet: Sheet?
+	@Binding var editor: EditorState
 	var operations: Operations
+
+	@FocusState private var focus: Property?
 
 	private var stack: Stack { design.board.stack }
 
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
+				Panel(title: "Selection") {
+					LayoutInspector(design: $design, selection: state.selection, focus: $focus)
+				}
+
 				Panel(title: "Nets") {
 					NetRow(
 						name: "None",
@@ -29,7 +35,7 @@ struct LayoutSideBar: View {
 						)
 					}
 					HStack {
-						Button("Add", systemImage: "plus") { sheet = .net }
+						Button("Add", systemImage: "plus") { editor.sheet = .net }
 						Spacer()
 						Button("Assign", systemImage: "link") { operations.assignNet(state.net) }
 							.disabled(state.selection.isEmpty)
@@ -60,7 +66,7 @@ struct LayoutSideBar: View {
 
 				Panel(title: "Place") {
 					Button("Footprint…", systemImage: "square.grid.3x3.square") {
-						sheet = .footprint
+						editor.sheet = .footprint
 					}
 					.buttonStyle(.borderless)
 					Text(specSummary)
@@ -70,7 +76,9 @@ struct LayoutSideBar: View {
 			}
 			.padding(12.0)
 		}
-		.navigationSplitViewColumnWidth(min: 190.0, ideal: 210.0, max: 280.0)
+		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
+		.onChange(of: focus) { _, field in editor.editing = field != nil }
+		.onDisappear { editor.editing = false }
 	}
 
 	private var specSummary: String {

@@ -64,3 +64,21 @@ extension CGRect {
 		)
 	}
 }
+
+extension Binding {
+
+	/// One element of an array reached by index, safe against a selection that
+	/// outlives what it pointed at: `fallback` stands in when the index has
+	/// gone and a write to it is dropped, so a stale reference goes inert
+	/// rather than fatal.
+	subscript<Element: Sendable>(index: Int, or fallback: Element) -> Binding<Element>
+	where Value == [Element] {
+		Binding<Element>(
+			get: { wrappedValue.indices.contains(index) ? wrappedValue[index] : fallback },
+			set: { element in
+				guard wrappedValue.indices.contains(index) else { return }
+				wrappedValue[index] = element
+			}
+		)
+	}
+}

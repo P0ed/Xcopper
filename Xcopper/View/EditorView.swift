@@ -26,6 +26,9 @@ struct EditorView: View {
 		.focusEffectDisabled()
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
+		// A field that has let the keyboard go hands it back to the canvas,
+		// where the arrows and the tool letters mean something again
+		.onChange(of: editor.editing) { _, editing in if !editing { focused = true } }
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)
 	}
@@ -42,6 +45,14 @@ struct EditorView: View {
 		)
 	}
 
+	/// Hands the keyboard back to the canvas. A click on the drawing ends an
+	/// inspector edit, so the letter typed next picks a tool rather than
+	/// landing in the field the pointer has left behind.
+	private func claimKeyboard() {
+		guard !focused else { return }
+		focused = true
+	}
+
 	private var documentName: String {
 		configuration?.fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled"
 	}
@@ -50,7 +61,7 @@ struct EditorView: View {
 	private var sidebar: some View {
 		switch editor.mode {
 		case .layout:
-			LayoutSideBar(design: $design, state: $layout, sheet: $editor.sheet, operations: operations)
+			LayoutSideBar(design: $design, state: $layout, editor: $editor, operations: operations)
 		case .schematic:
 			SchematicSideBar(design: $design, state: $schematic, editor: $editor, operations: operations)
 		case .preview:
@@ -61,8 +72,10 @@ struct EditorView: View {
 	@ViewBuilder
 	private var detail: some View {
 		switch editor.mode {
-		case .layout: LayoutView(design: $design, state: $layout)
-		case .schematic: SchematicView(design: $design, state: $schematic)
+		case .layout:
+			LayoutView(design: $design, state: $layout, claimKeyboard: claimKeyboard)
+		case .schematic:
+			SchematicView(design: $design, state: $schematic, claimKeyboard: claimKeyboard)
 		case .preview: PreviewView(board: design.board, state: $preview)
 		}
 	}
@@ -73,9 +86,19 @@ struct EditorView: View {
 		ToolbarItemGroup { Spacer() }
 		switch editor.mode {
 		case .layout:
-			LayoutToolBar(stack: design.board.stack, state: $layout, sheet: $editor.sheet)
+			LayoutToolBar(
+				stack: design.board.stack,
+				state: $layout,
+				sheet: $editor.sheet,
+				shortcuts: !editor.editing
+			)
 		case .schematic:
-			SchematicToolBar(state: $schematic, sheet: $editor.sheet, update: operations.updateBoard)
+			SchematicToolBar(
+				state: $schematic,
+				sheet: $editor.sheet,
+				shortcuts: !editor.editing,
+				update: operations.updateBoard
+			)
 		case .preview:
 			PreviewToolBar(board: design.board, state: $preview)
 		}

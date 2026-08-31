@@ -7,12 +7,23 @@ struct SchematicSideBar: View {
 	@Binding var editor: EditorState
 	var operations: Operations
 
+	@FocusState private var focus: Property?
+
 	/// Read back out of the drawing every time, so it can never be stale
 	private var netlist: Netlist { Netlist(design.schematic) }
 
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
+				Panel(title: "Selection") {
+					SchematicInspector(
+						schematic: $design.schematic,
+						netlist: netlist,
+						selection: state.selection,
+						focus: $focus
+					)
+				}
+
 				Panel(title: "Sheet") {
 					GridPicker(title: "Snap", value: $state.snap, options: Nm.sheetSnapGrids)
 					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
@@ -64,7 +75,9 @@ struct SchematicSideBar: View {
 			}
 			.padding(12.0)
 		}
-		.navigationSplitViewColumnWidth(min: 190.0, ideal: 210.0, max: 280.0)
+		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
+		.onChange(of: focus) { _, field in editor.editing = field != nil }
+		.onDisappear { editor.editing = false }
 	}
 
 	private var specSummary: String {

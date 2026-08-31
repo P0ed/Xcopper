@@ -6,7 +6,7 @@ extension FocusedValues {
 
 @MainActor
 extension Operations? {
-	var actionsDisabled: Bool { self?.editor.dialogPresented ?? true }
+	var actionsDisabled: Bool { !(self?.editor.keysAvailable ?? false) }
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
 	var pasteDisabled: Bool { actionsDisabled || !(self?.canPaste ?? false) }
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }

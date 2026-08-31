@@ -40,6 +40,13 @@ extension Figure {
 	}
 }
 
+/// How far apart two points are, in millimeters
+func length(from start: Pt, to end: Pt) -> Double {
+	let dx = Double(end.x - start.x)
+	let dy = Double(end.y - start.y)
+	return (dx * dx + dy * dy).squareRoot().mm
+}
+
 func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
@@ -197,6 +204,31 @@ extension Board {
 		}
 		for pad in pads(on: layer) {
 			result.append((pad.figure, pad.net))
+		}
+		return result
+	}
+
+	/// Copper on `layer` belonging to `refs`, what a selection lights up. A
+	/// footprint brings its pads, so picking a part brightens the copper it
+	/// stands on rather than the outline round it.
+	func figures(on layer: Int, of refs: Set<Ref>) -> [Figure] {
+		var result: [Figure] = []
+
+		for case let .trace(index) in refs
+		where traces.indices.contains(index) && traces[index].layer == layer {
+			let trace = traces[index]
+			result.append(.segment(trace.start, trace.end, trace.width))
+		}
+		for case let .via(index) in refs
+		where vias.indices.contains(index) && vias[index].spans(layer) {
+			result.append(.round(vias[index].at, vias[index].pad))
+		}
+		for case let .footprint(index) in refs where footprints.indices.contains(index) {
+			let footprint = footprints[index]
+			for pad in footprint.placedPads
+			where pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
+				result.append(pad.figure)
+			}
 		}
 		return result
 	}

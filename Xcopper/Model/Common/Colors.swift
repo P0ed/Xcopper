@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum Palette {
@@ -9,6 +10,8 @@ enum Palette {
 	static let silk = Color(red: 0.92, green: 0.92, blue: 0.90)
 	static let highlight = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.9)
 	static let preview = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.55)
+	/// The glow a selected object sits in, spreading past its edge
+	static let halo = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.35)
 
 	static let sheet = Color(red: 0.10, green: 0.10, blue: 0.13)
 	static let symbol = Color(red: 0.88, green: 0.88, blue: 0.86)
@@ -36,6 +39,23 @@ enum Palette {
 
 	static func color(of net: Net.ID) -> Color {
 		Color(hue: Double(net &* 47 % 360) / 360.0, saturation: 0.55, brightness: 0.95)
+	}
+
+	/// A colour lit up, how a selected object is drawn: its own colour carried
+	/// most of the way to white, so a selection reads as the thing brightened
+	/// rather than as something drawn over the top of it. Copper keeps its
+	/// layer and a wire its net, so what is picked still says what it is.
+	static func lit(_ color: Color) -> Color {
+		guard let base = NSColor(color).usingColorSpace(.sRGB) else { return highlight }
+
+		func up(_ value: CGFloat) -> Double { Double(value + (1.0 - value) * 0.55) }
+
+		return Color(
+			red: up(base.redComponent),
+			green: up(base.greenComponent),
+			blue: up(base.blueComponent),
+			opacity: Double(base.alphaComponent)
+		)
 	}
 
 	/// Colour for a net the schematic knows only by name. Seeded by hand because
