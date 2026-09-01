@@ -1,8 +1,6 @@
 # PCB editor
 
-Minimal schematic capture and PCB layout for macOS, both halves in one document.
-Draw the schematic, let it derive the netlist, push that onto the board, then
-route the copper it asks for. One rectangular board and one sheet per document.
+Minimal schematic capture and PCB layout for macOS. One rectangular board and one sheet per document.
 
 - Schematic capture with parametric symbols, a built-in component library and net labels
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
@@ -15,8 +13,31 @@ route the copper it asks for. One rectangular board and one sheet per document.
 - Gerber and Excellon export of the whole manufacturing set
 - 3D preview of the finished board with the parts standing on it
 
-`⌘1` opens the schematic, `⌘2` the layout and `⌘3` the 3D preview. Each side
-keeps its own zoom, scroll and selection.
+## Schematic
+
+| Key | Tool |
+| --- | --- |
+| `S` | Select |
+| `W` | Wire |
+| `L` | Label |
+| `F` | Place symbol |
+
+`G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
+`R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
+snap to 90° and chain the same way routing does, with the same `⇧`, `⌃` and `⎋`
+modifiers.
+
+A selected symbol, wire or label lights up the way copper does on the layout,
+with the glow carrying the selection on a symbol already drawn near white.
+
+Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
+box with any pin count, and power and ground flags. A flag's value **is** a net
+name — dropping a `GND` flag on a wire names that net, no label needed.
+
+The part picker also contains manufacturer-specific symbols with named pins and
+matching footprints. Package variants use SOIC where the manufacturer offers it.
+Pomona 1581 includes a custom plated panel-hole footprint with an auxiliary wire
+hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
@@ -44,12 +65,6 @@ way, so a square corner has to be drawn as the two bends it is really made of,
 and there is no heading at all straight back the way the route came. Copper
 joined on a pad or a via is joined rather than bent, and so is copper the route
 branches off, so neither ties down which way the next segment leaves.
-
-Whatever is selected is drawn lit rather than boxed in: a glow spreads past
-its edge and the object itself is redrawn in a brighter shade of its own
-colour, so a picked trace still reads as the layer it is on and nothing is
-hidden under an outline. A hole lights up round its rim rather than filling in,
-since a hole is a hole because it is dark. Only the rubber band is dashed.
 
 Clicking picks up the one segment under the pointer, and a rubber band takes
 every segment that fits inside it whole. Hold `⌘` to take the run instead — the
@@ -87,36 +102,6 @@ end in line fuse back into the one segment they look like, and a segment
 squashed down to nothing goes away. Copper meeting on a pad or a via is joined
 there rather than bent, so that stays two segments.
 
-The board is redrawn as the pointer moves, so a drag shows the copper it
-stretches, the planes it clears again and the ratsnest it satisfies rather than
-an outline of where the selection is headed.
-
-## Schematic
-
-| Key | Tool |
-| --- | --- |
-| `S` | Select |
-| `W` | Wire |
-| `L` | Label |
-| `F` | Place symbol |
-
-`G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
-`R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
-snap to 90° and chain the same way routing does, with the same `⇧`, `⌃` and `⎋`
-modifiers.
-
-A selected symbol, wire or label lights up the way copper does on the layout,
-with the glow carrying the selection on a symbol already drawn near white.
-
-Symbols are parametric: resistor, capacitor, inductor, diode, transistor, an IC
-box with any pin count, and power and ground flags. A flag's value **is** a net
-name — dropping a `GND` flag on a wire names that net, no label needed.
-
-The part picker also contains manufacturer-specific symbols with named pins and
-matching footprints. Package variants use SOIC where the manufacturer offers it.
-Pomona 1581 includes a custom plated panel-hole footprint with an auxiliary wire
-hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
-
 ## Inspector
 
 The top of either sidebar describes what is selected and lets it be edited in
@@ -127,15 +112,6 @@ and value — the resistance, the capacitance, the part number — along with it
 rotation, whether it is mirrored and where it stands, and a label the net name
 it carries. A wire reports the net it lands in and how long it is, both read
 back out of the drawing rather than stored.
-
-Only one object at a time: a selection of several has no properties in common,
-so the inspector counts it and leaves it alone. A net can still be given to the
-whole selection at once from the Nets panel.
-
-While a field has the keyboard the plain key shortcuts stand down, so a value
-typed into it cannot pick a tool and a backspace cannot delete the very object
-being described. Clicking back on the drawing hands the keyboard to the canvas
-again.
 
 ## Nets
 
@@ -174,12 +150,6 @@ part standing where the layout puts it. Nothing is approximated away: the copper
 drawn is the copper on the board, and no legend is drawn because the fabrication
 set carries none.
 
-A hole is drilled after the copper is laid, so nothing is left standing over
-one: a pad, a trace running onto it, or the ring of a panel jack overlapping the
-wire hole beside it, is cut back to the rim of the barrel. Curves are cut into as
-many straight sides as their size asks for — twelve round a via, thirty two round
-a ring that size — so no copper reads as the polygon it is drawn as.
-
 | Key | View |
 | --- | --- |
 | `T` | Top |
@@ -187,27 +157,11 @@ a ring that size — so no copper reads as the polygon it is drawn as.
 | `F` | Front |
 | `A` | Angled |
 
-Drag to turn the board over, right-drag or `⇧`-drag to slide it, scroll or pinch
-to zoom, and arrow keys to step around it. `⌘9` frames the whole board and the
-usual `⌘-` and `⌘=` zoom. The sidebar picks the mask colour, the pad finish and
-the core thickness, and switches copper and parts on and off. It also lists what
-is stuffed, which side each part is on and how tall it stands.
-
-Clear is not a colour of mask so much as the want of one: nothing is covered, so
-the finish that plates the pads plates the traces and the vias with them and the
-whole face comes back gold.
-
 Only the outer copper layers are on show, since those are the only ones a
 finished board lets you see. Part heights come from the library for the parts it
 knows and are read off the land pattern for everything else — two lands and no
 holes is a chip, holes inside the outline are pins coming up through a moulding,
 holes outside it are a package sitting beside them.
-
-A surface mount lead is drawn thinner than the land it is soldered to, since a
-land pattern is cut wider than the lead it takes so the solder has somewhere to
-fillet. A part the board only carries the pads of stands nowhere on it: a panel
-jack is held by the panel, so the ring its solder tab lands on is all there is
-to show and the sidebar gives it no height.
 
 ## Fabrication
 
@@ -231,7 +185,7 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Labels on component pins in schematic mode (might require to increase size of the symbol a bit).
+- Labels on component pins in schematic mode (might require to increase the size of a symbol).
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.
