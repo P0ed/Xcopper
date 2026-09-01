@@ -181,11 +181,11 @@ set carries none.
 | `F` | Front |
 | `A` | Angled |
 
-Drag to turn the board over, `⇧`-drag to slide it, scroll or pinch to zoom, and
-arrow keys to step around it. `⌘9` frames the whole board and the usual `⌘-` and
-`⌘=` zoom. The sidebar picks the mask colour, the pad finish and the core
-thickness, and switches copper and parts on and off. It also lists what is
-stuffed, which side each part is on and how tall it stands.
+Drag to turn the board over, right-drag or `⇧`-drag to slide it, scroll or pinch
+to zoom, and arrow keys to step around it. `⌘9` frames the whole board and the
+usual `⌘-` and `⌘=` zoom. The sidebar picks the mask colour, the pad finish and
+the core thickness, and switches copper and parts on and off. It also lists what
+is stuffed, which side each part is on and how tall it stands.
 
 Clear is not a colour of mask so much as the want of one: nothing is covered, so
 the finish that plates the pads plates the traces and the vias with them and the

@@ -15,6 +15,7 @@ struct PreviewView: View {
 	/// sidebar and toolbar as well as the one transform that actually moved.
 	@State private var camera: Camera
 	@State private var scrolling = false
+	@State private var rightPan: Camera?
 	@GestureState private var grab: Grab?
 	@GestureState private var pinch: Double?
 
@@ -40,6 +41,19 @@ struct PreviewView: View {
 			.background(Palette.backdrop)
 			.gesture(controller)
 			.gesture(magnifier)
+			.modifier(RightMouseDrag(
+				started: { rightPan = camera },
+				moved: { translation in
+					guard var camera = rightPan else { return }
+					camera.pan(by: translation, over: Double(state.canvas.height))
+					self.camera = camera
+				},
+				ended: {
+					guard rightPan != nil else { return }
+					rightPan = nil
+					state.camera = camera
+				}
+			))
 			.modifier(ScrollWheel(
 				action: { delta in
 					scrolling = true
@@ -75,7 +89,7 @@ struct PreviewView: View {
 	/// four samples per pixel while the view is moving. Drop it only for the live
 	/// motion, and leave the finished frame at full quality.
 	private func configure(_ content: inout RealityViewCameraContent, force: Bool = false) {
-		let moving = grab != nil || pinch != nil || scrolling
+		let moving = grab != nil || pinch != nil || rightPan != nil || scrolling
 		guard scene.rendering(changedToMoving: moving, force: force) else { return }
 
 		var effects = content.renderingEffects
@@ -132,6 +146,86 @@ struct PreviewView: View {
 				camera.zoom(to: initial / gesture.magnification, reach: state.reach)
 			}
 			.onEnded { _ in state.camera = camera }
+	}
+}
+
+/// SwiftUI's drag gesture follows the primary button. The secondary button is
+/// watched alongside it so a right drag can pan the preview without asking for
+/// a modifier key. Once begun over the view, the drag stays caught until the
+/// button comes up even if the pointer leaves the view on the way.
+@MainActor
+struct RightMouseDrag: ViewModifier {
+	var started: () -> Void
+	var moved: (CGSize) -> Void
+	var ended: () -> Void
+
+	@State private var drag = Drag()
+
+	func body(content: Content) -> some View {
+		content
+			.onContinuousHover { phase in
+				if case .active = phase { drag.over = true } else { drag.over = false }
+			}
+			.onAppear {
+				drag.started = started
+				drag.moved = moved
+				drag.ended = ended
+				drag.listen()
+			}
+			.onDisappear { drag.stop() }
+	}
+
+	@MainActor
+	final class Drag {
+		var over = false
+		var started: () -> Void = ø
+		var moved: (CGSize) -> Void = ø
+		var ended: () -> Void = ø
+		private var origin: CGPoint?
+		private var monitor: Any?
+
+		func listen() {
+			guard monitor == nil else { return }
+			monitor = NSEvent.addLocalMonitorForEvents(
+				matching: [.rightMouseDown, .rightMouseDragged, .rightMouseUp]
+			) { [self] event in
+				let taken = MainActor.assumeIsolated { handle(event) }
+				return taken ? nil : event
+			}
+		}
+
+		private func handle(_ event: NSEvent) -> Bool {
+			switch event.type {
+			case .rightMouseDown:
+				guard over else { return false }
+				origin = event.locationInWindow
+				started()
+				return true
+			case .rightMouseDragged:
+				guard let origin else { return false }
+				let point = event.locationInWindow
+				moved(CGSize(width: point.x - origin.x, height: origin.y - point.y))
+				return true
+			case .rightMouseUp:
+				guard origin != nil else { return false }
+				finish()
+				return true
+			default:
+				return false
+			}
+		}
+
+		private func finish() {
+			guard origin != nil else { return }
+			origin = nil
+			ended()
+		}
+
+		func stop() {
+			finish()
+			monitor.map(NSEvent.removeMonitor)
+			monitor = nil
+		}
 	}
 }
 
