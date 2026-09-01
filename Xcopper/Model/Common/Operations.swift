@@ -151,6 +151,57 @@ extension Operations {
 		}
 	}
 
+	/// How many objects the other half of the document has to show for what is
+	/// picked here: the parts on the board that go with the symbols on the
+	/// sheet, or the symbols that go with the parts. Nothing picked has a
+	/// counterpart when it is a wire, a length of copper, or a power flag,
+	/// which names a net rather than standing for a part, and neither has a
+	/// part whose other half has been deleted.
+	var counterpartCount: Int {
+		switch mode {
+		case .schematic: design.footprints(for: schematic.selection).count
+		case .layout: design.symbols(for: layout.selection).count
+		case .preview: 0
+		}
+	}
+
+	/// What showing it is called, which is the half being left rather than the
+	/// one arrived at
+	var counterpartName: String {
+		let several = counterpartCount > 1
+		return switch mode {
+		case .layout: several ? "Show symbols" : "Show symbol"
+		case .schematic, .preview: several ? "Show footprints" : "Show footprint"
+		}
+	}
+
+	var counterpartImage: String {
+		mode == .layout ? "square.on.circle" : "square.grid.3x3.square"
+	}
+
+	/// Turns the document over to its other half, picks what stands there for
+	/// the selection and scrolls it into view
+	func showCounterpart() {
+		switch mode {
+		case .schematic:
+			let refs = design.footprints(for: schematic.selection)
+			guard !refs.isEmpty else { return }
+			layout.cancelSessions()
+			layout.selection = refs
+			if let at = design.board.bounds(of: refs)?.center { layout.viewport.reveal(at) }
+			editor.mode = .layout
+		case .layout:
+			let refs = design.symbols(for: layout.selection)
+			guard !refs.isEmpty else { return }
+			schematic.cancelSessions()
+			schematic.selection = refs
+			if let at = design.schematic.bounds(of: refs)?.center { schematic.viewport.reveal(at) }
+			editor.mode = .schematic
+		case .preview:
+			break
+		}
+	}
+
 	func assignNet(_ net: Net.ID?) {
 		guard mode == .layout else { return }
 		for ref in layout.selection {

@@ -10,6 +10,7 @@ extension Operations? {
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
 	var pasteDisabled: Bool { actionsDisabled || !(self?.canPaste ?? false) }
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
+	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }
 	var schematicDisabled: Bool { actionsDisabled || self?.mode != .schematic }
 }
 
@@ -108,6 +109,14 @@ struct MenuCommands: Commands {
 				)
 			}
 			Divider()
+			ActionButton(
+				name: op?.counterpartName ?? "Show footprint",
+				image: op?.counterpartImage ?? "square.grid.3x3.square",
+				shortcut: "J",
+				modifiers: .command,
+				disabled: op.counterpartDisabled,
+				action: { op?.showCounterpart() }
+			)
 			ActionButton(
 				name: "Update board from schematic",
 				image: "arrow.triangle.2.circlepath",

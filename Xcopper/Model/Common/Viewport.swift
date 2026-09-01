@@ -6,6 +6,11 @@ struct Viewport: Equatable {
 	var frame: CGRect = .zero
 	var scrollPosition: ScrollPosition = .init(point: .zero)
 	var magnification: CGFloat = 2.0
+	/// A point the view has been asked to look at, held until the canvas knows
+	/// how big it is. The half of the document a counterpart stands on may
+	/// never have been on screen, and a view of no known size has no middle to
+	/// scroll the point to.
+	var pending: Pt?
 }
 
 extension Viewport {
@@ -46,5 +51,25 @@ extension Viewport {
 
 	mutating func fit(_ size: Size) {
 		setScale(size.zoomToFit(self.size, margin: Layout.margin))
+	}
+
+	/// Asks for `point` to be brought into the middle of the view
+	mutating func reveal(_ point: Pt) {
+		pending = point
+	}
+
+	/// Acts on the reveal asked for, once the canvas across `content` knows its
+	/// own size. The point is put in the middle, as near as the ends of the
+	/// document allow.
+	mutating func revealPending(in content: Size) {
+		guard let point = pending, size.width > 0.0, size.height > 0.0 else { return }
+		pending = nil
+
+		let full = Layout.contentSize(content, scale: magnification)
+		let at = point.cg(magnification, origin: Layout.origin)
+		scrollPosition = .init(point: CGPoint(
+			x: min(max(at.x - size.width / 2.0, 0.0), max(full.width - size.width, 0.0)),
+			y: min(max(at.y - size.height / 2.0, 0.0), max(full.height - size.height, 0.0))
+		))
 	}
 }

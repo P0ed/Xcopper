@@ -22,6 +22,7 @@ struct SchematicSideBar: View {
 						selection: state.selection,
 						focus: $focus
 					)
+					CounterpartButton(operations: operations)
 				}
 
 				Panel(title: "Sheet") {

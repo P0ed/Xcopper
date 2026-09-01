@@ -16,6 +16,7 @@ struct LayoutSideBar: View {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Selection") {
 					LayoutInspector(design: $design, selection: state.selection, focus: $focus)
+					CounterpartButton(operations: operations)
 				}
 
 				Panel(title: "Nets") {

@@ -116,6 +116,13 @@ on the grid whatever the snap is set to and is ready to be dragged where it
 belongs. On the sheet that keeps a parked symbol off the wires as well as off the
 other parts — a pin tip landing on a wire would join its net.
 
+Either half shows the other. With a part picked, `⌘J` turns the document over,
+lights up what stands there for it — the footprint a symbol stands for, or the
+symbol a footprint does — and scrolls it into the middle of the view. The sidebar
+offers the same under the selection. It is the shared designator that pairs the
+two, so a part whose other half has been deleted has nothing to show, and neither
+has a wire, a length of copper or a power flag.
+
 A library part brings its own package. A generic one takes the package its
 symbol implies — a chip for a resistor, capacitor, inductor or diode, SOT-23 for
 a transistor, SOIC for an IC — and the symbol dialog names it before the part is
@@ -206,8 +213,10 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
+- DRC with short detection, clearance checks, clickable violations, and export preflight.
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.
 - Tool to check component value against part number and availability on `jlcpcb.com/parts`.
 - Modularity. Merge several PCBs onto one, sharing power nets.
+- API.

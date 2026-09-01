@@ -356,6 +356,88 @@ final class SchematicTests: XCTestCase {
 		}
 	}
 
+	// MARK: Showing the other half
+
+	func testASymbolShowsItsFootprintAndAFootprintItsSymbol() {
+		var design = Design()
+		design.place(Symbol.Spec(kind: .resistor), at: Pt(x: .mm(40), y: .mm(40)))
+		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Pt(x: .mm(20), y: .mm(20)))
+
+		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R1", "U1"])
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["R1", "U1"])
+		XCTAssertEqual(design.footprints(for: [.symbol(0)]), [.footprint(0)])
+		XCTAssertEqual(design.symbols(for: [.footprint(1)]), [.symbol(1)])
+		XCTAssertEqual(design.footprints(for: [.symbol(0), .symbol(1)]), [.footprint(0), .footprint(1)])
+	}
+
+	func testOnlyAPartHasAnotherHalfToShow() {
+		var design = Design()
+		design.place(Symbol.Spec(kind: .ground), at: .zero)
+		design.schematic.wires = [wire(0, 0, 10, 0)]
+		design.board.traces = [
+			Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.4), layer: 0, net: nil),
+		]
+
+		// A flag names a net rather than standing for a part, so it never went
+		// on the board in the first place
+		XCTAssertTrue(design.board.footprints.isEmpty)
+		XCTAssertTrue(design.footprints(for: [.symbol(0)]).isEmpty)
+		XCTAssertTrue(design.footprints(for: [.wire(0)]).isEmpty)
+		XCTAssertTrue(design.symbols(for: [.trace(0)]).isEmpty)
+		XCTAssertTrue(design.footprints(for: []).isEmpty)
+	}
+
+	func testAPartWhoseOtherHalfHasGoneHasNothingToShow() {
+		var design = Design()
+		design.place(Symbol.Spec(kind: .resistor), at: Pt(x: .mm(40), y: .mm(40)))
+		design.board.footprints = []
+
+		XCTAssertTrue(design.footprints(for: [.symbol(0)]).isEmpty)
+	}
+
+	func testRevealingAPointScrollsItIntoTheMiddleOfTheView() {
+		var viewport = Viewport()
+		viewport.size = CGSize(width: 400.0, height: 300.0)
+		viewport.magnification = 4.0
+		let sheet = Size(width: .mm(100), height: .mm(80))
+
+		// Nothing to act on before the reveal is asked for
+		viewport.revealPending(in: sheet)
+		XCTAssertEqual(viewport.scrollPosition.point, .zero)
+
+		viewport.reveal(Pt(x: .mm(50), y: .mm(40)))
+		viewport.revealPending(in: sheet)
+
+		XCTAssertNil(viewport.pending)
+		XCTAssertEqual(viewport.scrollPosition.point?.x ?? 0.0, 24.0, accuracy: 0.001)
+		XCTAssertEqual(viewport.scrollPosition.point?.y ?? 0.0, 34.0, accuracy: 0.001)
+	}
+
+	func testARevealNeverScrollsPastTheEndsOfTheDocument() {
+		var viewport = Viewport()
+		viewport.size = CGSize(width: 400.0, height: 300.0)
+		viewport.magnification = 4.0
+		let sheet = Size(width: .mm(100), height: .mm(80))
+
+		viewport.reveal(Pt(x: 0, y: 0))
+		viewport.revealPending(in: sheet)
+		XCTAssertEqual(viewport.scrollPosition.point, .zero)
+
+		viewport.reveal(Pt(x: sheet.width, y: sheet.height))
+		viewport.revealPending(in: sheet)
+		XCTAssertEqual(viewport.scrollPosition.point?.x ?? 0.0, 48.0, accuracy: 0.001)
+		XCTAssertEqual(viewport.scrollPosition.point?.y ?? 0.0, 68.0, accuracy: 0.001)
+	}
+
+	func testACanvasOfNoSizeYetKeepsTheRevealItWasAskedFor() {
+		var viewport = Viewport()
+		viewport.reveal(Pt(x: .mm(50), y: .mm(40)))
+		viewport.revealPending(in: Size(width: .mm(100), height: .mm(80)))
+
+		XCTAssertEqual(viewport.pending, Pt(x: .mm(50), y: .mm(40)))
+		XCTAssertEqual(viewport.scrollPosition.point, .zero)
+	}
+
 	// MARK: Pushing the netlist onto the board
 
 	private func wiredDesign() -> Design {

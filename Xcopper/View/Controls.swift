@@ -28,6 +28,26 @@ struct ToolButton<T: ToolKind>: View {
 	}
 }
 
+/// Turns the document over to its other half, where the part picked here also
+/// stands. Nothing but the shared designator pairs the two, so the button is
+/// there only while the selection has a counterpart to show.
+@MainActor
+struct CounterpartButton: View {
+	var operations: Operations
+
+	var body: some View {
+		if operations.counterpartCount > 0 {
+			Button(
+				operations.counterpartName,
+				systemImage: operations.counterpartImage,
+				action: { operations.showCounterpart() }
+			)
+			.buttonStyle(.borderless)
+			.padding(.top, 2.0)
+		}
+	}
+}
+
 @MainActor
 struct ActionButton: View {
 	var name: String

@@ -141,3 +141,41 @@ extension Design {
 		return .footprint(board.footprints.count - 1)
 	}
 }
+
+extension Design {
+
+	/// The parts on the board that stand for the symbols picked on the sheet.
+	/// Nothing links the two halves but the designator they share, so they are
+	/// paired by name here the way `updateBoardFromSchematic` pairs them.
+	func footprints(for selection: Set<Schematic.Ref>) -> Set<Ref> {
+		let references = Set(selection.compactMap { ref -> String? in
+			guard case let .symbol(index) = ref, schematic.symbols.indices.contains(index)
+			else { return nil }
+			return schematic.symbols[index].reference
+		})
+		guard !references.isEmpty else { return [] }
+
+		return Set(
+			board.footprints.indices
+				.filter { references.contains(board.footprints[$0].reference) }
+				.map(Ref.footprint)
+		)
+	}
+
+	/// The symbols on the sheet that stand for the parts picked on the board,
+	/// the other way about
+	func symbols(for selection: Set<Ref>) -> Set<Schematic.Ref> {
+		let references = Set(selection.compactMap { ref -> String? in
+			guard case let .footprint(index) = ref, board.footprints.indices.contains(index)
+			else { return nil }
+			return board.footprints[index].reference
+		})
+		guard !references.isEmpty else { return [] }
+
+		return Set(
+			schematic.symbols.indices
+				.filter { references.contains(schematic.symbols[$0].reference) }
+				.map(Schematic.Ref.symbol)
+		)
+	}
+}

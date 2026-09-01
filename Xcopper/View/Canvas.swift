@@ -42,6 +42,10 @@ struct CanvasScroll<Content: View>: View {
 		.scrollPosition($viewport.scrollPosition)
 		.gesture(magnificationController)
 		.background { background }
+		// A canvas already on screen when it is asked to look somewhere has
+		// only to go there; one appearing with the request already made goes
+		// as soon as it has measured itself, below
+		.onChange(of: viewport.pending) { _, _ in viewport.revealPending(in: size) }
 	}
 
 	private var background: some View {
@@ -55,6 +59,7 @@ struct CanvasScroll<Content: View>: View {
 					let old = viewport.size
 					viewport.size = new
 					if old == .zero { viewport.fit(size) }
+					viewport.revealPending(in: size)
 				}
 		}
 	}
