@@ -203,7 +203,9 @@ extension LayoutView {
 				.cg(scale, origin: origin)
 
 			var outline = Path()
-			outline.addRect(body)
+			if footprint.package.stands {
+				outline.addRect(body)
+			}
 			outline.addEllipse(in: CGRect(center: marker, radius: max(1.0, scale * 0.12)))
 			if selection.contains(.footprint(index)) {
 				picked.addPath(outline)
