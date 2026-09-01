@@ -596,6 +596,148 @@ func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 	return loop
 }
 
+// MARK: measuring a gap
+
+extension Figure {
+
+	/// The shape a figure is drawn round: the point a round pad is, the line a
+	/// trace runs along, the rectangle a square pad covers. Everything the fab
+	/// makes is one of those grown by `radius` all round, which is what lets
+	/// one measurement serve all of them.
+	var core: [Pt] {
+		switch self {
+		case let .rect(rect): rect.corners
+		case let .round(center, _): [center]
+		case let .segment(start, end, _): [start, end]
+		}
+	}
+
+	/// How far the copper stands out from its core, read the way `contains`
+	/// reads it, so copper that counts as joined measures as joined
+	var radius: Int {
+		switch self {
+		case .rect: 0
+		case let .round(_, diameter): Int(diameter) / 2
+		case let .segment(_, _, width): Int(width) / 2
+		}
+	}
+}
+
+/// How wide a gap two figures leave between them, in nanometers, and zero
+/// where they touch or overlap. Copper is measured from its core out, so a
+/// pad, a via and a trace are all measured the same way.
+func gap(_ a: Figure, _ b: Figure) -> Double {
+	max(0.0, gap(a.core, b.core) - Double(a.radius + b.radius))
+}
+
+/// How far apart two convex loops are, zero where they meet or one holds the
+/// other. A loop of one point is that point and a loop of two the line
+/// between them, so a degenerate loop measures like the point or line it is.
+func gap(_ a: [Pt], _ b: [Pt]) -> Double {
+	guard let here = a.first, let there = b.first else { return .infinity }
+	guard !covers(a, there), !covers(b, here) else { return 0.0 }
+
+	var least = Double.infinity
+	for edge in edges(a) {
+		for other in edges(b) {
+			least = min(least, gap(edge, other))
+		}
+	}
+	return least
+}
+
+/// The place on a convex loop nearest `point`: the point itself where the loop
+/// covers it, and the nearest place on its edge otherwise
+func nearest(_ loop: [Pt], to point: Pt) -> Pt {
+	guard !covers(loop, point) else { return point }
+
+	var best = point
+	var least = Int.max
+	for (from, to) in edges(loop) {
+		let candidate = nearest(from: from, to: to, near: point)
+		let distance = point.distanceSquared(to: candidate)
+		guard distance < least else { continue }
+		least = distance
+		best = candidate
+	}
+	return best
+}
+
+/// Where two figures come nearest one another: the spot a violation is marked
+/// at, and the spot a click on it scrolls to. Read off by stepping from the
+/// middle of one to the other and back again, which lands on the contact
+/// itself rather than halfway along a trace that only touches at its end.
+func meeting(_ a: Figure, _ b: Figure) -> Pt {
+	let near = nearest(a.core, to: b.bounds.center)
+	let far = nearest(b.core, to: near)
+	let back = nearest(a.core, to: far)
+	return Pt(x: (back.x + far.x) / 2, y: (back.y + far.y) / 2)
+}
+
+/// How far apart two lines of finite length are, zero where they cross
+private func gap(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Double {
+	guard !crosses(a, b) else { return 0.0 }
+	return min(
+		min(distance(from: a.0, to: b.0, b.1), distance(from: a.1, to: b.0, b.1)),
+		min(distance(from: b.0, to: a.0, a.1), distance(from: b.1, to: a.0, a.1))
+	)
+}
+
+/// Whether two lines of finite length step clean over one another. Ends that
+/// merely touch are left to the distance between them, which is nothing.
+private func crosses(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Bool {
+	func straddles(_ from: Pt, _ to: Pt, _ first: Pt, _ second: Pt) -> Bool {
+		let here = cross(from, to, first)
+		let there = cross(from, to, second)
+		return (here > 0 && there < 0) || (here < 0 && there > 0)
+	}
+	return straddles(a.0, a.1, b.0, b.1) && straddles(b.0, b.1, a.0, a.1)
+}
+
+/// Whether a convex loop covers `point`, its edge counting as covered. A loop
+/// with no inside to speak of — fewer than three points, or three and more that
+/// enclose nothing between them — covers nothing, and the gap to its edges
+/// answers for it.
+private func covers(_ loop: [Pt], _ point: Pt) -> Bool {
+	guard loop.count >= 3 else { return false }
+
+	var enclosed = false
+	for index in loop.indices {
+		let side = cross(loop[index], loop[(index + 1) % loop.count], point)
+		guard side >= 0 else { return false }
+		enclosed = enclosed || side > 0
+	}
+	return enclosed
+}
+
+/// The sides a gap is measured against. A loop of one point is a side of no
+/// length and a loop of two a single side, drawn once rather than there and
+/// back again.
+private func edges(_ loop: [Pt]) -> [(Pt, Pt)] {
+	switch loop.count {
+	case 0: []
+	case 1: [(loop[0], loop[0])]
+	case 2: [(loop[0], loop[1])]
+	default: loop.indices.map { index in (loop[index], loop[(index + 1) % loop.count]) }
+	}
+}
+
+/// The place on the line from `start` to `end` nearest `point`, on the nearest
+/// whole nanometer
+private func nearest(from start: Pt, to end: Pt, near point: Pt) -> Pt {
+	let dx = Double(end.x - start.x)
+	let dy = Double(end.y - start.y)
+	let lengthSquared = dx * dx + dy * dy
+	guard lengthSquared > 0.0 else { return start }
+
+	let along = Double(point.x - start.x) * dx + Double(point.y - start.y) * dy
+	let t = min(max(along / lengthSquared, 0.0), 1.0)
+	return Pt(
+		x: start.x + Int((dx * t).rounded()),
+		y: start.y + Int((dy * t).rounded())
+	)
+}
+
 // MARK: punching a face
 
 /// What is left of a face once the drills reaching into it are punched through

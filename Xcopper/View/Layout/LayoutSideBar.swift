@@ -59,6 +59,21 @@ struct LayoutSideBar: View {
 					}
 				}
 
+				Panel(title: "Design rules") {
+					LengthRow(
+						title: "Gap",
+						value: $design.board.rules.clearance,
+						range: 0.01 ... 5.0,
+						property: .clearance,
+						focus: $focus
+					)
+					CheckList(
+						violations: design.check(),
+						stack: stack,
+						show: operations.show
+					)
+				}
+
 				Panel(title: "Route") {
 					GridPicker(title: "Width", value: $state.traceWidth, options: Nm.widths)
 					GridPicker(title: "Snap", value: $state.snap, options: Nm.snapGrids)
@@ -80,6 +95,85 @@ struct LayoutSideBar: View {
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
 		.onChange(of: focus) { _, field in editor.editing = field != nil }
 		.onDisappear { editor.editing = false }
+	}
+}
+
+/// What the checker has to say about the board, read back out of the drawing
+/// every time so it can never be stale. Every line is a place to go: clicking
+/// one picks up the copper at fault and scrolls it into view.
+@MainActor
+struct CheckList: View {
+	var violations: [Violation]
+	var stack: Stack
+	var show: (Violation) -> Void
+
+	/// A long list is a board being worked on rather than one being read, so
+	/// the sidebar shows the worst of it and counts the rest
+	private static let shown = 12
+
+	var body: some View {
+		if violations.isEmpty {
+			Text("Nothing wrong")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+		}
+		ForEach(Array(violations.prefix(Self.shown).enumerated()), id: \.offset) { _, violation in
+			ViolationRow(violation: violation, stack: stack, show: { show(violation) })
+		}
+		if violations.count > Self.shown {
+			Text("and \(violations.count - Self.shown) more")
+				.font(.caption)
+				.foregroundStyle(.tertiary)
+				.padding(.horizontal, 6.0)
+		}
+	}
+}
+
+@MainActor
+struct ViolationRow: View {
+	var violation: Violation
+	var stack: Stack
+	var show: () -> Void
+
+	var body: some View {
+		HStack(spacing: 6.0) {
+			Image(systemName: violation.kind.systemImage)
+				.foregroundStyle(violation.kind.color)
+				.frame(width: 10.0)
+			Text(violation.text).lineLimit(1)
+			Spacer(minLength: 0.0)
+			if let layer = violation.layer {
+				Text(stack.shortName(of: layer))
+					.foregroundStyle(Palette.color(of: layer, in: stack))
+			}
+		}
+		.font(.caption)
+		.padding(.horizontal, 6.0)
+		.padding(.vertical, 3.0)
+		.contentShape(.rect)
+		.onTapGesture(perform: show)
+	}
+}
+
+extension Violation.Kind {
+
+	/// Copper of two nets touching is a board that cannot work; the rest is a
+	/// board that cannot be made the way it is drawn, and what is unrouted is
+	/// only work not done yet.
+	var color: Color {
+		switch self {
+		case .short: Palette.violation
+		case .clearance, .hole, .edge: .orange
+		case .unrouted: .secondary
+		}
+	}
+
+	var systemImage: String {
+		switch self {
+		case .short: "exclamationmark.triangle.fill"
+		case .clearance, .hole, .edge: "exclamationmark.circle.fill"
+		case .unrouted: "point.3.connected.trianglepath.dotted"
+		}
 	}
 }
 

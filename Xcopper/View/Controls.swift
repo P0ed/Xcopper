@@ -146,7 +146,7 @@ struct GridPicker: View {
 /// while one of them does, so a letter typed into a value cannot pick a tool
 /// and a backspace cannot delete the very object being described.
 enum Property: Hashable {
-	case reference, value, text, x, y, width, drill, pad, diameter
+	case reference, value, text, x, y, width, drill, pad, diameter, clearance
 }
 
 /// One labeled row of the inspector

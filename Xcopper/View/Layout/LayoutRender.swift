@@ -61,6 +61,7 @@ extension LayoutView {
 		renderRatsnest(board, in: context, scale: scale, origin: origin)
 
 		renderOutline(board, in: context, scale: scale, origin: origin)
+		renderViolations(board, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
@@ -163,6 +164,27 @@ extension LayoutView {
 				style: StrokeStyle(lineWidth: 0.75, dash: [3.0, 3.0])
 			)
 		}
+	}
+
+	/// What the checker finds wrong with the copper, ringed where it stands.
+	/// Worked out from the board the drag would leave, so a fault appears and
+	/// clears as the copper that causes it follows the pointer. What is
+	/// unrouted is left to the ratsnest, which draws it already.
+	private func renderViolations(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
+		var rings = Path()
+		var dots = Path()
+		for violation in modifying(design, { design in design.board = board }).faults() {
+			let at = violation.at.cg(scale, origin: origin)
+			rings.addEllipse(in: CGRect(center: at, radius: 6.0))
+			dots.addEllipse(in: CGRect(center: at, radius: 1.25))
+		}
+		context.stroke(rings, with: .color(Palette.violation), lineWidth: 1.5)
+		context.fill(dots, with: .color(Palette.violation))
 	}
 
 	private func renderDrills(

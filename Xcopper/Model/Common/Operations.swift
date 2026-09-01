@@ -202,6 +202,18 @@ extension Operations {
 		}
 	}
 
+	/// Takes the document to a violation: turns it over to the board, picks up
+	/// the copper at fault and scrolls the spot into the middle of the view.
+	/// What is unrouted has nothing to pick up, so a click on one of those
+	/// only takes the view there.
+	func show(_ violation: Violation) {
+		layout.cancelSessions()
+		layout.selection = violation.refs
+		if let layer = violation.layer { layout.layer = layer }
+		layout.viewport.reveal(violation.at)
+		editor.mode = .layout
+	}
+
 	func assignNet(_ net: Net.ID?) {
 		guard mode == .layout else { return }
 		for ref in layout.selection {

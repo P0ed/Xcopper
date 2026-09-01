@@ -6,6 +6,7 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 - One part placed once: a symbol brings its footprint with it, and a footprint its symbol
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
+- Design rule check against the clearance, every violation a place to go
 - Inspector in the sidebar with the properties of whatever is selected
 - 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
@@ -162,6 +163,26 @@ The layout then draws a ratsnest for every net whose copper does not yet join al
 of it, as a minimum spanning tree over the disconnected islands. Route one of
 those connections and its line goes away.
 
+## Design rules
+
+The board is looked over as it is drawn, and what is wrong with it is listed in
+the sidebar under the clearance it is measured against. Nothing is stored: the
+violations are read back out of the copper the way the netlist is read back out
+of the wires, so one can never outlive the thing that caused it.
+
+Copper is judged against copper of another net. Touching is a short, and coming
+closer than the clearance without touching is the clearance itself. Copper the
+design has not named is copper it says nothing about, and is left alone; copper
+of one net is free to touch itself. A hole carries no net at all, so everything
+has to stand clear of one, and so it does of the cut edge. What the netlist asks
+for and no copper joins is listed too — the same connections the ratsnest draws.
+
+Every line is a place to go. Clicking one picks up the copper at fault, turns to
+the layer it stands on and scrolls it into the middle of the view. Everything
+but an unrouted connection is also ringed where it stands on the layout, and the
+rings follow a drag the way the ratsnest does, so a fault clears as the copper
+that caused it moves away.
+
 ## Layers
 
 Copper layers are indexed from the top. On a 4 or 6 layer board any internal
@@ -199,6 +220,10 @@ drill programs split into plated and non-plated. Files are named after the
 document — `Amp-F_Cu.gbr`, `Amp-In1_Cu.gbr`, `Amp-PTH.drl` — the way fab portals
 expect to find them. There is no silkscreen: the board carries no legend.
 
+Nothing is written before the board has been looked over. A set asked for while
+a rule is broken says how many are broken and what the first of them are, and
+going ahead anyway is a button; turning back takes the layout to the first.
+
 Pads open the solder mask and vias do not, so vias come back tented.
 
 The Gerbers are RS-274X in millimeters at a 4.6 format, so a board nanometer is
@@ -213,7 +238,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- DRC with short detection, clearance checks, clickable violations, and export preflight.
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.

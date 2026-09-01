@@ -12,6 +12,8 @@ enum Palette {
 	static let preview = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.55)
 	/// The glow a selected object sits in, spreading past its edge
 	static let halo = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.35)
+	/// A design rule violation, marked on the copper and listed in the sidebar
+	static let violation = Color(red: 1.0, green: 0.36, blue: 0.30)
 
 	static let sheet = Color(red: 0.10, green: 0.10, blue: 0.13)
 	static let symbol = Color(red: 0.88, green: 0.88, blue: 0.86)
