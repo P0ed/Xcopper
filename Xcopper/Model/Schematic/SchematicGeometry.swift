@@ -146,7 +146,13 @@ extension Schematic {
 		}
 	}
 
-	mutating func duplicate(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
+	/// `used` holds the designators the other half of the document has spoken
+	/// for, so a copy never takes the name of a part that already exists
+	mutating func duplicate(
+		_ refs: Set<Ref>,
+		by delta: Pt,
+		references used: Set<String> = []
+	) -> Set<Ref> {
 		var created: Set<Ref> = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
@@ -162,7 +168,7 @@ extension Schematic {
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols.append(modifying(symbols[index]) { symbol in
 					symbol.at = symbol.at + delta
-					symbol.reference = nextReference(like: symbol.reference)
+					symbol.reference = nextReference(like: symbol.reference, besides: used)
 				})
 				created.insert(.symbol(symbols.count - 1))
 			default:
@@ -172,7 +178,23 @@ extension Schematic {
 		return created
 	}
 
-	func nextReference(like reference: String) -> String {
-		Xcopper.nextReference(like: reference, used: Set(symbols.map(\.reference)))
+	func nextReference(like reference: String, besides used: Set<String> = []) -> String {
+		Xcopper.nextReference(like: reference, used: Set(symbols.map(\.reference)).union(used))
+	}
+}
+
+extension Schematic {
+
+	/// Where `symbol`, built at the origin, can stand clear of everything already
+	/// drawn. Keeping off the wires matters as much as looking tidy: a pin tip
+	/// landing on one would join its net.
+	func parking(for symbol: Symbol) -> Pt {
+		Xcopper.parking(symbol.placedExtent, in: bounds, clear: occupied)
+	}
+
+	private var occupied: [Rect] {
+		symbols.map(\.placedExtent)
+			+ wires.map { wire in Rect(from: wire.start, to: wire.end) }
+			+ labels.map(\.bounds)
 	}
 }

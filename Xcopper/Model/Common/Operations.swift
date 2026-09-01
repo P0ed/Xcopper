@@ -112,8 +112,18 @@ extension Operations {
 
 	func duplicate() {
 		switch mode {
-		case .layout: layout.selection = design.board.duplicate(layout.selection, by: offset)
-		case .schematic: schematic.selection = design.schematic.duplicate(schematic.selection, by: offset)
+		case .layout:
+			layout.selection = design.board.duplicate(
+				layout.selection,
+				by: offset,
+				references: Set(design.schematic.symbols.map(\.reference))
+			)
+		case .schematic:
+			schematic.selection = design.schematic.duplicate(
+				schematic.selection,
+				by: offset,
+				references: Set(design.board.footprints.map(\.reference))
+			)
 		case .preview: break
 		}
 	}
@@ -213,7 +223,7 @@ extension Operations {
 		for footprint in clipboard.footprints {
 			design.board.footprints.append(modifying(footprint) { footprint in
 				footprint.at = footprint.at + delta
-				footprint.reference = design.board.nextReference(like: footprint.reference)
+				footprint.reference = design.nextReference(like: footprint.reference)
 			})
 			created.insert(.footprint(design.board.footprints.count - 1))
 		}
@@ -238,7 +248,7 @@ extension Operations {
 		for symbol in clipboard.symbols {
 			design.schematic.symbols.append(modifying(symbol) { symbol in
 				symbol.at = symbol.at + delta
-				symbol.reference = design.schematic.nextReference(like: symbol.reference)
+				symbol.reference = design.nextReference(like: symbol.reference)
 			})
 			created.insert(.symbol(design.schematic.symbols.count - 1))
 		}

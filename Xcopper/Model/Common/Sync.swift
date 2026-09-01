@@ -63,3 +63,81 @@ extension Design {
 		return report
 	}
 }
+
+extension Symbol.Spec {
+
+	/// The package a part drawn like this goes in. A power or ground flag names
+	/// a net rather than standing for a part, so it has none.
+	var footprint: Footprint.Spec? {
+		if let component { return Footprint.Spec(component: component) }
+
+		return switch kind {
+		case .resistor, .capacitor, .inductor, .diode: Footprint.Spec(kind: .chip)
+		case .transistor: Footprint.Spec(kind: .sot23)
+		// SOIC rounds an odd pin count down, which would leave the last pin with
+		// nowhere to land, so the package is asked for one pad more instead
+		case .ic: Footprint.Spec(kind: .soic, pins: pins + pins % 2)
+		case .power, .ground: nil
+		}
+	}
+}
+
+extension Footprint.Spec {
+
+	/// The symbol that stands for a part in this package
+	var symbol: Symbol.Spec {
+		if let component { return Symbol.Spec(kind: component.symbolKind, component: component) }
+
+		return switch kind {
+		case .chip: Symbol.Spec(kind: .resistor)
+		case .sot23: Symbol.Spec(kind: .transistor)
+		case .soic, .dip: Symbol.Spec(kind: .ic, pins: pins)
+		case .header: Symbol.Spec(kind: .ic, pins: pins * rows)
+		}
+	}
+}
+
+extension Design {
+
+	/// A designator free on both halves of the document, so a symbol and the
+	/// footprint that goes with it can share one
+	func nextReference(like reference: String) -> String {
+		Xcopper.nextReference(
+			like: reference,
+			used: Set(schematic.symbols.map(\.reference))
+				.union(board.footprints.map(\.reference))
+		)
+	}
+
+	/// Draws a symbol on the sheet and stands the footprint that goes with it on
+	/// the board, parked where it covers nothing already drawn. Nothing links the
+	/// two but the designator they share, which is all `updateBoardFromSchematic`
+	/// needs to pair them again.
+	@discardableResult
+	mutating func place(_ spec: Symbol.Spec, at point: Pt) -> Schematic.Ref {
+		let reference = nextReference(like: spec.referencePrefix)
+		schematic.symbols.append(Symbol(spec: spec, reference: reference, at: point))
+
+		if let package = spec.footprint {
+			let footprint = Footprint(spec: package, reference: reference, at: .zero)
+			board.footprints.append(modifying(footprint) { footprint in
+				footprint.at = board.parking(for: footprint)
+			})
+		}
+		return .symbol(schematic.symbols.count - 1)
+	}
+
+	/// Stands a footprint on the board and draws the symbol that goes with it on
+	/// the sheet, the other way about
+	@discardableResult
+	mutating func place(_ spec: Footprint.Spec, at point: Pt) -> Ref {
+		let reference = nextReference(like: spec.referencePrefix)
+		board.footprints.append(Footprint(spec: spec, reference: reference, at: point))
+
+		let symbol = Symbol(spec: spec.symbol, reference: reference, at: .zero)
+		schematic.symbols.append(modifying(symbol) { symbol in
+			symbol.at = schematic.parking(for: symbol)
+		})
+		return .footprint(board.footprints.count - 1)
+	}
+}

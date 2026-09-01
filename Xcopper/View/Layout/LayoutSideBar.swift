@@ -69,7 +69,7 @@ struct LayoutSideBar: View {
 						editor.sheet = .footprint
 					}
 					.buttonStyle(.borderless)
-					Text(specSummary)
+					Text(state.spec.summary)
 						.font(.caption)
 						.foregroundStyle(.secondary)
 				}
@@ -79,16 +79,6 @@ struct LayoutSideBar: View {
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
 		.onChange(of: focus) { _, field in editor.editing = field != nil }
 		.onDisappear { editor.editing = false }
-	}
-
-	private var specSummary: String {
-		let spec = state.spec
-		return switch spec.kind {
-		case .chip: "Chip \(spec.chip.name)"
-		case .sot23: "SOT-23"
-		case .header: "Header \(spec.rows)×\(spec.pins)"
-		default: "\(spec.kind.name)-\(spec.pins)"
-		}
 	}
 }
 

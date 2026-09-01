@@ -60,6 +60,35 @@ func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 	return (ox * ox + oy * oy).squareRoot()
 }
 
+/// 0.1 inch, the one pitch both snap grids share, so a part the editor parks
+/// stands on the grid whatever the snap is set to
+let parkingPitch = Int.mil(100)
+
+/// Where something whose extent is `extent` when it stands at the origin can go
+/// inside `bounds` without covering anything in `taken`: the first spot in
+/// reading order on the parking pitch. Falls back to the first spot that fits at
+/// all when nothing is clear, so a part is always somewhere the canvas reaches.
+func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Pt {
+	var fallback: Pt?
+	var y = bounds.minY + parkingPitch
+
+	while y <= bounds.maxY {
+		var x = bounds.minX + parkingPitch
+		while x <= bounds.maxX {
+			let at = Pt(x: x, y: y)
+			let placed = Rect(origin: extent.origin + at, size: extent.size)
+			if bounds.contains(placed.origin), bounds.contains(Pt(x: placed.maxX, y: placed.maxY)) {
+				if fallback == nil { fallback = at }
+				let room = placed.outset(parkingPitch / 2)
+				if !taken.contains(where: room.intersects) { return at }
+			}
+			x += parkingPitch
+		}
+		y += parkingPitch
+	}
+	return fallback ?? bounds.center
+}
+
 /// Tangent of 22.5 degrees, scaled by 1000: where one routing direction gives
 /// way to the next
 let octantEdge = 414
@@ -385,10 +414,7 @@ extension Board {
 			case let .hole(index) where holes.indices.contains(index):
 				Figure.round(holes[index].at, holes[index].diameter).bounds
 			case let .footprint(index) where footprints.indices.contains(index):
-				Rect.union(
-					[footprints[index].placedBody]
-						+ footprints[index].placedPads.map { pad in pad.figure.bounds }
-				)
+				footprints[index].placedExtent
 			default:
 				nil
 			}

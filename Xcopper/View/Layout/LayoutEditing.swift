@@ -181,12 +181,6 @@ private extension LayoutView {
 	}
 
 	func placeFootprint(at point: Pt) {
-		let footprint = Footprint(
-			spec: state.spec,
-			reference: board.nextReference(like: state.spec.referencePrefix),
-			at: point.snapped(to: state.snap)
-		)
-		board.footprints.append(footprint)
-		state.selection = [.footprint(board.footprints.count - 1)]
+		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
 	}
 }

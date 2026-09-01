@@ -142,6 +142,11 @@ extension Footprint {
 		)
 	}
 
+	/// Body and pads together, everything the part covers on the board
+	var placedExtent: Rect {
+		Rect.union([placedBody] + placedPads.map { pad in pad.figure.bounds }) ?? placedBody
+	}
+
 	func place(_ local: Pt) -> Pt {
 		(flipped ? local.mirroredX : local).rotated(rotation) + at
 	}
@@ -191,6 +196,23 @@ extension Board {
 	mutating func setPlane(_ net: Net.ID?, on layer: Int) {
 		guard stack.isInternal(layer), planes.indices.contains(layer) else { return }
 		planes[layer] = net
+	}
+}
+
+extension Board {
+
+	/// Where `footprint`, built at the origin, can stand clear of everything the
+	/// board already carries
+	func parking(for footprint: Footprint) -> Pt {
+		Xcopper.parking(footprint.placedExtent, in: bounds, clear: occupied)
+	}
+
+	/// What every object on the board covers, whatever layer it is on
+	private var occupied: [Rect] {
+		footprints.map(\.placedExtent)
+			+ traces.map { trace in Figure.segment(trace.start, trace.end, trace.width).bounds }
+			+ vias.map { via in Figure.round(via.at, via.pad).bounds }
+			+ holes.map { hole in Figure.round(hole.at, hole.diameter).bounds }
 	}
 }
 
@@ -720,7 +742,13 @@ extension Board {
 		}
 	}
 
-	mutating func duplicate(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
+	/// `used` holds the designators the other half of the document has spoken
+	/// for, so a copy never takes the name of a part that already exists
+	mutating func duplicate(
+		_ refs: Set<Ref>,
+		by delta: Pt,
+		references used: Set<String> = []
+	) -> Set<Ref> {
 		var created: Set<Ref> = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
@@ -739,7 +767,7 @@ extension Board {
 			case let .footprint(index) where footprints.indices.contains(index):
 				footprints.append(modifying(footprints[index]) { footprint in
 					footprint.at = footprint.at + delta
-					footprint.reference = nextReference(like: footprint.reference)
+					footprint.reference = nextReference(like: footprint.reference, besides: used)
 				})
 				created.insert(.footprint(footprints.count - 1))
 			default:
@@ -749,8 +777,8 @@ extension Board {
 		return created
 	}
 
-	func nextReference(like reference: String) -> String {
-		Xcopper.nextReference(like: reference, used: Set(footprints.map(\.reference)))
+	func nextReference(like reference: String, besides used: Set<String> = []) -> String {
+		Xcopper.nextReference(like: reference, used: Set(footprints.map(\.reference)).union(used))
 	}
 }
 

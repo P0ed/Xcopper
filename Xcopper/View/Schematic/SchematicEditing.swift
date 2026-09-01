@@ -139,12 +139,6 @@ private extension SchematicView {
 	}
 
 	func placeSymbol(at point: Pt) {
-		let symbol = Symbol(
-			spec: state.spec,
-			reference: schematic.nextReference(like: state.spec.referencePrefix),
-			at: point.snapped(to: state.snap)
-		)
-		schematic.symbols.append(symbol)
-		state.selection = [.symbol(schematic.symbols.count - 1)]
+		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
 	}
 }

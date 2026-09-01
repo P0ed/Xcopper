@@ -3,6 +3,7 @@
 Minimal schematic capture and PCB layout for macOS. One rectangular board and one sheet per document.
 
 - Schematic capture with parametric symbols, a built-in component library and net labels
+- One part placed once: a symbol brings its footprint with it, and a footprint its symbol
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
 - Inspector in the sidebar with the properties of whatever is selected
@@ -101,6 +102,26 @@ A drag never leaves a straight line in pieces: segments that come to rest end to
 end in line fuse back into the one segment they look like, and a segment
 squashed down to nothing goes away. Copper meeting on a pad or a via is joined
 there rather than bent, so that stays two segments.
+
+## Parts
+
+A part is placed once and stands on both sides. Placing a symbol on the sheet
+also puts its footprint on the board, and placing a footprint puts its symbol on
+the sheet. Nothing links the two but the reference designator they share, which
+is all `⌘U` needs to pair them up again.
+
+The counterpart is parked at the first spot, in reading order, where it covers
+nothing already drawn, on the 0.1 inch pitch both snap grids share, so it lands
+on the grid whatever the snap is set to and is ready to be dragged where it
+belongs. On the sheet that keeps a parked symbol off the wires as well as off the
+other parts — a pin tip landing on a wire would join its net.
+
+A library part brings its own package. A generic one takes the package its
+symbol implies — a chip for a resistor, capacitor, inductor or diode, SOT-23 for
+a transistor, SOIC for an IC — and the symbol dialog names it before the part is
+placed. To choose a package precisely, place from the layout instead: that draws
+the symbol. Power and ground flags name a net rather than standing for a part,
+so they go on the sheet alone.
 
 ## Inspector
 

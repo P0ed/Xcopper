@@ -225,6 +225,137 @@ final class SchematicTests: XCTestCase {
 		XCTAssertTrue(schematic.symbols.allSatisfy(\.mirrored))
 	}
 
+	// MARK: Placing a part on both sides
+
+	func testPlacingASymbolStandsItsFootprintOnTheBoard() {
+		var design = Design()
+		let ref = design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: Pt(x: .mm(50), y: .mm(50)))
+
+		XCTAssertEqual(ref, .symbol(0))
+		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R1"])
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["R1"])
+		XCTAssertEqual(design.schematic.symbols[0].at, Pt(x: .mm(50), y: .mm(50)))
+		XCTAssertEqual(design.board.footprints[0].pads.map(\.name), ["1", "2"])
+	}
+
+	func testPlacingAFootprintDrawsItsSymbolOnTheSheet() {
+		var design = Design()
+		let ref = design.place(Footprint.Spec(kind: .soic, pins: 8), at: Pt(x: .mm(20), y: .mm(20)))
+
+		XCTAssertEqual(ref, .footprint(0))
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["U1"])
+		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["U1"])
+		XCTAssertEqual(design.board.footprints[0].at, Pt(x: .mm(20), y: .mm(20)))
+		XCTAssertEqual(design.schematic.symbols[0].kind, .ic)
+		XCTAssertEqual(design.schematic.symbols[0].pins.count, 8)
+	}
+
+	func testAPowerFlagStandsOnTheSheetAlone() {
+		var design = Design()
+		design.place(Symbol.Spec(kind: .ground), at: .zero)
+		design.place(Symbol.Spec(kind: .power), at: Pt(x: .mm(10), y: 0))
+
+		XCTAssertEqual(design.schematic.symbols.count, 2)
+		XCTAssertTrue(design.board.footprints.isEmpty)
+	}
+
+	func testADesignatorIsFreeOnBothHalvesBeforeItIsUsed() {
+		var design = Design()
+		design.board.footprints = [
+			Footprint(spec: .init(kind: .chip), reference: "R1", at: Pt(x: .mm(80), y: .mm(140))),
+		]
+		design.place(Symbol.Spec(kind: .resistor), at: .zero)
+
+		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R2"])
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["R1", "R2"])
+	}
+
+	func testAPairedPartNeedsNoMatchingUpAfterwards() {
+		var design = Design()
+		design.place(Symbol.Spec(component: .ad823), at: Pt(x: .mm(200), y: .mm(150)))
+		design.place(Footprint.Spec(kind: .chip), at: Pt(x: .mm(60), y: .mm(100)))
+
+		let from = design.schematic.symbols[0].placedPins[0].at
+		let to = design.schematic.symbols[1].placedPins[0].at
+		design.schematic.wires = [Wire(start: from, end: to)]
+		design.schematic.labels = [NetLabel(at: from, text: "OUT")]
+
+		let report = design.updateBoardFromSchematic()
+		XCTAssertTrue(report.isClean)
+		XCTAssertGreaterThanOrEqual(report.assigned, 2)
+	}
+
+	func testAParkedPartCoversNothingAlreadyThere() {
+		var design = Design()
+		for index in 0 ..< 6 {
+			design.place(Symbol.Spec(kind: .ic, pins: 8), at: Pt(x: .mm(20.0 + Double(index) * 40.0), y: .mm(180)))
+			design.place(Footprint.Spec(kind: .header, pins: 3), at: Pt(x: .mm(90), y: .mm(20.0 + Double(index) * 20.0)))
+		}
+
+		assertNothingOverlaps(design.board.footprints.map(\.placedExtent), inside: design.board.bounds)
+		assertNothingOverlaps(
+			design.schematic.symbols.filter { $0.kind == .ic }.map(\.placedExtent),
+			inside: design.schematic.bounds
+		)
+	}
+
+	func testAParkedSymbolKeepsClearOfAWireAlreadyDrawn() {
+		var design = Design()
+		let wire = Wire(
+			start: Pt(x: 0, y: .mm(12)),
+			end: Pt(x: design.schematic.size.width, y: .mm(12))
+		)
+		design.schematic.wires = [wire]
+		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Pt(x: .mm(20), y: .mm(20)))
+
+		let parked = design.schematic.symbols[0].placedExtent
+		XCTAssertFalse(parked.intersects(Rect(from: wire.start, to: wire.end)))
+		// Nothing has wired itself into the net the wire already carries
+		XCTAssertEqual(Netlist(design.schematic).group(at: wire.start)?.nodes, [])
+	}
+
+	func testEveryPackagePairsWithASymbolThatHasAPadForEveryPin() {
+		for kind in Symbol.Kind.allCases {
+			let spec = Symbol.Spec(kind: kind, pins: 9)
+			guard let package = spec.footprint else {
+				XCTAssertTrue(kind.isPower, kind.name)
+				continue
+			}
+			let symbol = Symbol(spec: spec, reference: "X1", at: .zero)
+			let footprint = Footprint(spec: package, reference: "X1", at: .zero)
+			XCTAssertTrue(
+				Set(symbol.pins.map(\.number)).isSubset(of: Set(footprint.pads.map(\.name))),
+				kind.name
+			)
+		}
+
+		for kind in Footprint.Kind.allCases {
+			let spec = Footprint.Spec(kind: kind, pins: 10, rows: 2)
+			let footprint = Footprint(spec: spec, reference: "X1", at: .zero)
+			let symbol = Symbol(spec: spec.symbol, reference: "X1", at: .zero)
+			XCTAssertEqual(
+				Set(symbol.pins.map(\.number)),
+				Set(footprint.pads.map(\.name)),
+				kind.name
+			)
+		}
+
+		for component in Component.allCases {
+			XCTAssertEqual(Symbol.Spec(component: component).footprint?.component, component, component.name)
+			XCTAssertEqual(Footprint.Spec(component: component).symbol.component, component, component.name)
+		}
+	}
+
+	private func assertNothingOverlaps(_ extents: [Rect], inside bounds: Rect) {
+		for (index, extent) in extents.enumerated() {
+			XCTAssertTrue(bounds.contains(extent.origin))
+			XCTAssertTrue(bounds.contains(Pt(x: extent.maxX, y: extent.maxY)))
+			for other in extents[(index + 1)...] {
+				XCTAssertFalse(extent.intersects(other))
+			}
+		}
+	}
+
 	// MARK: Pushing the netlist onto the board
 
 	private func wiredDesign() -> Design {

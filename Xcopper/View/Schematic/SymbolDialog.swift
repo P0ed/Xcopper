@@ -58,13 +58,7 @@ struct SymbolDialog: View {
 						Text(component.name).tag(Component?.some(component))
 					}
 				}
-				if let component = current.component {
-					HStack {
-						Text("Package")
-							.foregroundStyle(.secondary)
-						Text(component.packageName)
-					}
-				} else {
+				if current.component == nil {
 					Picker("Kind", selection: kind) {
 						ForEach(Symbol.Kind.allCases) { kind in
 							Text(kind.name).tag(kind)
@@ -73,6 +67,12 @@ struct SymbolDialog: View {
 					if current.kind.hasPins {
 						Stepper("Pins: \(current.pins)", value: binding.pins, in: 2 ... 64)
 					}
+				}
+				// The footprint that goes on the board with it, named before it does
+				HStack {
+					Text("Package")
+						.foregroundStyle(.secondary)
+					Text(current.footprint?.summary ?? "None")
 				}
 				HStack {
 					Text(current.kind.isPower ? "Net" : "Value")

@@ -55,6 +55,17 @@ extension Symbol {
 		static var `default`: Spec { Spec() }
 
 		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
+
+		/// What the sidebar and the footprint dialog call a part drawn like this
+		var summary: String {
+			if let component { return component.name }
+
+			return switch kind {
+			case .ic: "IC-\(pins)"
+			case .power, .ground: "\(kind.name) \(value.isEmpty ? kind.defaultValue : value)"
+			default: kind.name
+			}
+		}
 	}
 }
 

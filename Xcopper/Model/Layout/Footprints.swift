@@ -55,6 +55,18 @@ extension Footprint {
 		static var `default`: Spec { Spec() }
 
 		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
+
+		/// What the sidebar and the symbol dialog call this package
+		var summary: String {
+			if let component { return component.packageName }
+
+			return switch kind {
+			case .chip: "Chip \(chip.name)"
+			case .sot23: "SOT-23"
+			case .header: "Header \(rows)×\(pins)"
+			default: "\(kind.name)-\(pins)"
+			}
+		}
 	}
 }
 

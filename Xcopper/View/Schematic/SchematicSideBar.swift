@@ -32,7 +32,7 @@ struct SchematicSideBar: View {
 				Panel(title: "Place") {
 					Button("Symbol…", systemImage: "square.on.circle") { editor.sheet = .symbol }
 						.buttonStyle(.borderless)
-					Text(specSummary)
+					Text(state.spec.summary)
 						.font(.caption)
 						.foregroundStyle(.secondary)
 					Button("Label…", systemImage: "tag") { editor.sheet = .label }
@@ -78,15 +78,6 @@ struct SchematicSideBar: View {
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
 		.onChange(of: focus) { _, field in editor.editing = field != nil }
 		.onDisappear { editor.editing = false }
-	}
-
-	private var specSummary: String {
-		let spec = state.spec
-		return switch spec.kind {
-		case .ic: "IC-\(spec.pins)"
-		case .power, .ground: "\(spec.kind.name) \(spec.value.isEmpty ? spec.kind.defaultValue : spec.value)"
-		default: spec.kind.name
-		}
 	}
 }
 
