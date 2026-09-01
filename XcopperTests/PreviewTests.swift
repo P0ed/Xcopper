@@ -443,7 +443,7 @@ final class PreviewTests: XCTestCase {
 		// it and the wire hole beside it reaching over its edge
 		let ring = Figure.round(.zero, .mm(10)).polygon()
 		let barrel = Figure.round(.zero, .mm(6.35)).polygon()
-		let wire = Figure.round(Pt(x: .mm(5), y: 0), .mm(1)).polygon()
+		let wire = Figure.round(Pt(x: 0, y: .mm(5)), .mm(1)).polygon()
 
 		let pieces = punched(ring, by: [barrel, wire])
 		let covered = pieces.reduce(0.0) { total, piece in total + area(of: piece) }
@@ -453,7 +453,7 @@ final class PreviewTests: XCTestCase {
 		for piece in pieces {
 			XCTAssertGreaterThan(area(of: piece), 0.0)
 			XCTAssertFalse(holds(piece, [.zero]), "the barrel is not covered over")
-			XCTAssertFalse(holds(piece, [Pt(x: .mm(5), y: 0)]), "nor is the wire hole")
+			XCTAssertFalse(holds(piece, [Pt(x: 0, y: .mm(5))]), "nor is the wire hole")
 		}
 	}
 
@@ -476,8 +476,8 @@ final class PreviewTests: XCTestCase {
 		// A route onto the wire hole, narrower than the drill it lands on, and
 		// a mounting hole punched through the ring itself
 		board.traces.append(Trace(
-			start: Pt(x: .mm(25), y: .mm(25)),
-			end: Pt(x: .mm(25), y: .mm(15)),
+			start: Pt(x: .mm(20), y: .mm(25)),
+			end: Pt(x: .mm(20), y: .mm(20)),
 			width: .mm(0.8),
 			layer: 0,
 			net: nil
@@ -498,8 +498,8 @@ final class PreviewTests: XCTestCase {
 		}
 		// And no more of it is taken back than the drills themselves: the ring
 		// still stands everywhere they do not reach
-		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(20), y: .mm(19))) }, "the ring")
-		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(25), y: .mm(20))) }, "the trace")
+		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(24), y: .mm(15))) }, "the ring")
+		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(20), y: .mm(23))) }, "the trace")
 	}
 
 	// MARK: surfaces

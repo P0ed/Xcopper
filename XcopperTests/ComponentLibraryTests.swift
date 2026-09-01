@@ -50,7 +50,7 @@ final class ComponentLibraryTests: XCTestCase {
 		XCTAssertEqual(pomona.pads.map(\.name), ["1", "1"])
 		XCTAssertEqual(pomona.pads[0].drill, .mm(6.35))
 		XCTAssertEqual(pomona.pads[0].size, Size(width: .mm(10.0), height: .mm(10.0)))
-		XCTAssertEqual(pomona.pads[1].at, Pt(x: .mm(5.0), y: 0))
+		XCTAssertEqual(pomona.pads[1].at, Pt(x: 0, y: .mm(5.0)))
 		XCTAssertEqual(pomona.pads[1].drill, .mm(1.0))
 		XCTAssertTrue(pomona.pads[0].figure.contains(pomona.pads[1].at))
 

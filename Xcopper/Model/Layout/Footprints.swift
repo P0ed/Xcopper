@@ -328,7 +328,7 @@ extension Footprint {
 					net: nil
 				),
 				Pad(
-					at: Pt(x: .mm(5.0), y: 0),
+					at: Pt(x: 0, y: .mm(5.0)),
 					size: Size(width: .mm(2.0), height: .mm(2.0)),
 					shape: .oval,
 					drill: .mm(1.0),
@@ -337,7 +337,7 @@ extension Footprint {
 					net: nil
 				),
 			],
-			body: Size(width: .mm(12.0), height: .mm(10.0))
+			body: Size(width: .mm(10.0), height: .mm(12.0))
 		)
 	}
 
