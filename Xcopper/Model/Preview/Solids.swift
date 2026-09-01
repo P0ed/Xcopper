@@ -269,31 +269,75 @@ extension Board {
 	}
 
 	/// The outer layer: traces and tented vias reading through whatever covers
-	/// them, and the pads the mask leaves open
+	/// them, and the pads the mask leaves open. Every drill on the board is
+	/// punched through the lot of it, since a hole is made after the copper is
+	/// laid and takes back whatever stood over it.
 	private func copper(into model: inout Model, side: Side) {
+		let punches = drills.map { drill in (bounds: drill.bounds, loop: drill.polygon()) }
+
 		for trace in traces where trace.layer == side.layer {
-			model.add(
-				side.loop(Figure.segment(trace.start, trace.end, trace.width).polygon(arc: 2)),
+			lay(
+				.segment(trace.start, trace.end, trace.width),
+				arc: 2,
+				drills: punches,
 				shade: .coating,
-				level: side.copper
+				level: side.copper,
+				side: side,
+				into: &model
 			)
 		}
 		for via in vias where via.spans(side.layer) {
-			model.add(
-				side.loop(Figure.round(via.at, via.pad).polygon()),
-				holes: [side.loop(circle(at: via.at, diameter: Int(via.drill)))],
+			lay(
+				.round(via.at, via.pad),
+				drills: punches,
 				shade: .coating,
-				level: side.copper
+				level: side.copper,
+				side: side,
+				into: &model
 			)
 		}
 		for pad in pads(on: side.layer) {
-			model.add(
-				side.loop(pad.figure.polygon()),
-				holes: pad.isThrough ? [side.loop(circle(at: pad.at, diameter: Int(pad.drill)))] : [],
+			lay(
+				pad.figure,
+				drills: punches,
 				shade: .plating,
-				level: side.pads
+				level: side.pads,
+				side: side,
+				into: &model
 			)
 		}
+	}
+
+	/// One piece of copper laid on a face, cut back to the drills that reach
+	/// it. A drill the copper closes right round is a hole read through the one
+	/// face, the way a pad reads through its own barrel; a drill reaching over
+	/// the edge of the copper — a trace running onto a pad, or the ring of a
+	/// panel jack overlapping the wire hole beside it — takes a piece of that
+	/// copper away instead, and what is left of it comes back in pieces.
+	private func lay(
+		_ figure: Figure,
+		arc: Int? = nil,
+		drills: [(bounds: Rect, loop: [Pt])],
+		shade: Shade,
+		level: Int,
+		side: Side,
+		into model: inout Model
+	) {
+		let outline = figure.polygon(arc: arc)
+		let reaching = drills.filter { drill in drill.bounds.intersects(figure.bounds) }.map(\.loop)
+
+		guard reaching.allSatisfy({ drill in holds(outline, drill) }) else {
+			for piece in punched(outline, by: reaching) {
+				model.add(side.loop(piece), shade: shade, level: level)
+			}
+			return
+		}
+		model.add(
+			side.loop(outline),
+			holes: reaching.map { hole in side.loop(hole) },
+			shade: shade,
+			level: level
+		)
 	}
 
 	private func parts(into model: inout Model, top: Side, bottom: Side) {

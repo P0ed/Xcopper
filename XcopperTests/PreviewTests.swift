@@ -36,6 +36,27 @@ final class PreviewTests: XCTestCase {
 		XCTAssertEqual(ring.normal.z, 1.0, accuracy: 0.0001)
 	}
 
+	func testACurveIsCutAsFinelyAsItsSizeAsksFor() {
+		// The ring of a panel jack and the barrel through it read as round; a
+		// via's barrel is not cut finer than anything could show
+		XCTAssertEqual(Figure.round(.zero, .mm(10)).polygon().count, 32)
+		XCTAssertEqual(Figure.round(.zero, .mm(6.35)).polygon().count, 32)
+		XCTAssertEqual(Figure.round(.zero, .mm(0.5)).polygon().count, 12)
+
+		// Up to the size copper comes in, no side of a curve stands more than a
+		// hair off the curve itself
+		for diameter in [0.4, 1.0, 2.0, 6.35, 10.0] {
+			let sides = Double(Figure.round(.zero, .mm(diameter)).polygon().count)
+			XCTAssertLessThan(
+				diameter / 2.0 * (1.0 - cos(.pi / sides)),
+				0.025,
+				"\(diameter) mm across"
+			)
+		}
+		// And nothing is cut finer than that, however wide it is
+		XCTAssertEqual(Figure.round(.zero, .mm(25)).polygon().count, 32)
+	}
+
 	func testAStadiumSurroundsTheTraceItStandsFor() {
 		let start = Pt(x: .mm(2), y: .mm(5))
 		let end = Pt(x: .mm(9), y: .mm(5))
@@ -216,11 +237,12 @@ final class PreviewTests: XCTestCase {
 		}
 	}
 
-	/// How much a drill covers once it is drawn as the twelve sided ring the
-	/// model builds it out of, which is a little under the circle it stands for
-	private func punched(_ diameter: Double) -> Double {
+	/// How much a drill covers once it is drawn as the ring of straight sides
+	/// the model builds it out of, which is a little under the circle it stands
+	/// for
+	private func drilled(_ diameter: Double) -> Double {
 		let radius = diameter / 2.0
-		let sides = 12.0
+		let sides = Double(fineness(across: .mm(diameter)) * 4)
 		return sides * radius * radius * sin(2.0 * .pi / sides) / 2.0
 	}
 
@@ -245,7 +267,7 @@ final class PreviewTests: XCTestCase {
 			facing: V3(x: 0.0, y: 0.0, z: 1.0)
 		)
 
-		XCTAssertEqual(area(of: triangles), 400.0 - punched(6.0), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6.0), accuracy: 0.01)
 		assertFacing(triangles, 1.0)
 	}
 
@@ -261,7 +283,7 @@ final class PreviewTests: XCTestCase {
 			facing: V3(x: 0.0, y: 0.0, z: 1.0)
 		)
 
-		XCTAssertEqual(area(of: triangles), 400.0 - 9.0 * punched(3.0), accuracy: 0.02)
+		XCTAssertEqual(area(of: triangles), 400.0 - 9.0 * drilled(3.0), accuracy: 0.02)
 		assertFacing(triangles, 1.0)
 	}
 
@@ -272,7 +294,7 @@ final class PreviewTests: XCTestCase {
 
 		let triangles = triangulate(outline, holes: [drill], facing: V3(x: 0.0, y: 0.0, z: -1.0))
 
-		XCTAssertEqual(area(of: triangles), 400.0 - punched(6.0), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6.0), accuracy: 0.01)
 		XCTAssertTrue(triangles.allSatisfy { $0.z == -1.6 })
 		assertFacing(triangles, -1.0)
 	}
@@ -302,7 +324,7 @@ final class PreviewTests: XCTestCase {
 
 		let triangles = triangulate(face, holes: punches, facing: V3(x: 0.0, y: 0.0, z: 1.0))
 
-		XCTAssertEqual(area(of: triangles), 16_000.0 - 2.0 * punched(0.5), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 16_000.0 - 2.0 * drilled(0.5), accuracy: 0.01)
 		assertFacing(triangles, 1.0)
 	}
 
@@ -327,7 +349,7 @@ final class PreviewTests: XCTestCase {
 
 		XCTAssertEqual(
 			area(of: triangles),
-			16_000.0 - Double(places.count) * punched(0.5),
+			16_000.0 - Double(places.count) * drilled(0.5),
 			accuracy: 0.05
 		)
 		assertFacing(triangles, 1.0)
@@ -349,6 +371,135 @@ final class PreviewTests: XCTestCase {
 			XCTAssertEqual(area(of: triangles), 400.0, accuracy: 0.001)
 			assertFacing(triangles, 1.0)
 		}
+	}
+
+	// MARK: punching
+
+	/// How much a flat loop covers, in square millimeters, positive where it is
+	/// wound the way the layout draws one
+	private func area(of loop: [Pt]) -> Double {
+		var sum = 0.0
+		var previous = loop[loop.count - 1]
+
+		for point in loop {
+			sum += Double(previous.x).mm * Double(point.y).mm
+				- Double(point.x).mm * Double(previous.y).mm
+			previous = point
+		}
+		return sum / 2.0
+	}
+
+	/// Whether the triangles a face is cut into cover a point on the board,
+	/// which is what asks a face whether it stands over a hole
+	private func covers(_ piece: Piece, _ point: Pt) -> Bool {
+		let triangles = triangulate(piece.loop, holes: piece.holes, facing: piece.normal)
+		let at = point.v3(0.0)
+
+		func turn(_ a: V3, _ b: V3) -> Double {
+			(b.x - a.x) * (at.y - a.y) - (b.y - a.y) * (at.x - a.x)
+		}
+		return stride(from: 0, to: triangles.count, by: 3).contains { corner in
+			let turns = [
+				turn(triangles[corner], triangles[corner + 1]),
+				turn(triangles[corner + 1], triangles[corner + 2]),
+				turn(triangles[corner + 2], triangles[corner]),
+			]
+			return turns.allSatisfy { $0 >= 0.0 } || turns.allSatisfy { $0 <= 0.0 }
+		}
+	}
+
+	/// The middle of a drill and four points well inside its rim, which is what
+	/// a face that closes over it covers
+	private func inside(_ drill: Figure) -> [Pt] {
+		guard case let .round(center, diameter) = drill else { return [] }
+		let reach = Int(diameter) / 3
+
+		return [center] + [Pt(x: reach, y: 0), Pt(x: -reach, y: 0), Pt(x: 0, y: reach), Pt(x: 0, y: -reach)]
+			.map { offset in center + offset }
+	}
+
+	func testADrillTakesBackTheCopperThatStoodOverIt() {
+		let face = Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20))).corners
+		// Sat on the edge of the face, so half of it is copper to take back and
+		// half of it never was
+		let drill = circle(at: Pt(x: .mm(10), y: 0), diameter: .mm(6))
+
+		let pieces = punched(face, by: [drill])
+
+		XCTAssertEqual(
+			pieces.reduce(0.0) { total, piece in total + area(of: piece) },
+			400.0 - drilled(6.0) / 2.0,
+			accuracy: 0.01
+		)
+		for piece in pieces {
+			XCTAssertGreaterThan(area(of: piece), 0.0, "cut the way the layout draws it")
+			XCTAssertFalse(holds(piece, [Pt(x: .mm(10), y: .mm(1))]), "no copper over the hole")
+		}
+		XCTAssertTrue(pieces.contains { holds($0, [Pt(x: .mm(10), y: .mm(10))]) }, "the rest stays")
+	}
+
+	func testCopperIsCutBackToEveryDrillReachingIntoItAtOnce() {
+		// The Pomona ring: its own barrel punched clean through the middle of
+		// it and the wire hole beside it reaching over its edge
+		let ring = Figure.round(.zero, .mm(10)).polygon()
+		let barrel = Figure.round(.zero, .mm(6.35)).polygon()
+		let wire = Figure.round(Pt(x: .mm(5), y: 0), .mm(1)).polygon()
+
+		let pieces = punched(ring, by: [barrel, wire])
+		let covered = pieces.reduce(0.0) { total, piece in total + area(of: piece) }
+
+		XCTAssertGreaterThan(covered, drilled(10.0) - drilled(6.35) - drilled(1.0))
+		XCTAssertLessThan(covered, drilled(10.0) - drilled(6.35) - drilled(1.0) / 3.0)
+		for piece in pieces {
+			XCTAssertGreaterThan(area(of: piece), 0.0)
+			XCTAssertFalse(holds(piece, [.zero]), "the barrel is not covered over")
+			XCTAssertFalse(holds(piece, [Pt(x: .mm(5), y: 0)]), "nor is the wire hole")
+		}
+	}
+
+	func testADrillRightAcrossATraceLeavesCopperEitherSideOfIt() {
+		let trace = Figure.segment(.zero, Pt(x: .mm(10), y: 0), .mm(0.3)).polygon(arc: 2)
+		let hole = circle(at: Pt(x: .mm(5), y: 0), diameter: .mm(1))
+
+		let pieces = punched(trace, by: [hole])
+
+		XCTAssertTrue(pieces.contains { holds($0, [Pt(x: .mm(1), y: 0)]) })
+		XCTAssertTrue(pieces.contains { holds($0, [Pt(x: .mm(9), y: 0)]) })
+		XCTAssertFalse(pieces.contains { holds($0, [Pt(x: .mm(5), y: 0)]) }, "the hole is open")
+	}
+
+	func testNoCopperOnEitherFaceStandsOverAHole() {
+		var board = board()
+		board.footprints = [
+			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Pt(x: .mm(20), y: .mm(15))),
+		]
+		// A route onto the wire hole, narrower than the drill it lands on, and
+		// a mounting hole punched through the ring itself
+		board.traces.append(Trace(
+			start: Pt(x: .mm(25), y: .mm(25)),
+			end: Pt(x: .mm(25), y: .mm(15)),
+			width: .mm(0.8),
+			layer: 0,
+			net: nil
+		))
+		board.holes.append(Hole(at: Pt(x: .mm(16), y: .mm(15)), diameter: .mm(2)))
+
+		let copper = board.model(Finish().shape).pieces
+			.filter { piece in (20 ... 25).contains(abs(piece.level)) }
+
+		XCTAssertFalse(copper.isEmpty)
+		for drill in board.drills {
+			for point in inside(drill) {
+				XCTAssertFalse(
+					copper.contains { piece in covers(piece, point) },
+					"copper standing over \(drill)"
+				)
+			}
+		}
+		// And no more of it is taken back than the drills themselves: the ring
+		// still stands everywhere they do not reach
+		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(20), y: .mm(19))) }, "the ring")
+		XCTAssertTrue(copper.contains { piece in covers(piece, Pt(x: .mm(25), y: .mm(20))) }, "the trace")
 	}
 
 	// MARK: surfaces

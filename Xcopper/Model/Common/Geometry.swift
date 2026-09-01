@@ -506,8 +506,10 @@ extension Figure {
 
 	/// The outline as a closed loop of points, wound the way the layout draws
 	/// it. Curves are cut into `arc` steps per quarter turn, which is what
-	/// gives the 3D preview something flat to raise copper and packages over.
-	func polygon(arc: Int = 3) -> [Pt] {
+	/// gives the 3D preview something flat to raise copper and packages over,
+	/// and left to itself into as many steps as the curve is wide enough to
+	/// show.
+	func polygon(arc: Int? = nil) -> [Pt] {
 		switch self {
 		case let .rect(rect):
 			rect.corners
@@ -519,9 +521,20 @@ extension Figure {
 	}
 }
 
+/// How finely a curve this wide is cut, in steps per quarter turn. A side of
+/// the ring a curve is drawn as falls a little inside the curve itself, and
+/// holding that under about twenty microns is what settles this: a via's barrel
+/// comes back with the twelve sides it has always had, and a panel jack's ring
+/// with thirty two, which is as fine as anything is cut. Past that the sides
+/// are shorter than anything reads and the model is better off carrying fewer
+/// of them.
+func fineness(across width: Int) -> Int {
+	min(8, max(3, Int((3.0 * Double(width).mm.squareRoot()).rounded())))
+}
+
 /// A closed ring of points around `center`, wound like `Rect.corners`
-func circle(at center: Pt, diameter: Int, arc: Int = 3) -> [Pt] {
-	let steps = max(3, arc * 4)
+func circle(at center: Pt, diameter: Int, arc: Int? = nil) -> [Pt] {
+	let steps = max(3, (arc ?? fineness(across: diameter)) * 4)
 	let radius = Double(diameter) / 2.0
 	return (0 ..< steps).map { step in
 		let angle = Double(step) / Double(steps) * 2.0 * .pi
@@ -534,14 +547,14 @@ func circle(at center: Pt, diameter: Int, arc: Int = 3) -> [Pt] {
 
 /// A trace as a closed outline: the two sides of the run, with a half turn
 /// round each end, the same shape the layout fills it with
-func stadium(from start: Pt, to end: Pt, width: Int, arc: Int = 3) -> [Pt] {
+func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 	let radius = Double(width) / 2.0
 	let offset = end - start
 	guard offset.x != 0 || offset.y != 0 else {
 		return circle(at: start, diameter: width, arc: arc)
 	}
 	let heading = atan2(Double(offset.y), Double(offset.x))
-	let steps = max(2, arc * 2)
+	let steps = max(2, (arc ?? fineness(across: width)) * 2)
 
 	var loop: [Pt] = []
 	loop.reserveCapacity((steps + 1) * 2)
@@ -555,4 +568,125 @@ func stadium(from start: Pt, to end: Pt, width: Int, arc: Int = 3) -> [Pt] {
 		}
 	}
 	return loop
+}
+
+// MARK: punching a face
+
+/// What is left of a face once the drills reaching into it are punched through
+/// it. A hole is drilled after the copper is laid, so no copper stands over
+/// one: a pad is cut back to the rim of its own barrel, and so is a trace
+/// running onto it or a ring overlapping the hole beside it.
+///
+/// A drill is taken out one edge at a time. What falls beyond an edge is
+/// outside the drill and comes away as a piece of the face in its own right;
+/// what falls behind every edge of it is inside the drill and is what the drill
+/// takes away. Both cuts are made along a straight line, so a convex face comes
+/// back in convex pieces and the next drill is punched through those in turn —
+/// which is what makes the cutting exact however many holes reach into one
+/// face, and however they overlap it and each other.
+func punched(_ loop: [Pt], by drills: [[Pt]]) -> [[Pt]] {
+	drills.reduce([loop]) { pieces, drill in
+		pieces.flatMap { piece in punched(piece, by: drill) }
+	}
+}
+
+/// Whether a convex loop holds another whole, which is what tells a drill the
+/// face closes round — one the fab leaves as a hole through it — from a drill
+/// that cuts into its edge and takes a piece of it away
+func holds(_ outline: [Pt], _ loop: [Pt]) -> Bool {
+	guard outline.count >= 3 else { return false }
+	return loop.allSatisfy { point in
+		outline.indices.allSatisfy { index in
+			cross(outline[index], outline[(index + 1) % outline.count], point) > 0
+		}
+	}
+}
+
+private func punched(_ loop: [Pt], by drill: [Pt]) -> [[Pt]] {
+	guard drill.count >= 3, loop.count >= 3 else { return [loop] }
+
+	// A cut is made along the line an edge of the drill lies on, and a line
+	// runs on for ever. So the face is cut down to the square the drill stands
+	// in first: copper out there is nowhere near the hole and comes away whole,
+	// rather than in as many slivers as the drill has edges.
+	let (away, near) = cut(loop, to: reach(of: drill).corners)
+	guard near.count >= 3 else { return [loop] }
+
+	return away + cut(near, to: drill).outside
+}
+
+/// Cuts a loop to a convex one, edge by edge: the pieces of it lying outside,
+/// and what is left of it inside. Every cut runs along a straight line, so each
+/// piece is as convex as the loop it was cut from and the two sides of a cut
+/// meet along it exactly.
+private func cut(_ loop: [Pt], to convex: [Pt]) -> (outside: [[Pt]], inside: [Pt]) {
+	var outside: [[Pt]] = []
+	var inside = loop
+
+	for index in convex.indices {
+		let (from, to) = (convex[index], convex[(index + 1) % convex.count])
+		let beyond = clipped(inside, by: from, to, keeping: false)
+		if beyond.count >= 3 { outside.append(beyond) }
+
+		inside = clipped(inside, by: from, to, keeping: true)
+		// Nothing of the loop is left for the rest of the edges to cut
+		guard inside.count >= 3 else { return (outside, []) }
+	}
+	return (outside, inside)
+}
+
+/// The square a loop stands in
+private func reach(of loop: [Pt]) -> Rect {
+	var lower = loop[0]
+	var upper = loop[0]
+
+	for point in loop.dropFirst() {
+		lower = Pt(x: min(lower.x, point.x), y: min(lower.y, point.y))
+		upper = Pt(x: max(upper.x, point.x), y: max(upper.y, point.y))
+	}
+	return Rect(from: lower, to: upper)
+}
+
+/// The part of a loop lying to one side of the line from `a` to `b`, cut where
+/// the loop crosses it: the side the drill keeps its inside on, or the side
+/// beyond it. A corner standing on the line belongs to both sides, so the two
+/// parts a cut leaves meet along it exactly rather than with a gap between
+/// them, and each is wound the way the loop it was cut from is.
+private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [Pt] {
+	var kept: [Pt] = []
+	kept.reserveCapacity(loop.count + 2)
+
+	for index in loop.indices {
+		let (from, to) = (loop[index], loop[(index + 1) % loop.count])
+		let (here, there) = (cross(a, b, from), cross(a, b, to))
+
+		if inside ? here >= 0 : here <= 0 { kept.append(from) }
+		// A corner on the line is where the loop crosses it, and is already
+		// kept by both sides; only an edge that steps clean over needs cutting
+		if (here > 0 && there < 0) || (here < 0 && there > 0) {
+			kept.append(meeting(from, to, crossing: a, b))
+		}
+	}
+	return kept
+}
+
+/// Where the edge from `from` to `to` crosses the line from `a` to `b`, on the
+/// nearest whole nanometer. Only asked of an edge that steps over the line, so
+/// there is always somewhere it crosses.
+private func meeting(_ from: Pt, _ to: Pt, crossing a: Pt, _ b: Pt) -> Pt {
+	let here = Double(cross(a, b, from))
+	let there = Double(cross(a, b, to))
+	let along = here / (here - there)
+
+	return Pt(
+		x: from.x + Int((Double(to.x - from.x) * along).rounded()),
+		y: from.y + Int((Double(to.y - from.y) * along).rounded())
+	)
+}
+
+/// Twice the area of the triangle `abc`, positive where `c` lies to the left of
+/// the line from `a` to `b`, which for a loop wound the way the layout draws
+/// one is its inside
+private func cross(_ a: Pt, _ b: Pt, _ c: Pt) -> Int {
+	(b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }

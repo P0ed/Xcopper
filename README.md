@@ -174,6 +174,12 @@ part standing where the layout puts it. Nothing is approximated away: the copper
 drawn is the copper on the board, and no legend is drawn because the fabrication
 set carries none.
 
+A hole is drilled after the copper is laid, so nothing is left standing over
+one: a pad, a trace running onto it, or the ring of a panel jack overlapping the
+wire hole beside it, is cut back to the rim of the barrel. Curves are cut into as
+many straight sides as their size asks for — twelve round a via, thirty two round
+a ring that size — so no copper reads as the polygon it is drawn as.
+
 | Key | View |
 | --- | --- |
 | `T` | Top |
@@ -225,7 +231,9 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
+- Labels on component pins in schematic mode (might require to increase size of the symbol a bit).
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.
 - Tool to check component value against part number and availability on `jlcpcb.com/parts`.
+- Modularity. Merge several PCBs onto one, sharing power nets.
