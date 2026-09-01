@@ -11,6 +11,11 @@ final class PreviewScene {
 	private let stage = ModelEntity()
 	private let eye = PerspectiveCamera()
 	private var standing: (board: Board, finish: Finish)?
+	private var moving: Bool?
+	private var fieldOfView: Double?
+	/// What each surface of the board standing there is painted in, in the order
+	/// the mesh carries them, so that a change of finish can repaint it
+	private var shades: [Shade] = []
 
 	init() {
 		root.addChild(stage)
@@ -34,18 +39,37 @@ final class PreviewScene {
 		(SIMD3(0.1, 0.9, 0.4), 600.0),
 	]
 
-	/// Builds the board, unless it is already the one standing there. Every
-	/// turn of the view comes back through here, and cutting the same board
-	/// into triangles again would be the whole of the work for none of it.
+	/// Builds the board, unless it is already the one standing there. Every turn
+	/// of the view comes back through here, and cutting the same board into
+	/// triangles again would be the whole of the work for none of it.
+	///
+	/// A mask or a plating picked in the sidebar changes what the board is
+	/// painted in and not one corner of what it is made of, so it hands the
+	/// triangles already cut a new set of materials and leaves them where they
+	/// stand.
 	func show(_ board: Board, finish: Finish) {
 		guard standing?.board != board || standing?.finish != finish else { return }
+		let rebuilding = standing?.board != board || standing?.finish.shape != finish.shape
 		standing = (board, finish)
-		stage.model = component(of: board.model(finish: finish).surfaces)
+
+		guard rebuilding else {
+			stage.model?.materials = shades.map { shade in
+				PreviewScene.material(shade.rgb(finish))
+			}
+			return
+		}
+		// A surface with nothing in it is nothing to draw, and dropping it here
+		// is what keeps a shade lined up with the material painting it
+		let drawn = board.model(finish.shape).surfaces.filter { $0.corners.count >= 3 }
+		shades = drawn.map(\.shade)
+		stage.model = component(of: drawn, finish: finish)
 	}
 
 	/// Stands the eye where the camera says, looking the way it is turned
 	func aim(_ camera: Camera) {
 		eye.transform = Transform(matrix: camera.pose)
+		guard fieldOfView != camera.fov else { return }
+		fieldOfView = camera.fov
 		eye.camera = PerspectiveCameraComponent(
 			near: Float(Camera.near * V3.metre),
 			far: Float(Camera.far * V3.metre),
@@ -54,9 +78,16 @@ final class PreviewScene {
 		)
 	}
 
-	/// The surfaces as one mesh, each with the material its colour asks for
-	private func component(of surfaces: [Surface]) -> ModelComponent? {
-		let drawn = surfaces.filter { surface in surface.corners.count >= 3 }
+	/// Whether the RealityView's render targets need switching between the
+	/// cheaper moving frame and the fully antialiased still one
+	func rendering(changedToMoving moving: Bool, force: Bool = false) -> Bool {
+		guard force || self.moving != moving else { return false }
+		self.moving = moving
+		return true
+	}
+
+	/// The surfaces as one mesh, each with the material its shade asks for
+	private func component(of drawn: [Surface], finish: Finish) -> ModelComponent? {
 		guard !drawn.isEmpty else { return nil }
 
 		let descriptors = drawn.enumerated().map { index, surface in
@@ -68,7 +99,10 @@ final class PreviewScene {
 			return descriptor
 		}
 		guard let mesh = try? MeshResource.generate(from: descriptors) else { return nil }
-		return ModelComponent(mesh: mesh, materials: drawn.map { PreviewScene.material($0.color) })
+		return ModelComponent(
+			mesh: mesh,
+			materials: drawn.map { surface in PreviewScene.material(surface.shade.rgb(finish)) }
+		)
 	}
 
 	/// The corners of each triangle, in the order the scene wants them. Board

@@ -225,7 +225,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Use RealityKit to render model.
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.

@@ -65,7 +65,7 @@ final class PreviewTests: XCTestCase {
 
 		for (from, to) in [(0.0, 1.0), (-1.6, -2.6)] {
 			var model = Model()
-			model.add(prism: outline, from: from, to: to, color: Palette.moulding, level: 0)
+			model.add(prism: outline, from: from, to: to, shade: .part(Palette.moulding), level: 0)
 			XCTAssertEqual(model.pieces.count, 5, "four walls and a cap")
 
 			// The cap looks away from the board and no wall leans inwards
@@ -91,7 +91,7 @@ final class PreviewTests: XCTestCase {
 	// MARK: the model
 
 	func testABareBoardIsTwoMaskedFacesAnEdgeAndNothingElse() {
-		let model = board().model(finish: Finish())
+		let model = board().model(Finish().shape)
 		let levels = Set(model.pieces.map(\.level))
 
 		XCTAssertEqual(levels, [Side(up: true, z: 0, layer: 0).mask, Side(up: false, z: 0, layer: 1).mask, Side.core])
@@ -103,7 +103,7 @@ final class PreviewTests: XCTestCase {
 		board.holes.append(Hole(at: Pt(x: .mm(10), y: .mm(10)), diameter: .mm(3)))
 		board.vias.append(Via(at: Pt(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil))
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 		let faces = model.pieces.filter { abs($0.level) == 10 }
 
 		XCTAssertEqual(faces.count, 2)
@@ -117,7 +117,7 @@ final class PreviewTests: XCTestCase {
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 
 		XCTAssertEqual(model.pieces.count { $0.level == 20 }, 1)
 		XCTAssertEqual(model.pieces.count { $0.level == -20 }, 1)
@@ -127,7 +127,7 @@ final class PreviewTests: XCTestCase {
 		var board = board(.four)
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 
 		XCTAssertEqual(model.pieces.count { abs($0.level) == 20 }, 0, "buried copper does not surface")
 	}
@@ -136,7 +136,7 @@ final class PreviewTests: XCTestCase {
 		var board = board()
 		board.footprints = [chip(at: Pt(x: .mm(10), y: .mm(10)), flipped: true)]
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 
 		XCTAssertGreaterThan(model.pieces.count { $0.level == -50 }, 0)
 		XCTAssertEqual(model.pieces.count { $0.level == 50 }, 0)
@@ -147,7 +147,7 @@ final class PreviewTests: XCTestCase {
 		var board = board()
 		board.footprints = [chip(at: Pt(x: .mm(10), y: .mm(10)))]
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 
 		// The fabrication set has no silkscreen in it, so neither has the
 		// preview: nothing sits between the pads and the part standing on them
@@ -161,10 +161,10 @@ final class PreviewTests: XCTestCase {
 		board.footprints = [chip(at: Pt(x: .mm(10), y: .mm(10)))]
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
 
-		let bare = board.model(finish: modifying(Finish()) {
+		let bare = board.model(modifying(Finish()) {
 			$0.copper = false
 			$0.components = false
-		})
+		}.shape)
 
 		XCTAssertTrue(bare.pieces.allSatisfy { abs($0.level) <= 10 })
 	}
@@ -176,18 +176,19 @@ final class PreviewTests: XCTestCase {
 		board.footprints = [chip(at: Pt(x: .mm(10), y: .mm(10)))]
 
 		let gold = Plating.gold.rgb
-		let clear = board.model(finish: modifying(Finish()) { $0.mask = .clear })
-		let green = board.model(finish: Finish())
+		let clear = modifying(Finish()) { $0.mask = .clear }
+		let green = Finish()
 
-		func copper(of model: Model) -> [Piece] {
-			model.pieces.filter { piece in (20 ... 25).contains(abs(piece.level)) }
-		}
+		// One board, since a mask changes what the copper is painted in and not
+		// where any of it lies
+		let copper = board.model(green.shape).pieces
+			.filter { piece in (20 ... 25).contains(abs(piece.level)) }
 
 		// Clear is the want of a mask rather than a colour of one: nothing is
 		// covered, so the finish that plates the pads plates the rest as well
-		XCTAssertFalse(copper(of: clear).isEmpty)
-		XCTAssertTrue(copper(of: clear).allSatisfy { $0.color == gold })
-		XCTAssertTrue(copper(of: green).contains { $0.color != gold }, "a trace under green is not")
+		XCTAssertFalse(copper.isEmpty)
+		XCTAssertTrue(copper.allSatisfy { $0.shade.rgb(clear) == gold })
+		XCTAssertTrue(copper.contains { $0.shade.rgb(green) != gold }, "a trace under green is not")
 	}
 
 	// MARK: triangles
@@ -276,17 +277,101 @@ final class PreviewTests: XCTestCase {
 		assertFacing(triangles, -1.0)
 	}
 
-	func testAHoleThatIsNotInTheFaceLeavesItWhole() {
-		let stray = circle(at: Pt(x: .mm(40), y: .mm(10)), diameter: .mm(4)).map { $0.v3(0.0) }
-		let triangles = triangulate(square, holes: [stray], facing: V3(x: 0.0, y: 0.0, z: 1.0))
+	/// A board is not a square, and the drills on it line up in rows and
+	/// columns rather than falling anywhere
+	private func board(_ width: Double, _ height: Double) -> [V3] {
+		Rect(origin: .zero, size: Size(width: .mm(width), height: .mm(height)))
+			.corners.map { $0.v3(0.0) }
+	}
 
-		XCTAssertEqual(area(of: triangles), 400.0, accuracy: 0.001)
+	private func drills(_ places: [(Double, Double)], _ diameter: Double) -> [[V3]] {
+		places.map { across, down in
+			circle(at: Pt(x: .mm(across), y: .mm(down)), diameter: .mm(diameter))
+				.map { $0.v3(0.0) }
+		}
+	}
+
+	func testDrillsCutOpenToTheSameCornerDoNotCrossTheirSeams() {
+		// Both of these reach the same corner of the face, so both are cut open
+		// to it. A corner already cut to has a wedge of the face either side of
+		// the seam it carries, and the second cut has to leave from the one its
+		// own drill lies in: made from the other, the two seams fold the face
+		// over itself and it comes back covering more than it stands for.
+		let face = board(160.0, 100.0)
+		let punches = drills([(6.0, 6.0), (154.0, 6.0)], 0.5)
+
+		let triangles = triangulate(face, holes: punches, facing: V3(x: 0.0, y: 0.0, z: 1.0))
+
+		XCTAssertEqual(area(of: triangles), 16_000.0 - 2.0 * punched(0.5), accuracy: 0.01)
 		assertFacing(triangles, 1.0)
+	}
+
+	func testAFaceCrowdedWithDrillsIsStillCutToWhatItCovers() {
+		// Two headers' worth of pins on the 2.54 mm grid a board really uses,
+		// and a field of vias besides: enough corners that the face files where
+		// they stand rather than walking all of them for every cut and ear
+		var places: [(Double, Double)] = []
+		for row in 0 ..< 2 {
+			for pin in 0 ..< 20 {
+				places.append((10.0 + Double(pin) * 2.54, 10.0 + Double(row) * 2.54))
+			}
+		}
+		for via in 0 ..< 120 {
+			places.append((8.0 + Double(via % 20) * 7.1, 30.0 + Double(via / 20) * 9.3))
+		}
+		let triangles = triangulate(
+			board(160.0, 100.0),
+			holes: drills(places, 0.5),
+			facing: V3(x: 0.0, y: 0.0, z: 1.0)
+		)
+
+		XCTAssertEqual(
+			area(of: triangles),
+			16_000.0 - Double(places.count) * punched(0.5),
+			accuracy: 0.05
+		)
+		assertFacing(triangles, 1.0)
+	}
+
+	func testADrillTheFaceDoesNotHoldWholeLeavesItWhole() {
+		let stray = circle(at: Pt(x: .mm(40), y: .mm(10)), diameter: .mm(4))
+		let overhanging = circle(at: Pt(x: .mm(20), y: .mm(10)), diameter: .mm(4))
+
+		// Neither is a hole in the face: one is nowhere near it and the other
+		// hangs over its edge, and cutting the face open to either would leave
+		// it in pieces that overlap
+		for drill in [stray, overhanging] {
+			let triangles = triangulate(
+				square,
+				holes: [drill.map { $0.v3(0.0) }],
+				facing: V3(x: 0.0, y: 0.0, z: 1.0)
+			)
+			XCTAssertEqual(area(of: triangles), 400.0, accuracy: 0.001)
+			assertFacing(triangles, 1.0)
+		}
 	}
 
 	// MARK: surfaces
 
-	func testTheModelIsGatheredIntoOneSurfacePerColour() {
+	func testAMaskChangesWhatTheBoardIsPaintedInAndNotWhatItIsMadeOf() {
+		let green = Finish()
+		let black = modifying(Finish()) { $0.mask = .black }
+		let thicker = modifying(Finish()) { $0.thickness = Nm.thicknesses[2] }
+		let bare = modifying(Finish()) { $0.copper = false }
+
+		// Nothing about the shape of the board follows from its colour, so a
+		// mask picked in the sidebar leaves the model already built standing and
+		// only asks for it to be painted again
+		XCTAssertEqual(green.shape, black.shape)
+		XCTAssertNotEqual(green.shape, thicker.shape, "a core is something it is made of")
+		XCTAssertNotEqual(green.shape, bare.shape, "and so is copper it is not shown")
+
+		XCTAssertNotEqual(Shade.mask.rgb(green), Shade.mask.rgb(black))
+		XCTAssertNotEqual(Shade.coating.rgb(green), Shade.coating.rgb(black))
+		XCTAssertEqual(Shade.solder.rgb(green), Shade.solder.rgb(black), "solder is solder")
+	}
+
+	func testTheModelIsGatheredIntoOneSurfacePerShade() {
 		var board = board()
 		board.traces = (0 ..< 4).map { index -> Trace in
 			let down = Nm.mm(Double(2 + 3 * index))
@@ -300,11 +385,11 @@ final class PreviewTests: XCTestCase {
 		}
 		board.footprints = [chip(at: Pt(x: .mm(20), y: .mm(20)))]
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 		let surfaces = model.surfaces
 
-		XCTAssertEqual(surfaces.count, Set(model.pieces.map(\.color)).count)
-		XCTAssertEqual(Set(surfaces.map(\.color)), Set(model.pieces.map(\.color)))
+		XCTAssertEqual(surfaces.count, Set(model.pieces.map(\.shade)).count)
+		XCTAssertEqual(Set(surfaces.map(\.shade)), Set(model.pieces.map(\.shade)))
 		for surface in surfaces {
 			XCTAssertEqual(surface.corners.count, surface.normals.count)
 			XCTAssertEqual(surface.corners.count % 3, 0, "three corners to a triangle")
@@ -317,7 +402,7 @@ final class PreviewTests: XCTestCase {
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
 
-		let pieces = board.model(finish: Finish()).pieces
+		let pieces = board.model(Finish().shape).pieces
 		func lift(_ level: Int) -> Double {
 			pieces.first { $0.level == level }?.lift.z ?? .nan
 		}
@@ -366,7 +451,7 @@ final class PreviewTests: XCTestCase {
 			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Pt(x: .mm(20), y: .mm(15))),
 		]
 
-		let model = board.model(finish: Finish())
+		let model = board.model(Finish().shape)
 
 		XCTAssertFalse(board.footprints[0].package.stands, "a panel jack is held by the panel")
 		XCTAssertEqual(board.standing(on: false), 0.0)

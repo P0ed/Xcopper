@@ -15,6 +15,17 @@ extension Nm {
 
 extension Finish {
 
+	/// What shapes the model, as against what paints it. A face is cut into
+	/// triangles once and stands for every colour of mask afterwards, so only a
+	/// change in these sends the board back to be built again.
+	struct Shape: Equatable {
+		var thickness: Nm
+		var copper: Bool
+		var components: Bool
+	}
+
+	var shape: Shape { Shape(thickness: thickness, copper: copper, components: components) }
+
 	/// How the copper between the pads reads. Under a coloured mask it is the
 	/// same coating lifted and warmed by what lies beneath, which is how a
 	/// trace shows through a finished board. A clear mask covers nothing, so
@@ -24,6 +35,42 @@ extension Finish {
 		mask.covers
 			? mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
 			: plating.rgb
+	}
+}
+
+/// What a face is painted in, named rather than mixed. The board is cut into
+/// triangles without ever asking what colour it comes back, so the mask and the
+/// plating can be changed over a model already built.
+enum Shade: Hashable {
+	/// The solder mask lying over a face
+	case mask
+	/// Bare laminate, which the cut edge shows
+	case laminate
+	/// The wall of a hole the fab leaves unplated
+	case bore
+	/// Whatever the fab plates open copper with
+	case plating
+	/// Copper reading up through whatever covers it
+	case coating
+	/// Solder, over a lead or on the tail of a pin
+	case solder
+	/// A part's own moulding, which the library settles rather than the fab
+	case part(RGBA)
+}
+
+extension Shade {
+
+	/// What this comes back as, once the fab is told what to make the board of
+	func rgb(_ finish: Finish) -> RGBA {
+		switch self {
+		case .mask: finish.mask.rgb
+		case .laminate: Palette.laminate
+		case .bore: Palette.laminate.scaled(0.55)
+		case .plating: finish.plating.rgb
+		case .coating: finish.coating
+		case .solder: Palette.solder
+		case let .part(color): color
+		}
 	}
 }
 
@@ -65,7 +112,7 @@ struct Piece {
 	/// Punched out of the loop, so that a drill reads through the face
 	var holes: [[V3]]
 	var normal: V3
-	var color: RGBA
+	var shade: Shade
 	var level: Int
 }
 
@@ -76,13 +123,13 @@ struct Model {
 
 extension Model {
 
-	mutating func add(_ loop: [V3], holes: [[V3]] = [], color: RGBA, level: Int) {
+	mutating func add(_ loop: [V3], holes: [[V3]] = [], shade: Shade, level: Int) {
 		guard loop.count >= 3 else { return }
 		pieces.append(Piece(
 			loop: loop,
 			holes: holes,
 			normal: loop.normal,
-			color: color,
+			shade: shade,
 			level: level
 		))
 	}
@@ -95,7 +142,7 @@ extension Model {
 		prism outline: [Pt],
 		from: Double,
 		to: Double,
-		color: RGBA,
+		shade: Shade,
 		level: Int,
 		capped: Bool = true
 	) {
@@ -106,10 +153,10 @@ extension Model {
 		for index in outline.indices {
 			let a = outline[index]
 			let b = outline[(index + 1) % outline.count]
-			add([a.v3(upper), a.v3(lower), b.v3(lower), b.v3(upper)], color: color, level: level)
+			add([a.v3(upper), a.v3(lower), b.v3(lower), b.v3(upper)], shade: shade, level: level)
 		}
 		guard capped else { return }
-		add((to > from ? outline : outline.reversed()).map { $0.v3(to) }, color: color, level: level)
+		add((to > from ? outline : outline.reversed()).map { $0.v3(to) }, shade: shade, level: level)
 	}
 
 	/// A ring of quads between two circles, how a rounded tip is built up
@@ -118,7 +165,7 @@ extension Model {
 		at lowerZ: Double,
 		to upper: [Pt],
 		at upperZ: Double,
-		color: RGBA,
+		shade: Shade,
 		level: Int
 	) {
 		guard lower.count == upper.count, lower.count >= 3, lowerZ != upperZ else { return }
@@ -137,7 +184,7 @@ extension Model {
 					low[next].v3(lowZ),
 					high[next].v3(highZ),
 				],
-				color: color,
+				shade: shade,
 				level: level
 			)
 		}
@@ -149,21 +196,21 @@ extension Board {
 	/// Everything the preview draws: the substrate, the copper the fab puts on
 	/// both faces of it, and the parts the schematic asked to be stuffed into
 	/// it. No legend, because the fabrication set carries none.
-	func model(finish: Finish) -> Model {
-		let thickness = Double(finish.thickness).mm
+	func model(_ shape: Finish.Shape) -> Model {
+		let thickness = Double(shape.thickness).mm
 		let top = Side(up: true, z: 0.0, layer: stack.top)
 		let bottom = Side(up: false, z: -thickness, layer: stack.bottom)
 
 		var model = Model()
-		substrate(into: &model, finish: finish, top: top, bottom: bottom)
+		substrate(into: &model, top: top, bottom: bottom)
 
-		if finish.copper {
+		if shape.copper {
 			for side in [top, bottom] {
-				copper(into: &model, finish: finish, side: side)
+				copper(into: &model, side: side)
 			}
 		}
-		if finish.components {
-			parts(into: &model, finish: finish, top: top, bottom: bottom)
+		if shape.components {
+			parts(into: &model, top: top, bottom: bottom)
 		}
 		return model
 	}
@@ -189,7 +236,7 @@ extension Board {
 
 	/// The laminate: two masked faces, the cut edge around them and the wall of
 	/// every hole punched through
-	private func substrate(into model: inout Model, finish: Finish, top: Side, bottom: Side) {
+	private func substrate(into model: inout Model, top: Side, bottom: Side) {
 		let outline = bounds.corners
 		let punched = drills.map { drill in drill.polygon() }
 
@@ -197,7 +244,7 @@ extension Board {
 			model.add(
 				side.loop(outline),
 				holes: punched.map { hole in side.loop(hole) },
-				color: finish.mask.rgb,
+				shade: .mask,
 				level: side.mask
 			)
 		}
@@ -205,7 +252,7 @@ extension Board {
 			prism: outline,
 			from: bottom.z,
 			to: top.z,
-			color: Palette.laminate,
+			shade: .laminate,
 			level: Side.core,
 			capped: false
 		)
@@ -214,7 +261,7 @@ extension Board {
 				prism: Array(figure.polygon().reversed()),
 				from: top.z,
 				to: bottom.z,
-				color: plated ? finish.plating.rgb : Palette.laminate.scaled(0.55),
+				shade: plated ? .plating : .bore,
 				level: Side.core,
 				capped: false
 			)
@@ -223,13 +270,11 @@ extension Board {
 
 	/// The outer layer: traces and tented vias reading through whatever covers
 	/// them, and the pads the mask leaves open
-	private func copper(into model: inout Model, finish: Finish, side: Side) {
-		let coated = finish.coating
-
+	private func copper(into model: inout Model, side: Side) {
 		for trace in traces where trace.layer == side.layer {
 			model.add(
 				side.loop(Figure.segment(trace.start, trace.end, trace.width).polygon(arc: 2)),
-				color: coated,
+				shade: .coating,
 				level: side.copper
 			)
 		}
@@ -237,7 +282,7 @@ extension Board {
 			model.add(
 				side.loop(Figure.round(via.at, via.pad).polygon()),
 				holes: [side.loop(circle(at: via.at, diameter: Int(via.drill)))],
-				color: coated,
+				shade: .coating,
 				level: side.copper
 			)
 		}
@@ -245,19 +290,18 @@ extension Board {
 			model.add(
 				side.loop(pad.figure.polygon()),
 				holes: pad.isThrough ? [side.loop(circle(at: pad.at, diameter: Int(pad.drill)))] : [],
-				color: finish.plating.rgb,
+				shade: .plating,
 				level: side.pads
 			)
 		}
 	}
 
-	private func parts(into model: inout Model, finish: Finish, top: Side, bottom: Side) {
+	private func parts(into model: inout Model, top: Side, bottom: Side) {
 		for footprint in footprints {
 			stuff(
 				footprint,
 				side: footprint.flipped ? bottom : top,
 				far: footprint.flipped ? top : bottom,
-				finish: finish,
 				into: &model
 			)
 		}
@@ -269,7 +313,6 @@ extension Board {
 		_ footprint: Footprint,
 		side: Side,
 		far: Side,
-		finish: Finish,
 		into model: inout Model
 	) {
 		let package = footprint.package
@@ -287,7 +330,7 @@ extension Board {
 					prism: pad.leg.polygon(arc: 2),
 					from: side.z,
 					to: side.lift(standoff + 0.12),
-					color: Palette.solder,
+					shade: .solder,
 					level: side.parts
 				)
 			}
@@ -300,7 +343,7 @@ extension Board {
 					prism: post,
 					from: side.z,
 					to: side.lift(height + 6.0),
-					color: finish.plating.rgb,
+					shade: .plating,
 					level: side.parts
 				)
 			}
@@ -309,7 +352,7 @@ extension Board {
 				prism: post,
 				from: far.z,
 				to: far.lift(1.0),
-				color: Palette.solder,
+				shade: .solder,
 				level: far.parts
 			)
 		}
@@ -326,7 +369,7 @@ extension Board {
 				prism: footprint.placedBody.outset(-Int(package.inset)).corners,
 				from: base,
 				to: top,
-				color: package.color,
+				shade: .part(package.color),
 				level: side.parts
 			)
 		case let .can(diameter):
@@ -334,7 +377,7 @@ extension Board {
 				prism: circle(at: center, diameter: Int(diameter), arc: 4),
 				from: base,
 				to: top,
-				color: package.color,
+				shade: .part(package.color),
 				level: side.parts
 			)
 		case let .dome(diameter):
@@ -343,7 +386,7 @@ extension Board {
 				diameter: Int(diameter),
 				from: base,
 				height: height,
-				color: package.color,
+				shade: .part(package.color),
 				side: side,
 				into: &model
 			)
@@ -356,7 +399,7 @@ extension Board {
 		diameter: Int,
 		from base: Double,
 		height: Double,
-		color: RGBA,
+		shade: Shade,
 		side: Side,
 		into model: inout Model
 	) {
@@ -371,7 +414,7 @@ extension Board {
 			prism: ring,
 			from: base,
 			to: shoulderZ,
-			color: color,
+			shade: shade,
 			level: side.parts,
 			capped: false
 		)
@@ -379,7 +422,7 @@ extension Board {
 			let angle = Double(band) / Double(bands) * .pi / 2.0
 			let next = circle(at: center, diameter: Int(Double(diameter) * cos(angle)), arc: 4)
 			let nextZ = shoulderZ + (side.up ? 1.0 : -1.0) * radius * sin(angle)
-			model.add(band: ring, at: ringZ, to: next, at: nextZ, color: color, level: side.parts)
+			model.add(band: ring, at: ringZ, to: next, at: nextZ, shade: shade, level: side.parts)
 			ring = next
 			ringZ = nextZ
 		}
