@@ -223,7 +223,7 @@ extension Symbol {
 		let pitch = Int.mm(2.54)
 		let count = pinNames.count
 		let perSide = (count + 1) / 2
-		let width = Int.mm(12.7)
+		let width = icWidth(pinNames, perSide: perSide)
 		let height = (perSide + 1) * pitch
 		let first = -(perSide - 1) * pitch / 2
 		var pins: [Pin] = []
@@ -241,6 +241,22 @@ extension Symbol {
 			body: centred(Size(width: width, height: height)),
 			glyph: [.rect(Rect(center: .zero, size: Size(width: width, height: height)))]
 		)
+	}
+
+	private static func icWidth(_ pinNames: [String], perSide: Int) -> Int {
+		let pitch = Int.mm(2.54)
+
+		func column(_ pins: Range<Int>) -> Int {
+			pins.reduce(0) { widest, index in
+				guard pinNames[index] != "\(index + 1)" else { return widest }
+				return max(widest, PinText.width(pinNames[index]))
+			}
+		}
+		let needed = column(0 ..< perSide)
+			+ column(perSide ..< pinNames.count)
+			+ PinText.inset * 2
+			+ pitch
+		return max(Int.mm(12.7), (needed + pitch - 1) / pitch * pitch)
 	}
 
 	static func power() -> Symbol {

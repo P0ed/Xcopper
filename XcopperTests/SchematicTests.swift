@@ -143,6 +143,51 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(symbol.pins[3].at.y, symbol.pins[4].at.y)
 	}
 
+	func testAPinIsNamedOnlyWhenTheNameSaysMoreThanItsNumber() {
+		XCTAssertFalse(Symbol.resistor().pins.contains(where: \.isNamed))
+		XCTAssertFalse(Symbol.ic(pins: 8).pins.contains(where: \.isNamed))
+		XCTAssertEqual(Symbol.diode().pins.filter(\.isNamed).map(\.name), ["A", "K"])
+		XCTAssertEqual(Symbol.transistor().pins.filter(\.isNamed).map(\.name), ["B", "E", "C"])
+	}
+
+	func testPinNamesWidenTheICTheyAreWrittenInsideAndNumbersDoNot() {
+		// Nothing is written inside a plainly numbered IC, so it keeps its size
+		XCTAssertEqual(Symbol.ic(pins: 8).body.size.width, .mm(12.7))
+		XCTAssertEqual(Symbol.ic(pins: 64).body.size.width, .mm(12.7))
+
+		// PRESET ENABLE and BINARY/DECADE need more room than Q1 and CLOCK2
+		XCTAssertGreaterThan(
+			Component.cd4029.makeSymbol().body.size.width,
+			Component.cd4013.makeSymbol().body.size.width
+		)
+		XCTAssertEqual(Component.cd4029.makeSymbol().body.size.width % .mm(2.54), 0)
+	}
+
+	func testEveryICIsWideEnoughToWriteItsPinNamesBetweenItsLegs() {
+		for component in Component.allCases where component.symbolKind == .ic {
+			let symbol = component.makeSymbol()
+			let half = symbol.body.size.width / 2
+			// The columns start at the body edge each leg leaves from
+			var leftEnd = -half
+			var rightStart = half
+
+			for pin in symbol.pins where pin.isNamed {
+				let reach = PinText.inset + PinText.width(pin.name)
+				if pin.direction == .r180 {
+					XCTAssertEqual(pin.root.x, -half, component.name)
+					leftEnd = max(leftEnd, pin.root.x + reach)
+				} else {
+					XCTAssertEqual(pin.root.x, half, component.name)
+					rightStart = min(rightStart, pin.root.x - reach)
+				}
+			}
+			XCTAssertLessThan(leftEnd, half, component.name)
+			XCTAssertGreaterThan(rightStart, -half, component.name)
+			// And a pitch of clear air is left down the middle
+			XCTAssertGreaterThanOrEqual(rightStart - leftEnd, .mm(2.54), component.name)
+		}
+	}
+
 	func testHitTestAndRubberBandSelectionCoverEveryKind() {
 		var schematic = Schematic()
 		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Pt(x: .mm(10), y: .mm(10)))]
@@ -343,6 +388,37 @@ final class SchematicTests: XCTestCase {
 		design.schematic.wires.append(Wire(start: Pt(x: .mm(20), y: .mm(50)), end: Pt(x: .mm(40), y: .mm(50))))
 
 		let view = SchematicView(design: .constant(design), state: .constant(SchematicState()))
+		let renderer = ImageRenderer(
+			content: SwiftUI.Canvas { ctx, size in view.render(in: ctx, size: size) }
+				.frame(width: 640.0, height: 480.0)
+		)
+		XCTAssertNotNil(renderer.nsImage)
+	}
+
+	@MainActor
+	func testPinTextRendersAtEveryRotationOnceTheSheetIsZoomedIn() {
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		for (index, rotation) in Rotation.allCases.enumerated() {
+			design.schematic.symbols.append(modifying(
+				Symbol(
+					spec: .init(component: .cd4013),
+					reference: "U\(index + 1)",
+					at: Pt(x: .mm(Double(30 + index * 40)), y: .mm(40))
+				)
+			) { symbol in
+				symbol.rotation = rotation
+				symbol.mirrored = rotation == .r180
+			})
+		}
+		// A transistor writes its names beside the legs, having no room inside
+		design.schematic.symbols.append(
+			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Pt(x: .mm(20), y: .mm(15)))
+		)
+
+		var state = SchematicState()
+		state.viewport.magnification = 8.0
+
+		let view = SchematicView(design: .constant(design), state: .constant(state))
 		let renderer = ImageRenderer(
 			content: SwiftUI.Canvas { ctx, size in view.render(in: ctx, size: size) }
 				.frame(width: 640.0, height: 480.0)

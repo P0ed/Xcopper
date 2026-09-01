@@ -1,5 +1,3 @@
-/// Symbol pin. `at` is the connection point at the tip of the leg, `direction`
-/// points outward from the body along `Pt(x: 1, y: 0).rotated(direction)`.
 struct Pin: Hashable, Codable {
 	var at: Pt
 	var direction: Rotation
@@ -8,7 +6,21 @@ struct Pin: Hashable, Codable {
 	var number: String
 }
 
-/// Symbol outline primitive, stroked rather than filled like `Figure`
+enum PinText {
+	static let nameHeight = Int.mm(1.27)
+	static let numberHeight = Int.mm(1.016)
+	/// Between the edge of a body and the first letter of a name written inside
+	static let inset = Int.mm(0.762)
+	/// Between a leg and the text written alongside it
+	static let gap = Int.mm(0.254)
+	/// Nominal advance per character, as a fraction of the height
+	static let advance = 0.62
+
+	static func width(_ text: String, height: Int = nameHeight) -> Int {
+		Int((Double(text.count) * Double(height) * advance).rounded())
+	}
+}
+
 enum Glyph: Hashable, Codable {
 	case path([Pt], closed: Bool, filled: Bool)
 	case rect(Rect)
@@ -32,7 +44,6 @@ struct Wire: Hashable, Codable {
 	var end: Pt
 }
 
-/// Names the net it is anchored to. Drawn horizontally, above `at`.
 struct NetLabel: Hashable, Codable {
 	var at: Pt
 	var text: String
@@ -47,7 +58,6 @@ struct Schematic: Equatable, Codable {
 
 extension Schematic {
 
-	/// Reference to an object stored in a `Schematic` collection
 	enum Ref: Hashable, Codable {
 		case symbol(Int)
 		case wire(Int)
@@ -78,6 +88,8 @@ extension Pin {
 	var root: Pt { at + Pt(x: -Int(length), y: 0).rotated(direction) }
 
 	var figure: Figure { .segment(at, root, .mm(0.2)) }
+
+	var isNamed: Bool { !name.isEmpty && name != number }
 }
 
 extension Wire {
@@ -88,7 +100,6 @@ extension NetLabel {
 
 	static let height = Int.mm(1.8)
 
-	/// Nominal extent, for hit testing and selection
 	var bounds: Rect {
 		Rect(
 			origin: Pt(x: at.x, y: at.y - Self.height),
@@ -124,7 +135,6 @@ extension Glyph {
 
 extension Symbol {
 
-	/// Pins in sheet coordinates, with mirroring and rotation applied
 	var placedPins: [Pin] {
 		pins.map { pin in
 			modifying(pin) { pin in
@@ -134,7 +144,6 @@ extension Symbol {
 		}
 	}
 
-	/// Body outline in sheet coordinates
 	var placedBody: Rect {
 		Rect(
 			center: place(body.center),
@@ -154,12 +163,14 @@ extension Symbol {
 		(mirrored ? local.mirroredX : local).adding(rotation)
 	}
 
-	/// Body and glyph together, so text can be placed clear of the drawing
 	var placedExtent: Rect {
-		Rect.union([placedBody] + placedGlyph.map(\.bounds)) ?? placedBody
+		Rect.union(
+			[placedBody]
+				+ placedGlyph.map(\.bounds)
+				+ placedPins.map { pin in pin.figure.bounds }
+		) ?? placedBody
 	}
 
-	/// Net this symbol forces onto whatever it touches, for power and ground flags
 	var suppliedNet: String? {
 		kind.isPower && !value.isEmpty ? value : nil
 	}

@@ -185,7 +185,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Labels on component pins in schematic mode (might require to increase the size of a symbol).
 - Include in BOM toggle for component.
 - BOM export.
 - Pick and place export.

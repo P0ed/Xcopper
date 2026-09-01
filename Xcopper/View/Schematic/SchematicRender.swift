@@ -13,6 +13,7 @@ extension SchematicView {
 		let schematic = drawn
 		let netlist = Netlist(schematic)
 		let selection = state.selection
+		let visible = state.viewport.visibleRect(in: size)
 
 		context.fill(
 			Path(schematic.bounds.cg(scale, origin: origin)),
@@ -24,12 +25,13 @@ extension SchematicView {
 			in: context,
 			scale: scale,
 			origin: origin,
-			visible: state.viewport.visibleRect(in: size)
+			visible: visible
 		)
 
 		renderWires(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 		renderJunctions(schematic, in: context, scale: scale, origin: origin)
 		renderSymbols(schematic, selection, in: context, scale: scale, origin: origin)
+		renderPins(schematic, in: context, scale: scale, origin: origin, visible: visible)
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
 		context.stroke(
@@ -53,8 +55,6 @@ extension SchematicView {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		// Picked wires are lit one at a time, each in its own net's colour, and
-		// after the rest so a glow never falls under the wire next to it
 		var picked: [(Path, Color)] = []
 
 		for (index, wire) in schematic.wires.enumerated() {
@@ -165,6 +165,88 @@ extension SchematicView {
 		}
 	}
 
+	private func renderPins(
+		_ schematic: Schematic,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint,
+		visible: CGRect
+	) {
+		let numberSize = Double(PinText.numberHeight).mm * scale
+		// Any smaller and the letters are specks: the drawing says more without them
+		guard numberSize >= 4.5 else { return }
+
+		let nameSize = Double(PinText.nameHeight).mm * scale
+		let gap = Double(PinText.gap).mm * scale
+		let inset = Double(PinText.inset).mm * scale
+
+		for symbol in schematic.symbols where !symbol.kind.isPower {
+			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
+
+			// Only an IC is built wide enough to write its names between its legs
+			let inside = symbol.kind == .ic
+
+			for pin in symbol.placedPins {
+				let quarter = pin.direction.isQuarter
+				let tip = pin.at.cg(scale, origin: origin)
+				let root = pin.root.cg(scale, origin: origin)
+				let middle = CGPoint(x: (tip.x + root.x) / 2.0, y: (tip.y + root.y) / 2.0)
+
+				drawAlongLeg(
+					Text(pin.number)
+						.font(.system(size: numberSize))
+						.foregroundStyle(Palette.pin),
+					at: middle,
+					offset: CGPoint(x: 0.0, y: -gap),
+					anchor: .bottom,
+					quarter: quarter,
+					in: context
+				)
+				guard pin.isNamed else { continue }
+
+				let name = Text(pin.name)
+					.font(.system(size: nameSize))
+					.foregroundStyle(Palette.symbol.opacity(0.85))
+
+				guard inside else {
+					drawAlongLeg(
+						name,
+						at: middle,
+						offset: CGPoint(x: 0.0, y: gap),
+						anchor: .top,
+						quarter: quarter,
+						in: context
+					)
+					continue
+				}
+				// Written from the body edge inwards, which is the way the leg came
+				let leading = pin.direction == .r180 || pin.direction == .r90
+				drawAlongLeg(
+					name,
+					at: root,
+					offset: CGPoint(x: leading ? inset : -inset, y: 0.0),
+					anchor: leading ? .leading : .trailing,
+					quarter: quarter,
+					in: context
+				)
+			}
+		}
+	}
+
+	private func drawAlongLeg(
+		_ text: Text,
+		at point: CGPoint,
+		offset: CGPoint,
+		anchor: UnitPoint,
+		quarter: Bool,
+		in context: GraphicsContext
+	) {
+		var context = context
+		context.translateBy(x: point.x, y: point.y)
+		if quarter { context.rotate(by: .degrees(-90.0)) }
+		context.draw(text, at: offset, anchor: anchor)
+	}
+
 	private func renderLabels(
 		_ schematic: Schematic,
 		_ netlist: Netlist,
@@ -181,9 +263,6 @@ extension SchematicView {
 			let color = color(of: netlist.name(at: label.at))
 			let picked = selection.contains(.label(index))
 
-			// A label is only its text, so the glow goes behind it, on the
-			// letters as they are actually laid out rather than on the nominal
-			// extent hit testing uses
 			let text = context.resolve(
 				Text(label.text)
 					.font(.system(size: size))
