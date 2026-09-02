@@ -48,6 +48,32 @@ struct CounterpartButton: View {
 	}
 }
 
+/// The library part picker, shelved by category the way a parts drawer is
+/// arranged. `Generic` stands above the shelves, for a part drawn from the
+/// parametric kinds rather than taken off one.
+@MainActor
+struct PartPicker: View {
+	@Binding var component: Component?
+	/// The layout offers only the parts that also stand on the board
+	var onBoard: Bool = false
+
+	var body: some View {
+		Picker("Part", selection: $component) {
+			Text("Generic").tag(Component?.none)
+			ForEach(Component.Category.allCases) { category in
+				let shelf = onBoard ? category.layoutComponents : category.components
+				if !shelf.isEmpty {
+					Section(category.name) {
+						ForEach(shelf) { part in
+							Text(part.name).tag(Component?.some(part))
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 @MainActor
 struct ActionButton: View {
 	var name: String

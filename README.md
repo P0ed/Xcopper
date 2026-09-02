@@ -132,6 +132,11 @@ offers the same under the selection. It is the shared designator that pairs the
 two, so a part whose other half has been deleted has nothing to show, and neither
 has a wire, a length of copper or a power flag.
 
+The picker shelves the library by what a part does rather than by the package
+it comes in — op-amps, multipliers, logic, switches, panel controls, connectors
+and discretes — with `Generic` standing above the shelves. The layout's picker
+is shelved the same way, carrying only the parts that stand on the board.
+
 A library part brings its own package. A generic one takes the package its
 symbol implies — a chip for a resistor, capacitor, inductor or diode, SOT-23 for
 a transistor, SOIC for an IC — and the symbol dialog names it before the part is
@@ -246,7 +251,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Group components by type: opamps, switches, mulipliers, panel controls, connectors, etc.
 - Remove `Nets on this sheet` panel.
 - BOM:
 - - Include in BOM toggle for component.

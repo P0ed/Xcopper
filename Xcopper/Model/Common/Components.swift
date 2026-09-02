@@ -30,6 +30,40 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 	var id: String { rawValue }
 	var name: String { rawValue }
 
+	/// The shelf of the library a part sits on. Parts are grouped by what they
+	/// do rather than by the package they come in, so the picker reads the way
+	/// a parts drawer is arranged.
+	enum Category: String, CaseIterable, Identifiable {
+		case opAmps = "Op-amps"
+		case multipliers = "Multipliers"
+		case logic = "Logic"
+		case switches = "Switches"
+		case panelControls = "Panel controls"
+		case connectors = "Connectors"
+		case discretes = "Discretes"
+
+		var id: String { rawValue }
+		var name: String { rawValue }
+
+		/// The parts on the shelf, in library order.
+		var components: [Component] { Component.allCases.filter { $0.category == self } }
+
+		/// Those of them that also stand on the board, for the layout picker.
+		var layoutComponents: [Component] { components.filter(\.hasFootprint) }
+	}
+
+	var category: Category {
+		switch self {
+		case .ad823, .ad823a: .opAmps
+		case .ad633, .ssi2162, .that2180: .multipliers
+		case .cd4013, .cd4029, .cd4070, .cd4093, .cd40106: .logic
+		case .adg419, .nkkMN12, .nkkMN15: .switches
+		case .bourns51, .hlmpWL02: .panelControls
+		case .pomona1581, .mta1563, .mta1564: .connectors
+		case .adr5045, .oneN4148W, .bcm847DS, .bcm857DS, .ssm2212: .discretes
+		}
+	}
+
 	var referencePrefix: String {
 		switch self {
 		case .pomona1581, .mta1563, .mta1564: "J"

@@ -39,6 +39,26 @@ final class ComponentLibraryTests: XCTestCase {
 		}
 	}
 
+	func testEveryPartSitsOnExactlyOneShelfAndNoShelfIsEmpty() {
+		let shelved = Component.Category.allCases.flatMap(\.components)
+		XCTAssertEqual(Set(shelved), Set(Component.allCases))
+		XCTAssertEqual(shelved.count, Component.allCases.count)
+		XCTAssertTrue(Component.Category.allCases.allSatisfy { !$0.components.isEmpty })
+
+		let onBoard = Component.Category.allCases.flatMap(\.layoutComponents)
+		XCTAssertEqual(Set(onBoard), Set(Component.layoutCases))
+
+		XCTAssertEqual(Component.ad823.category, .opAmps)
+		XCTAssertEqual(Component.ad633.category, .multipliers)
+		XCTAssertEqual(Component.that2180.category, .multipliers)
+		XCTAssertEqual(Component.cd40106.category, .logic)
+		XCTAssertEqual(Component.adg419.category, .switches)
+		XCTAssertEqual(Component.nkkMN15.category, .switches)
+		XCTAssertEqual(Component.bourns51.category, .panelControls)
+		XCTAssertEqual(Component.pomona1581.category, .connectors)
+		XCTAssertEqual(Component.ssm2212.category, .discretes)
+	}
+
 	func testEveryLibraryPartHasAFootprint() {
 		XCTAssertEqual(Component.layoutCases, Component.allCases)
 		XCTAssertTrue(Component.allCases.allSatisfy { $0.makeFootprint() != nil })

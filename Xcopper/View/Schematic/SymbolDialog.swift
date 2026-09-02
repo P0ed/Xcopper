@@ -51,13 +51,7 @@ struct SymbolDialog: View {
 			}
 		) {
 			VStack(alignment: .leading, spacing: 10.0) {
-				Picker("Part", selection: component) {
-					Text("Generic").tag(Component?.none)
-					Divider()
-					ForEach(Component.allCases) { component in
-						Text(component.name).tag(Component?.some(component))
-					}
-				}
+				PartPicker(component: component)
 				if current.component == nil {
 					Picker("Kind", selection: kind) {
 						ForEach(Symbol.Kind.allCases) { kind in

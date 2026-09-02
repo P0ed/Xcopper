@@ -31,13 +31,7 @@ struct FootprintDialog: View {
 			}
 		) {
 			VStack(alignment: .leading, spacing: 10.0) {
-				Picker("Part", selection: component) {
-					Text("Generic").tag(Component?.none)
-					Divider()
-					ForEach(Component.layoutCases) { component in
-						Text(component.name).tag(Component?.some(component))
-					}
-				}
+				PartPicker(component: component, onBoard: true)
 				if let component = current.component {
 					HStack {
 						Text("Package")
