@@ -3,8 +3,6 @@ import SwiftUI
 
 extension Operations {
 
-	/// Asks where the fabrication set should go, writes it there and shows the
-	/// result in the Finder
 	func exportFabrication() {
 		guard preflight() else { return }
 		let stem = Fabrication.stem(documentName)
@@ -33,10 +31,6 @@ extension Operations {
 		}
 	}
 
-	/// Puts what the checker found in front of whoever is exporting, since a
-	/// fabrication set says nothing about whether the board it describes can be
-	/// built. Turning back takes the layout to the first of them rather than
-	/// leaving it to be hunted down.
 	private func preflight() -> Bool {
 		let violations = design.check()
 		guard let first = violations.first else { return true }

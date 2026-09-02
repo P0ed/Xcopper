@@ -5,7 +5,6 @@ struct LayoutToolBar: ToolbarContent {
 	var stack: Stack
 	@Binding var state: LayoutState
 	@Binding var sheet: Sheet?
-	/// Off while an inspector field has the keyboard
 	var shortcuts: Bool = true
 
 	var body: some ToolbarContent {

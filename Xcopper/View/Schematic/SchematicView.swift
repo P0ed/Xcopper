@@ -4,7 +4,6 @@ import SwiftUI
 struct SchematicView: View {
 	@Binding var design: Design
 	@Binding var state: SchematicState
-	/// Called as a gesture starts, to take the keyboard back from the inspector
 	var claimKeyboard: () -> Void = ø
 
 	@Environment(\.undoManager) var undoManager
@@ -22,20 +21,6 @@ struct SchematicView: View {
 			.gesture(editingController)
 			.onContinuousHover { phase in
 				if case let .active(location) = phase { hover(at: location) }
-			}
-		}
-		.overlay(alignment: .bottomLeading) { readout }
-	}
-
-	private var readout: some View {
-		Readout {
-			Text(state.tool.actionName)
-				.foregroundStyle(Palette.wire)
-			Coordinates(cursor: state.viewport.cursor)
-			Text("snap \(state.snap.label)")
-			Text("grid \(state.grid.label)")
-			if state.tool == .label {
-				Text("label \(state.label)")
 			}
 		}
 	}

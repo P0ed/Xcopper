@@ -2,17 +2,12 @@ import AppKit
 import RealityKit
 import SwiftUI
 
-/// The board as it will come back from the fab: substrate, mask, copper and
-/// the parts standing on it, handed to RealityKit as a scene to render.
 @MainActor
 struct PreviewView: View {
 	var board: Board
 	@Binding var state: PreviewState
 
 	@State private var scene = PreviewScene()
-	/// Camera motion stays local while a gesture is live. Publishing every
-	/// pointer sample through the editor's preview state would invalidate the
-	/// sidebar and toolbar as well as the one transform that actually moved.
 	@State private var camera: Camera
 	@State private var scrolling = false
 	@State private var rightPan: Camera?
@@ -28,8 +23,6 @@ struct PreviewView: View {
 	var body: some View {
 		GeometryReader { geo in
 			RealityView { content in
-				// The board is looked at from a camera of its own rather than
-				// from wherever a scene would otherwise be read
 				content.camera = .virtual
 				content.add(scene.root)
 				configure(&content, force: true)
@@ -70,24 +63,16 @@ struct PreviewView: View {
 				if !state.framed { state.frame(board) }
 			}
 		}
-		.overlay(alignment: .bottomLeading) { readout }
 		.onChange(of: state.camera) { _, new in
-			// Toolbar buttons, keyboard commands and framing still own the
-			// durable camera and can move it while no gesture is under way.
 			if camera != new { camera = new }
 		}
 	}
 
-	/// The scene knows the board it is already showing, so this is the turn of
-	/// the camera that a drag asks for and nothing more
 	private func show() {
 		scene.show(board, finish: state.finish)
 		scene.aim(camera)
 	}
 
-	/// Four-sample antialiasing is useful once the board is still, but keeps
-	/// four samples per pixel while the view is moving. Drop it only for the live
-	/// motion, and leave the finished frame at full quality.
 	private func configure(_ content: inout RealityViewCameraContent, force: Bool = false) {
 		let moving = grab != nil || pinch != nil || rightPan != nil || scrolling
 		guard scene.rendering(changedToMoving: moving, force: force) else { return }
@@ -99,23 +84,11 @@ struct PreviewView: View {
 		content.renderingEffects = effects
 	}
 
-	private var readout: some View {
-		Readout {
-			Text(camera.overTop ? "Top" : "Bottom")
-				.foregroundStyle(Palette.color(of: camera.overTop ? 0 : 5, in: board.stack))
-			Text("\(camera.azimuth.degrees)°, \(camera.elevation.degrees)° up")
-			Text("\(state.finish.mask.name.lowercased()) \(state.finish.thickness.label) mm")
-			Text("\(board.footprints.count) parts")
-		}
-	}
-
-	/// What a drag was started as, so that it stays that until it is let go
 	private struct Grab: Equatable {
 		var camera: Camera
 		var panning: Bool
 	}
 
-	/// Drag turns the board over, and holding shift slides it instead
 	private var controller: some Gesture {
 		DragGesture(minimumDistance: 0.0)
 			.updating($grab) { gesture, grab, _ in
@@ -149,10 +122,6 @@ struct PreviewView: View {
 	}
 }
 
-/// SwiftUI's drag gesture follows the primary button. The secondary button is
-/// watched alongside it so a right drag can pan the preview without asking for
-/// a modifier key. Once begun over the view, the drag stays caught until the
-/// button comes up even if the pointer leaves the view on the way.
 @MainActor
 struct RightMouseDrag: ViewModifier {
 	var started: () -> Void
@@ -229,9 +198,6 @@ struct RightMouseDrag: ViewModifier {
 	}
 }
 
-/// Scroll wheel and two finger scroll, which SwiftUI offers only inside a
-/// scroll view. The monitor lives exactly as long as the view it is put on,
-/// and answers only while the pointer is over it.
 @MainActor
 struct ScrollWheel: ViewModifier {
 	var action: (CGFloat) -> Void
@@ -277,9 +243,6 @@ struct ScrollWheel: ViewModifier {
 			}
 		}
 
-		/// A trackpad announces the end of its physical gesture before its
-		/// momentum has finished, while a mouse wheel announces no end at all.
-		/// A short quiet period settles either kind exactly once.
 		private func move(_ delta: CGFloat) {
 			active = true
 			action(delta)

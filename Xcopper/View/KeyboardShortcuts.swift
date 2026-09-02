@@ -11,16 +11,15 @@ extension EditorView {
 				return .handled
 			}
 
-			// Arrows push the selection about on a flat canvas, and turn the
-			// board over on the 3D one, where there is nothing to select
-			@MainActor func step(dx: Int = 0, dy: Int = 0) {
-				guard editor.mode != .preview else {
-					return preview.camera.orbit(
+			@MainActor
+			func step(dx: Int = 0, dy: Int = 0) {
+				if editor.mode == .preview {
+					preview.camera.orbit(
 						by: CGSize(width: Double(dx) * 12.0, height: Double(dy) * 12.0)
 					)
+				} else if operations.hasSelection {
+					Task { operations.nudge(dx: dx, dy: dy) }
 				}
-				guard operations.hasSelection else { return }
-				DispatchQueue.main.async { operations.nudge(dx: dx, dy: dy) }
 			}
 
 			switch keys.key.character {
@@ -37,7 +36,6 @@ extension EditorView {
 		}
 	}
 
-	/// Whether there was anything to cancel
 	private func cancelSessions() -> Bool {
 		switch editor.mode {
 		case .layout:

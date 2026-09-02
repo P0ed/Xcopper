@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Holds the mode and both editors' state, so switching modes keeps each side's
-/// zoom, scroll and selection intact.
 @MainActor
 struct EditorView: View {
 	@Binding var design: Design
@@ -26,8 +24,6 @@ struct EditorView: View {
 		.focusEffectDisabled()
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
-		// A field that has let the keyboard go hands it back to the canvas,
-		// where the arrows and the tool letters mean something again
 		.onChange(of: editor.editing) { _, editing in if !editing { focused = true } }
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)
@@ -80,8 +76,6 @@ struct EditorView: View {
 
 	@ToolbarContentBuilder
 	private var toolbar: some ToolbarContent {
-		ToolbarItemGroup { ModePicker(mode: $editor.mode) }
-		ToolbarItemGroup { Spacer() }
 		switch editor.mode {
 		case .layout:
 			LayoutToolBar(
@@ -100,6 +94,8 @@ struct EditorView: View {
 		case .preview:
 			PreviewToolBar(board: design.board, state: $preview)
 		}
+		ToolbarItemGroup { Spacer() }
+		ToolbarItemGroup { ModePicker(mode: $editor.mode) }
 	}
 
 	@ViewBuilder

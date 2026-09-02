@@ -1,4 +1,3 @@
-/// Which half of the document is on screen
 enum Mode: Hashable, CaseIterable {
 	case schematic, layout, preview
 
@@ -44,15 +43,10 @@ struct EditorState: Equatable {
 	var mode: Mode = .schematic
 	var sheet: Sheet?
 	var report: Design.Report?
-	/// An inspector field has the keyboard, so what is typed belongs to it
 	var editing: Bool = false
 }
 
 extension EditorState {
 	var dialogPresented: Bool { sheet != nil }
-
-	/// Whether a plain key press is the canvas's to act on. A dialog or an
-	/// inspector field wants the same letters the tools are picked with, and
-	/// the same backspace the selection is deleted with.
 	var keysAvailable: Bool { sheet == nil && !editing }
 }

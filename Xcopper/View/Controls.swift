@@ -17,8 +17,6 @@ struct ToolButton<T: ToolKind>: View {
 	var tool: T
 	@Binding
 	var state: T
-	/// Off while a sidebar field has the keyboard, so a tool letter typed into
-	/// a value stays in it
 	var shortcuts: Bool = true
 
 	var body: some View {
@@ -48,9 +46,6 @@ struct CounterpartButton: View {
 	}
 }
 
-/// The library part picker, shelved by category the way a parts drawer is
-/// arranged. `Generic` stands above the shelves, for a part drawn from the
-/// parametric kinds rather than taken off one.
 @MainActor
 struct PartPicker: View {
 	@Binding var component: Component?
@@ -175,7 +170,6 @@ enum Property: Hashable {
 	case reference, value, text, x, y, width, drill, pad, diameter, clearance
 }
 
-/// One labeled row of the inspector
 @MainActor
 struct PropertyRow<Content: View>: View {
 	var title: String
@@ -191,8 +185,6 @@ struct PropertyRow<Content: View>: View {
 	}
 }
 
-/// Text the document stores verbatim: a reference designator, a part value,
-/// the name a label puts on its net
 @MainActor
 struct TextRow: View {
 	var title: String
@@ -210,8 +202,6 @@ struct TextRow: View {
 	}
 }
 
-/// A length, shown in the millimeters the board is drawn in and stored in the
-/// nanometers it is measured in
 @MainActor
 struct LengthRow: View {
 	var title: String
@@ -220,9 +210,6 @@ struct LengthRow: View {
 	var property: Property
 	@FocusState.Binding var focus: Property?
 
-	/// A formatted field writes its parsed value back as soon as it is drawn,
-	/// so a write that changes nothing is dropped rather than left to mark the
-	/// document edited for no more than looking at a selection
 	private var millimeters: Binding<Double> {
 		Binding(
 			get: { value.mm },
@@ -264,14 +251,12 @@ struct PositionRows: View {
 		Binding(get: { Nm(clamping: at.y) }, set: { at = Pt(x: at.x, y: Int($0)) })
 	}
 
-
 	var body: some View {
 		LengthRow(title: "X", value: x, range: Self.span, property: .x, focus: $focus)
 		LengthRow(title: "Y", value: y, range: Self.span, property: .y, focus: $focus)
 	}
 }
 
-/// A property picked from a short list, with no keyboard to stand down for
 @MainActor
 struct ChoiceRow<Value: Hashable, Content: View>: View {
 	var title: String
@@ -286,12 +271,10 @@ struct ChoiceRow<Value: Hashable, Content: View>: View {
 	}
 }
 
-/// A length as the canvas readouts write it, so the sidebar and the drawing agree
 func millimeters(_ value: Double) -> String {
 	"\(String(format: "%.2f", value)) mm"
 }
 
-/// A property the drawing works out for itself, which is why it is not editable
 @MainActor
 struct ValueRow: View {
 	var title: String

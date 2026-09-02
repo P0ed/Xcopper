@@ -95,24 +95,6 @@ struct CanvasScroll<Content: View>: View {
 	}
 }
 
-/// Cursor position and the settings that matter for the active tool
-@MainActor
-struct Readout<Content: View>: View {
-	@ViewBuilder var content: () -> Content
-
-	var body: some View {
-		HStack(spacing: 10.0) {
-			content()
-		}
-		.font(.caption.monospacedDigit())
-		.foregroundStyle(.secondary)
-		.padding(.horizontal, 10.0)
-		.padding(.vertical, 5.0)
-		.background(.regularMaterial, in: .rect(cornerRadius: 6.0))
-		.padding(8.0)
-	}
-}
-
 @MainActor
 struct Coordinates: View {
 	var cursor: Pt
@@ -122,8 +104,6 @@ struct Coordinates: View {
 	}
 }
 
-/// Square-dot grid built from reusable 10 × 10 tiles. Minor dots are omitted
-/// when they would crowd together or make the rendered path excessively large.
 func renderGrid(
 	_ bounds: Rect,
 	step: Nm,
@@ -183,7 +163,6 @@ func renderGrid(
 	context.fill(major, with: .color(Palette.gridMajor))
 }
 
-/// Rubber band outline, legible over any fill
 func marching(_ path: Path, in context: GraphicsContext) {
 	context.stroke(path, with: .color(.black), lineWidth: 2.0)
 	context.stroke(
@@ -193,10 +172,6 @@ func marching(_ path: Path, in context: GraphicsContext) {
 	)
 }
 
-/// Selection drawn as the object lit up rather than as a border round it: a
-/// halo spreads past its edge and the object is laid over that in a brighter
-/// shade of its own colour, so nothing the selection covers is hidden and a
-/// trace still reads as the layer it is on.
 enum Lit {
 	/// How far the glow reaches past what is picked
 	static let spread: CGFloat = 4.0
@@ -237,10 +212,9 @@ enum Lit {
 	}
 }
 
-/// Crosshair at the snapped cursor position
 func renderCursor(_ cursor: Pt, in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
 	let center = cursor.cg(scale, origin: origin)
-	let arm = 6.0
+	let arm = 8.0
 	var path = Path()
 	path.move(to: CGPoint(x: center.x - arm, y: center.y))
 	path.addLine(to: CGPoint(x: center.x + arm, y: center.y))

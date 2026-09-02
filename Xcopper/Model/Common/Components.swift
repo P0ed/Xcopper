@@ -57,9 +57,9 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		case .ad823, .ad823a: .opAmps
 		case .ad633, .ssi2162, .that2180: .multipliers
 		case .cd4013, .cd4029, .cd4070, .cd4093, .cd40106: .logic
-		case .adg419: .switches
-		case .bourns51, .nkkMN12, .nkkMN15, .pomona1581, .hlmpWL02: .panelControls
-		case .mta1563, .mta1564: .connectors
+		case .adg419, .nkkMN12, .nkkMN15: .switches
+		case .bourns51, .hlmpWL02: .panelControls
+		case .pomona1581, .mta1563, .mta1564: .connectors
 		case .adr5045, .oneN4148W, .bcm847DS, .bcm857DS, .ssm2212: .discretes
 		}
 	}
@@ -67,7 +67,7 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 	var referencePrefix: String {
 		switch self {
 		case .pomona1581, .mta1563, .mta1564: "J"
-		case .bourns51: "P"
+		case .bourns51: "RV"
 		case .hlmpWL02, .oneN4148W: "D"
 		case .nkkMN12, .nkkMN15: "SW"
 		case .bcm847DS, .bcm857DS, .ssm2212: "Q"

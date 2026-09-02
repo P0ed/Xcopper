@@ -177,7 +177,6 @@ extension Gerber.Aperture {
 	}
 }
 
-/// A length as millimeters, at the six decimals the coordinate format keeps
 func millimeters(_ value: Int, decimals: Int = 6) -> String {
 	String(format: "%.\(decimals)f", Double(value) / 1_000_000.0)
 }
