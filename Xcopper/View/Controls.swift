@@ -109,7 +109,7 @@ struct NetRow: View {
 	var name: String
 	var color: Color
 	var selected: Bool
-	var select: () -> Void = ø
+	var select: () -> Void
 	var remove: (() -> Void)?
 
 	var body: some View {

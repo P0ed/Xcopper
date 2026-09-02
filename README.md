@@ -251,7 +251,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Remove `Nets on this sheet` panel.
 - BOM:
 - - Include in BOM toggle for component.
 - - BOM export.

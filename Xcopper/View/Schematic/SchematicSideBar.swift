@@ -44,25 +44,6 @@ struct SchematicSideBar: View {
 						.foregroundStyle(.secondary)
 				}
 
-				Panel(title: "Nets on this sheet") {
-					let groups = netlist.groups
-						.filter { !$0.nodes.isEmpty }
-						.sorted { ($0.name ?? "~", $0.nodes.count) < ($1.name ?? "~", $1.nodes.count) }
-
-					if groups.isEmpty {
-						Text("Nothing wired yet")
-							.font(.caption)
-							.foregroundStyle(.secondary)
-					}
-					ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
-						NetRow(
-							name: "\(group.name ?? "unnamed")  ·  \(group.nodes.count)",
-							color: group.name.map(Palette.color(named:)) ?? .secondary,
-							selected: false
-						)
-					}
-				}
-
 				Panel(title: "Board") {
 					Button("Update board", systemImage: "arrow.triangle.2.circlepath") {
 						operations.updateBoard()
