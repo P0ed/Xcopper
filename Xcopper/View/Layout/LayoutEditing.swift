@@ -25,7 +25,7 @@ extension LayoutView {
 			.onChanged { gesture in
 				claimKeyboard()
 				let start = point(at: gesture.startLocation)
-				let current = point(at: gesture.location)
+				let current = point(at: Layout.reached(by: gesture))
 
 				switch state.tool {
 				case .select:
@@ -39,7 +39,7 @@ extension LayoutView {
 			}
 			.onEnded { gesture in
 				let start = point(at: gesture.startLocation)
-				let current = point(at: gesture.location)
+				let current = point(at: Layout.reached(by: gesture))
 
 				switch state.tool {
 				case .select:

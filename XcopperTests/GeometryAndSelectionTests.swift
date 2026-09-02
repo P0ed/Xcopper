@@ -269,6 +269,50 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(SelectionMode(shift: false, option: false), .replace)
 	}
 
+	func testAPressThatWandersALittleStaysWhereItStarted() {
+		let press = CGPoint(x: 100.0, y: 100.0)
+		func reached(_ dx: CGFloat, _ dy: CGFloat) -> CGPoint {
+			Layout.reached(from: press, to: CGPoint(x: press.x + dx, y: press.y + dy))
+		}
+
+		// Inside the slop, and out as far as it, the press has gone nowhere
+		XCTAssertEqual(reached(0.0, 0.0), press)
+		XCTAssertEqual(reached(3.0, 0.0), press)
+		XCTAssertEqual(reached(-2.0, 2.0), press)
+		XCTAssertEqual(reached(Layout.slop, 0.0), press)
+
+		// Past it the pointer speaks for itself, and brought back inside it is
+		// a click again rather than a drag already latched on
+		XCTAssertEqual(reached(5.0, 0.0), CGPoint(x: 105.0, y: 100.0))
+		XCTAssertEqual(reached(3.0, 3.0), CGPoint(x: 103.0, y: 103.0))
+		XCTAssertEqual(reached(1.0, 0.0), press)
+	}
+
+	func testAWanderingClickNeitherBandsNorMovesAtAnyMagnification() {
+		let press = CGPoint(x: 120.0, y: 90.0)
+		let wobble = CGPoint(x: 122.0, y: 92.0)
+		let grid = Nm.mil(100)
+
+		for scale in [4.0, 40.0, 400.0] as [CGFloat] {
+			let start = Layout.point(press, scale: scale)
+			let current = Layout.point(Layout.reached(from: press, to: wobble), scale: scale)
+			XCTAssertEqual(current, start)
+
+			// Which is what the canvas asks of the gesture it is handed: no
+			// rubber band to catch anything, and no distance to carry a part
+			let select = SelectSession<Ref>(start: start, end: current, mode: .replace, initial: [])
+			let move = MoveSession(start: start.snapped(to: grid), end: current.snapped(to: grid))
+			XCTAssertFalse(select.didDrag)
+			XCTAssertFalse(move.didMove)
+		}
+
+		// The wobble is the hand's and not the board's: it covers a thousandth
+		// of a millimeter zoomed in and half of one zoomed out, and is forgiven
+		// the same either way
+		XCTAssertNotEqual(Layout.point(wobble, scale: 400.0), Layout.point(press, scale: 400.0))
+		XCTAssertNotEqual(Layout.point(wobble, scale: 4.0), Layout.point(press, scale: 4.0))
+	}
+
 	func testFootprintRotationAndFlipPlacePadsAbsolutely() {
 		let at = Pt(x: .mm(10), y: .mm(20))
 		var footprint = Footprint(spec: .init(kind: .chip, chip: .c0603), reference: "R1", at: at)

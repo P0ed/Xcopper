@@ -74,6 +74,14 @@ chain of segments joined end to end on one layer, up to wherever the copper
 branches or lands on a pad or via. A run selects, moves and deletes as one
 object, and a `⌘` band that covers only part of one takes none of it.
 
+A click is still a click when the hand is not quite still. The pointer has to
+travel a few points across the screen before a press counts as a drag, so a
+wobble under the button neither carries a part off its position nor turns a
+click into a rubber band that catches nothing. It is measured on the screen
+rather than on the board, since it is the hand that wanders and not the design,
+so the same wobble is forgiven at any magnification, and a pointer brought back
+inside it is a click again. The sheet reads a press the same way.
+
 Dragging a segment stretches the copper it is soldered to rather than carrying
 it along. Both sides keep the heading they were drawn at and the joint slides to
 where those headings now cross, so the segment dragged changes length and so does
@@ -238,9 +246,12 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Include in BOM toggle for component.
-- BOM export.
-- Pick and place export.
+- Group components by type: opamps, switches, mulipliers, panel controls, connectors, etc.
+- Remove `Nets on this sheet` panel.
+- BOM:
+- - Include in BOM toggle for component.
+- - BOM export.
+- - Pick and place export.
 - Tool to check component value against part number and availability on `jlcpcb.com/parts`.
 - Modularity. Merge several PCBs onto one, sharing power nets.
 - API.

@@ -4,6 +4,11 @@ enum Layout {
 	static let margin: CGFloat = 24.0
 	static let origin = CGPoint(x: margin, y: margin)
 
+	/// How far the pointer may wander with the button down before the press is
+	/// a drag rather than a click. Nothing held in the hand stands quite still
+	/// while a button goes down and up again.
+	static let slop: CGFloat = 4.0
+
 	static func contentSize(_ size: Size, scale: CGFloat) -> CGSize {
 		let size = size.cg * scale
 		return CGSize(width: size.width + margin * 2.0, height: size.height + margin * 2.0)
@@ -14,6 +19,22 @@ enum Layout {
 			x: Int(((location.x - margin) / scale * 1_000_000.0).rounded()),
 			y: Int(((location.y - margin) / scale * 1_000_000.0).rounded())
 		)
+	}
+
+	/// Where a press has reached: the place it started from until the pointer
+	/// has travelled past the slop. Measured on the screen rather than on the
+	/// board, since it is the hand that wanders and not the design, so the
+	/// same wobble is forgiven at every magnification. A pointer brought back
+	/// inside reads as a click again, and one carried out again as the drag it
+	/// was, so nothing is latched either way.
+	static func reached(from start: CGPoint, to location: CGPoint) -> CGPoint {
+		let dx = location.x - start.x
+		let dy = location.y - start.y
+		return dx * dx + dy * dy > slop * slop ? location : start
+	}
+
+	static func reached(by gesture: DragGesture.Value) -> CGPoint {
+		reached(from: gesture.startLocation, to: gesture.location)
 	}
 }
 
