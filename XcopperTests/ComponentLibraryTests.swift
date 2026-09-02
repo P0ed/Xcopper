@@ -53,9 +53,10 @@ final class ComponentLibraryTests: XCTestCase {
 		XCTAssertEqual(Component.that2180.category, .multipliers)
 		XCTAssertEqual(Component.cd40106.category, .logic)
 		XCTAssertEqual(Component.adg419.category, .switches)
-		XCTAssertEqual(Component.nkkMN15.category, .switches)
+		XCTAssertEqual(Component.nkkMN15.category, .panelControls)
 		XCTAssertEqual(Component.bourns51.category, .panelControls)
-		XCTAssertEqual(Component.pomona1581.category, .connectors)
+		XCTAssertEqual(Component.pomona1581.category, .panelControls)
+		XCTAssertEqual(Component.mta1563.category, .connectors)
 		XCTAssertEqual(Component.ssm2212.category, .discretes)
 	}
 
@@ -129,7 +130,7 @@ final class ComponentLibraryTests: XCTestCase {
 		)
 		XCTAssertEqual(footprint.value, "SSI2162")
 		XCTAssertEqual(footprint.pads.count, 10)
-		XCTAssertEqual(Footprint.Spec(component: .bourns51).referencePrefix, "RV")
+		XCTAssertEqual(Footprint.Spec(component: .bourns51).referencePrefix, "P")
 	}
 
 	private func numericOrder(_ lhs: String, _ rhs: String) -> Bool {
