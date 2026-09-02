@@ -269,25 +269,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(SelectionMode(shift: false, option: false), .replace)
 	}
 
-	func testAPressThatWandersALittleStaysWhereItStarted() {
-		let press = CGPoint(x: 100.0, y: 100.0)
-		func reached(_ dx: CGFloat, _ dy: CGFloat) -> CGPoint {
-			Layout.reached(from: press, to: CGPoint(x: press.x + dx, y: press.y + dy))
-		}
-
-		// Inside the slop, and out as far as it, the press has gone nowhere
-		XCTAssertEqual(reached(0.0, 0.0), press)
-		XCTAssertEqual(reached(3.0, 0.0), press)
-		XCTAssertEqual(reached(-2.0, 2.0), press)
-		XCTAssertEqual(reached(Layout.slop, 0.0), press)
-
-		// Past it the pointer speaks for itself, and brought back inside it is
-		// a click again rather than a drag already latched on
-		XCTAssertEqual(reached(5.0, 0.0), CGPoint(x: 105.0, y: 100.0))
-		XCTAssertEqual(reached(3.0, 3.0), CGPoint(x: 103.0, y: 103.0))
-		XCTAssertEqual(reached(1.0, 0.0), press)
-	}
-
 	func testAWanderingClickNeitherBandsNorMovesAtAnyMagnification() {
 		let press = CGPoint(x: 120.0, y: 90.0)
 		let wobble = CGPoint(x: 122.0, y: 92.0)

@@ -139,6 +139,7 @@ struct Panel<Content: View>: View {
 				.foregroundStyle(.secondary)
 			content()
 		}
+		.frame(maxWidth: .infinity, alignment: .leading)
 	}
 }
 
@@ -149,10 +150,7 @@ struct GridPicker: View {
 	var options: [Nm]
 
 	var body: some View {
-		HStack(spacing: 6.0) {
-			Text(title)
-				.foregroundStyle(.secondary)
-				.frame(width: 40.0, alignment: .leading)
+		PropertyRow(title: title) {
 			Picker("", selection: $value) {
 				ForEach(options, id: \.self) { option in
 					Text("\(option.label) mm").tag(option)
@@ -170,6 +168,16 @@ enum Property: Hashable {
 	case reference, value, text, x, y, width, drill, pad, diameter, clearance
 }
 
+/// Room for the longest caption any panel puts in front of a control. Rows
+/// built by hand rather than out of `PropertyRow` measure their own caption
+/// against it, so a panel of one kind still lines up with a panel of another.
+let captionWidth = 52.0
+
+/// One line of a panel: a caption of a fixed width, then the control with the
+/// rest of the sidebar to itself. Every row is built this way, so the controls
+/// of one panel start on the same line as those of the panel above, and the
+/// ones that can stretch — the fields — run out to the sidebar's own edge
+/// however wide it is drawn.
 @MainActor
 struct PropertyRow<Content: View>: View {
 	var title: String
@@ -179,8 +187,9 @@ struct PropertyRow<Content: View>: View {
 		HStack(spacing: 6.0) {
 			Text(title)
 				.foregroundStyle(.secondary)
-				.frame(width: 52.0, alignment: .leading)
+				.frame(width: captionWidth, alignment: .leading)
 			content()
+				.frame(maxWidth: .infinity, alignment: .leading)
 		}
 	}
 }
@@ -226,10 +235,18 @@ struct LengthRow: View {
 			TextField("", value: millimeters, format: .number.precision(.fractionLength(0 ... 3)))
 				.textFieldStyle(.roundedBorder)
 				.focused($focus, equals: property)
-			Text("mm")
-				.font(.caption)
-				.foregroundStyle(.tertiary)
+				.overlay(alignment: .trailing) { unit }
 		}
+	}
+
+	/// Inside the field rather than after it, so a length is as wide as every
+	/// other control on the panel and the column of values stays straight
+	private var unit: some View {
+		Text("mm")
+			.font(.caption)
+			.foregroundStyle(.tertiary)
+			.padding(.trailing, 5.0)
+			.allowsHitTesting(false)
 	}
 }
 
@@ -284,7 +301,6 @@ struct ValueRow: View {
 		PropertyRow(title: title) {
 			Text(value)
 				.lineLimit(1)
-			Spacer(minLength: 0.0)
 		}
 	}
 }

@@ -24,12 +24,12 @@ struct PreviewSideBar: View {
 				}
 
 				Panel(title: "Finish") {
-					Picker("Mask", selection: $state.finish.mask) {
+					ChoiceRow(title: "Mask", value: $state.finish.mask) {
 						ForEach(Mask.allCases) { mask in
 							Text(mask.name).tag(mask)
 						}
 					}
-					Picker("Pads", selection: $state.finish.plating) {
+					ChoiceRow(title: "Pads", value: $state.finish.plating) {
 						ForEach(Plating.allCases) { plating in
 							Text(plating.name).tag(plating)
 						}

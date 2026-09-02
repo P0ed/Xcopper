@@ -190,7 +190,7 @@ struct PlaneRow: View {
 		HStack(spacing: 6.0) {
 			Text(stack.name(of: layer))
 				.foregroundStyle(Palette.color(of: layer, in: stack))
-				.frame(width: 34.0, alignment: .leading)
+				.frame(width: captionWidth, alignment: .leading)
 			Picker("", selection: Binding(get: { plane }, set: { net in select(net) })) {
 				Text("None").tag(Net.ID?.none)
 				ForEach(nets) { net in
