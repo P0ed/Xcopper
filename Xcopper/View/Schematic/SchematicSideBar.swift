@@ -59,6 +59,7 @@ struct SchematicSideBar: View {
 		}
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
 		.onChange(of: focus) { _, field in editor.editing = field != nil }
+		.onChange(of: editor.editing) { _, editing in if !editing { focus = nil } }
 		.onDisappear { editor.editing = false }
 	}
 }

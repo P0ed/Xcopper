@@ -45,10 +45,8 @@ struct EditorView: View {
 		)
 	}
 
-	/// Hands the keyboard back to the canvas. A click on the drawing ends an
-	/// inspector edit, so the letter typed next picks a tool rather than
-	/// landing in the field the pointer has left behind.
 	private func claimKeyboard() {
+		if editor.editing { editor.editing = false }
 		guard !focused else { return }
 		focused = true
 	}
