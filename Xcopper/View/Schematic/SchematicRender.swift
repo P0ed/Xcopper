@@ -125,8 +125,6 @@ extension SchematicView {
 		context.stroke(strokes, with: .color(Palette.symbol), lineWidth: 1.25)
 		context.fill(fills, with: .color(Palette.symbol))
 
-		// A symbol is drawn near white already, so the halo is what carries the
-		// selection and the legs are lit along with the outline they leave
 		Lit.stroke(pickedOutlines, Palette.lit(Palette.symbol), lineWidth: 1.25, in: context)
 		Lit.fill(pickedFills, Palette.lit(Palette.symbol), in: context)
 
@@ -173,7 +171,6 @@ extension SchematicView {
 		visible: CGRect
 	) {
 		let numberSize = Double(PinText.numberHeight).mm * scale
-		// Any smaller and the letters are specks: the drawing says more without them
 		guard numberSize >= 4.5 else { return }
 
 		let nameSize = Double(PinText.nameHeight).mm * scale
@@ -221,7 +218,6 @@ extension SchematicView {
 					)
 					continue
 				}
-				// Written from the body edge inwards, which is the way the leg came
 				let leading = pin.direction == .r180 || pin.direction == .r90
 				drawAlongLeg(
 					name,

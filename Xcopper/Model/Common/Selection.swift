@@ -32,7 +32,6 @@ struct MoveSession: Equatable {
 	var didMove: Bool { start != end }
 }
 
-/// Shared lifecycle of a chained routing gesture, on copper or on a sheet
 enum RoutePhase: Equatable {
 	case pending
 	case gesture(committable: Bool)

@@ -99,17 +99,12 @@ struct LayoutSideBar: View {
 	}
 }
 
-/// What the checker has to say about the board, read back out of the drawing
-/// every time so it can never be stale. Every line is a place to go: clicking
-/// one picks up the copper at fault and scrolls it into view.
 @MainActor
 struct CheckList: View {
 	var violations: [Violation]
 	var stack: Stack
 	var show: (Violation) -> Void
 
-	/// A long list is a board being worked on rather than one being read, so
-	/// the sidebar shows the worst of it and counts the rest
 	private static let shown = 12
 
 	var body: some View {
@@ -158,9 +153,6 @@ struct ViolationRow: View {
 
 extension Violation.Kind {
 
-	/// Copper of two nets touching is a board that cannot work; the rest is a
-	/// board that cannot be made the way it is drawn, and what is unrouted is
-	/// only work not done yet.
 	var color: Color {
 		switch self {
 		case .short: Palette.violation

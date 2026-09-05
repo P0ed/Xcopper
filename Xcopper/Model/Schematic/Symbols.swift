@@ -62,7 +62,6 @@ extension Symbol {
 
 		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
 
-		/// What the sidebar and the footprint dialog call a part drawn like this
 		var summary: String {
 			if let component { return component.name }
 

@@ -49,7 +49,6 @@ extension Array {
 	}
 }
 
-/// First `prefix<n>` not present in `used`, keeping the prefix of `reference`
 func nextReference(like reference: String, used: Set<String>) -> String {
 	let prefix = String(reference.prefix { !$0.isNumber })
 	var index = 1

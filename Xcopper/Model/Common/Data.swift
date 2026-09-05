@@ -139,7 +139,6 @@ struct Rect: Hashable, Codable {
 		)
 	}
 
-	/// Clockwise from the top left corner
 	var corners: [Pt] {
 		[
 			Pt(x: minX, y: minY),
@@ -178,7 +177,6 @@ enum Rotation: Int, Codable, CaseIterable {
 		Rotation(rawValue: (rawValue + other.rawValue) & 0b11) ?? .r0
 	}
 
-	/// Direction this one becomes when the x axis is mirrored
 	var mirroredX: Rotation {
 		switch self {
 		case .r0: .r180
@@ -219,7 +217,6 @@ enum Stack: Int, Codable, CaseIterable {
 	}
 }
 
-/// Reference to an object stored in a `Board` collection
 enum Ref: Hashable, Codable {
 	case trace(Int)
 	case via(Int)

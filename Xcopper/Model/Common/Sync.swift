@@ -24,7 +24,6 @@ extension Design {
 		}
 
 		for group in netlist.groups {
-			// Power flags name a net but are not parts, so they never match a footprint
 			let nodes = group.nodes
 				.filter { node in !schematic.symbols[node.symbol].kind.isPower }
 				.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }

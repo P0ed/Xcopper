@@ -12,7 +12,6 @@ extension Operations? {
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
 	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }
 	var schematicDisabled: Bool { actionsDisabled || self?.mode != .schematic }
-	/// Nothing is placed on the 3D view, which only looks at the board
 	var placementDisabled: Bool { actionsDisabled || self?.mode == .preview }
 }
 

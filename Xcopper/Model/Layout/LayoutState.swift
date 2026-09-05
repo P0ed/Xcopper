@@ -169,13 +169,10 @@ extension LayoutState {
 		updateTrace(to: point)
 	}
 
-	/// Commits the current segment and keeps routing from its end
 	mutating func endTrace() -> Trace? {
 		guard let session = traceSession, case let .gesture(committable) = session.phase else {
 			return nil
 		}
-		// A route held to a gentle bend has nowhere to go straight back the way
-		// it came, so a gesture that asks for it draws nothing and waits
 		guard committable, session.didDraw else {
 			traceSession = modifying(session) { session in session.phase = .pending }
 			return nil

@@ -2,10 +2,6 @@ import CoreGraphics
 import simd
 import SwiftUI
 
-/// A point in board space: millimeters, X right and Y down as on the layout,
-/// Z up out of the top copper. The top surface of the substrate is Z zero, so
-/// a component on the top side stands at a positive height and the bottom of
-/// the board sits at minus its thickness.
 struct V3: Hashable {
 	var x: Double
 	var y: Double
@@ -47,7 +43,6 @@ extension V3 {
 		return length > 0.0 ? self * (1.0 / length) : self
 	}
 
-	/// The eight corners of a box, what a view has to cover to hold all of it
 	static func box(
 		x: ClosedRange<Double>,
 		y: ClosedRange<Double>,
@@ -63,15 +58,11 @@ extension V3 {
 
 extension Pt {
 
-	/// This board point lifted to `z` millimeters above the top copper
 	func v3(_ z: Double) -> V3 { V3(x: Double(x).mm, y: Double(y).mm, z: z) }
 }
 
 extension [V3] {
 
-	/// Newell's normal: reliable on the long thin polygons copper is made of,
-	/// where the first corners can be almost collinear. Points out of the face
-	/// for a loop wound the way the layout draws it, clockwise with Y down.
 	var normal: V3 {
 		var normal = V3.zero
 		guard var previous = last else { return normal }
@@ -85,25 +76,16 @@ extension [V3] {
 	}
 }
 
-/// Where the model is looked at from. The camera can only orbit what it shows,
-/// which is all a preview needs and leaves no way to get lost inside the board.
 struct Camera: Equatable {
-	/// Point on the board the view turns around, board space
 	var target: V3 = .zero
-	/// Angle around the board. Zero looks along -Y, from below the layout, so
-	/// straight down reads the same way round as the layout does.
 	var azimuth: Double = -.pi / 7.0
-	/// Angle above the board, +90 degrees straight down onto the top side and
-	/// -90 degrees straight up at the bottom
 	var elevation: Double = .pi / 5.0
 	var distance: Double = 120.0
-	/// Vertical field of view
 	var fov: Double = .pi / 7.0
 }
 
 extension Camera {
 
-	/// From the eye into the scene
 	var forward: V3 {
 		V3(
 			x: cos(elevation) * sin(azimuth),
@@ -112,16 +94,9 @@ extension Camera {
 		)
 	}
 
-	/// Right on screen, always level with the board
 	var right: V3 { V3(x: cos(azimuth), y: sin(azimuth), z: 0.0) }
-
-	/// Up on screen. Board space is left handed with Y down, hence forward
-	/// crossed into right rather than the other way about.
 	var up: V3 { forward.cross(right) }
-
 	var eye: V3 { target - forward * distance }
-
-	/// Whether the top side of the board is the one on show
 	var overTop: Bool { elevation >= 0.0 }
 
 	mutating func orbit(by delta: CGSize) {
@@ -130,7 +105,6 @@ extension Camera {
 		elevation = min(max(elevation + Double(delta.height) * 0.01, -.pi / 2.0), .pi / 2.0)
 	}
 
-	/// Slides the point the view turns around across the plane of the screen
 	mutating func pan(by delta: CGSize, over pixels: Double) {
 		let span = 2.0 * distance * tan(fov / 2.0) / max(pixels, 1.0)
 		target = target
@@ -138,8 +112,6 @@ extension Camera {
 			+ up * (Double(delta.height) * span)
 	}
 
-	/// Puts the eye `distance` away, never so close that it is inside the board
-	/// nor so far that it is lost
 	mutating func zoom(to distance: Double, reach: Double) {
 		self.distance = min(max(distance, reach / 24.0), reach * 6.0)
 	}
@@ -148,14 +120,12 @@ extension Camera {
 		zoom(to: distance / factor, reach: reach)
 	}
 
-	/// Looks at `stand`, keeping the distance already set
 	mutating func aim(at stand: Standpoint) {
 		azimuth = stand.azimuth
 		elevation = stand.elevation
 	}
 }
 
-/// A named place to look at the board from
 enum Standpoint: Hashable, CaseIterable, Identifiable {
 	case top, bottom, front, back, left, right, angled
 
@@ -205,39 +175,16 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 	}
 }
 
-/// Board space as a renderer reads a scene: metres, Y standing up out of the
-/// board and the eye looking along its own back to front.
 extension V3 {
-
-	/// This direction turned the way a scene is read. The board's Z, which
-	/// stands up out of the copper, is the scene's up, and the board's Y, which
-	/// runs down the layout, is the scene's depth. Swapping two axes turns the
-	/// space over, which is exactly what a layout read with Y down needs: a
-	/// loop wound one way on the board is wound the other way in the scene, so
-	/// a face is handed over with its corners in the reverse order.
 	var turned: SIMD3<Float> { SIMD3(Float(x), Float(z), Float(y)) }
-
-	/// This point where the scene puts it, in metres, so the board stands
-	/// there at the size it is made
 	var placed: SIMD3<Float> { turned * Float(V3.metre) }
-
-	/// Millimeters, which the board is measured in, to the metres a scene is
 	static let metre = 0.001
 }
 
 extension Camera {
 
-	/// Nothing nearer the eye than this is drawn, in millimeters. The eye is
-	/// never let closer to what it looks at than a fraction of the board, so
-	/// this only ever cuts a part the view has climbed inside of.
 	static let near = 0.25
-	/// Nor anything further off than this, which is further than the eye is
-	/// ever stood back
 	static let far = 10_000.0
-
-	/// Where the eye stands and which way it is turned, as a scene wants it:
-	/// right, up and back, the last of the three because a camera looks along
-	/// its own negative Z.
 	var pose: simd_float4x4 {
 		simd_float4x4(columns: (
 			SIMD4(right.turned, 0.0),
@@ -248,8 +195,6 @@ extension Camera {
 	}
 }
 
-/// Plain colour components, so the model can carry the colour of a face
-/// without going through `Color` and back out again
 struct RGBA: Hashable {
 	var r: Double
 	var g: Double

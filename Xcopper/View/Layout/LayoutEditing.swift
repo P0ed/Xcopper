@@ -11,7 +11,6 @@ extension LayoutView {
 
 	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
-	/// Grid position, overridden by a nearby pad, via or trace endpoint
 	func snapped(_ point: Pt, layer: Int) -> (Pt, Net.ID?) {
 		if !modifierFlags.contains(.control),
 			let target = board.snapTarget(near: point, layer: layer, radius: snapRadius) {
@@ -47,8 +46,6 @@ extension LayoutView {
 				case .trace:
 					state.updateTrace(to: routeEnd(current))
 					if let trace = state.endTrace() {
-						// A route that has reached a pad, a via or copper already
-						// drawn has nowhere left to chain to, so the tool steps aside
 						let landed = board.isConnection(trace.end, layer: trace.layer)
 						undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
 						if landed { state.tool = .select }
@@ -84,7 +81,6 @@ private extension LayoutView {
 		)
 	}
 
-	/// Whether the pointer takes the whole run rather than the one segment on it
 	var picksRun: Bool { modifierFlags.contains(.command) }
 
 	func undoGroup(_ name: String, _ body: () -> Void = {}) {
@@ -100,9 +96,6 @@ private extension LayoutView {
 		return snapped
 	}
 
-	/// Object snap wins, then free angle while shift is held, 45 degrees
-	/// otherwise — and never a right angle onto the copper the route chains
-	/// off, which leaves it three of the eight headings to carry on along
 	func routeEnd(_ point: Pt) -> Pt {
 		guard let session = state.traceSession else {
 			return snapped(point, layer: state.layer).0
@@ -136,8 +129,6 @@ private extension LayoutView {
 	func endSelection(from start: Pt, to current: Pt) {
 		if let session = state.moveSession {
 			if session.didMove {
-				// A drag the copper cannot take is no edit at all, so it leaves
-				// nothing on the undo stack either
 				var moved = board
 				if let selection = moved.move(state.selection, by: session.delta, grid: state.snap) {
 					undoGroup("Move") {

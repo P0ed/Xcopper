@@ -9,7 +9,6 @@ struct SchematicSideBar: View {
 
 	@FocusState private var focus: Property?
 
-	/// Read back out of the drawing every time, so it can never be stale
 	private var netlist: Netlist { Netlist(design.schematic) }
 
 	var body: some View {

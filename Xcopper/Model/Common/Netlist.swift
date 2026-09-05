@@ -1,13 +1,9 @@
-/// Whether `point` lies on `wire`, allowing a nanometre of rounding slack
 func touches(_ point: Pt, _ wire: Wire) -> Bool {
 	distance(from: point, to: wire.start, wire.end) <= 1000.0
 }
 
-/// Connectivity read back out of the drawing: what is wired to what, and under
-/// which name. Nothing here is stored in the document.
 struct Netlist {
 
-	/// A pin of a placed symbol, by index into `Schematic.symbols` and its `pins`
 	struct Node: Hashable {
 		var symbol: Int
 		var pin: Int
@@ -58,7 +54,6 @@ extension Netlist {
 		var merge = Merge()
 		var terminals: Set<Pt> = []
 
-		// Every wire shorts its own two ends
 		for wire in schematic.wires {
 			terminals.insert(wire.start)
 			terminals.insert(wire.end)
@@ -71,8 +66,6 @@ extension Netlist {
 			terminals.insert(label.at)
 		}
 
-		// A terminal sitting anywhere on a wire joins it. Only terminals are
-		// tested, so a T-junction connects and an X-crossing does not.
 		for point in terminals {
 			for wire in schematic.wires where touches(point, wire) {
 				merge.union(point, wire.start)
@@ -103,8 +96,6 @@ extension Netlist {
 			}
 		}
 
-		// An explicit label wins over a power flag; ties break alphabetically so
-		// the same sheet always yields the same names.
 		var supplied: [Int: String] = [:]
 		var labelled: [Int: String] = [:]
 
@@ -129,7 +120,6 @@ extension Netlist {
 
 extension Pt {
 
-	/// Stable ordering, so derived results do not depend on set iteration
 	static func order(_ lhs: Pt, _ rhs: Pt) -> Bool {
 		lhs.y != rhs.y ? lhs.y < rhs.y : lhs.x < rhs.x
 	}
@@ -137,7 +127,6 @@ extension Pt {
 
 extension Schematic {
 
-	/// Points where three or more conductors meet, drawn as junction dots
 	var junctions: [Pt] {
 		var terminals: Set<Pt> = []
 		for wire in wires {

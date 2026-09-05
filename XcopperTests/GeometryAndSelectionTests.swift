@@ -12,11 +12,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		Trace(start: start, end: end, width: .mm(0.3), layer: layer, net: nil)
 	}
 
-	/// The sharpest corner the copper turns anywhere on the board, in eighths
-	/// of a turn: none runs straight through, one is the 45 degree bend copper
-	/// is drawn with and two squares the corner off. Asks the board the same
-	/// question a move asks it, so these assertions cannot drift from the rule
-	/// the drag actually enforces.
 	private func sharpestTurn(_ board: Board) -> Int {
 		var sharpest = 0
 		for trace in board.traces {
@@ -75,7 +70,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertFalse(east.bends(to: Pt(x: 0, y: .mm(5))))
 		XCTAssertFalse(east.bends(to: Pt(x: .mm(-5), y: .mm(5))))
 
-		// A free angle is copper this has nothing to say about
 		XCTAssertNil(east.turn(to: Pt(x: .mm(10), y: .mm(3))))
 		XCTAssertTrue(east.bends(to: Pt(x: .mm(10), y: .mm(3))))
 	}
@@ -84,7 +78,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let start = Pt.zero
 		let east = Pt(x: 1, y: 0)
 
-		// Straight on and either 45 degree turn are drawn as the pointer asks
 		XCTAssertEqual(
 			snapped45(from: start, to: Pt(x: .mm(10), y: 0), after: east),
 			Pt(x: .mm(10), y: 0)
@@ -94,8 +87,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Pt(x: .mm(9.5), y: .mm(9.5))
 		)
 
-		// Square to the copper it chains off, the route swings back onto the
-		// nearer of the two turns rather than drawing the right angle asked for
 		XCTAssertEqual(
 			snapped45(from: start, to: Pt(x: .mm(1), y: .mm(10)), after: east),
 			Pt(x: .mm(5.5), y: .mm(5.5))
@@ -105,7 +96,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Pt(x: .mm(5.5), y: .mm(-5.5))
 		)
 
-		// Behind the copper there is no gentle turn at all, so nothing is drawn
 		XCTAssertEqual(snapped45(from: start, to: Pt(x: .mm(-10), y: .mm(1)), after: east), start)
 	}
 
@@ -217,7 +207,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		XCTAssertEqual(board.refs(at: Pt(x: .mm(7), y: .mm(10)), layer: 0, tolerance: 0), [.trace(0)])
 
-		// The band takes a segment that fits inside it, run or no run
 		let partial = Rect(from: Pt(x: 0, y: 0), to: Pt(x: .mm(12), y: .mm(12)))
 		XCTAssertEqual(board.refs(in: partial, layer: 0), [.trace(0)])
 
@@ -252,7 +241,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertTrue(board.isConnection(Pt(x: .mm(20), y: .mm(20)), layer: 2))
 		XCTAssertTrue(board.isConnection(Pt(x: .mm(10), y: .mm(5)), layer: 0))
 
-		// Mid air, mid segment, and the same endpoint on another layer
 		XCTAssertFalse(board.isConnection(Pt(x: .mm(40), y: .mm(30)), layer: 0))
 		XCTAssertFalse(board.isConnection(Pt(x: .mm(7), y: .mm(5)), layer: 0))
 		XCTAssertFalse(board.isConnection(Pt(x: .mm(10), y: .mm(5)), layer: 1))
@@ -279,17 +267,12 @@ final class GeometryAndSelectionTests: XCTestCase {
 			let current = Layout.point(Layout.reached(from: press, to: wobble), scale: scale)
 			XCTAssertEqual(current, start)
 
-			// Which is what the canvas asks of the gesture it is handed: no
-			// rubber band to catch anything, and no distance to carry a part
 			let select = SelectSession<Ref>(start: start, end: current, mode: .replace, initial: [])
 			let move = MoveSession(start: start.snapped(to: grid), end: current.snapped(to: grid))
 			XCTAssertFalse(select.didDrag)
 			XCTAssertFalse(move.didMove)
 		}
 
-		// The wobble is the hand's and not the board's: it covers a thousandth
-		// of a millimeter zoomed in and half of one zoomed out, and is forgiven
-		// the same either way
 		XCTAssertNotEqual(Layout.point(wobble, scale: 400.0), Layout.point(press, scale: 400.0))
 		XCTAssertNotEqual(Layout.point(wobble, scale: 4.0), Layout.point(press, scale: 4.0))
 	}
@@ -489,8 +472,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces[0].start, pad + delta)
 		XCTAssertEqual(board.traces[1].start, pad)
 
-		// The leg the stretch folded off runs straight on into the segment past
-		// `away`, so the two arrive as the one segment they look like
 		XCTAssertEqual(board.traces.count, 3)
 		XCTAssertEqual(board.traces[2].start, board.traces[0].end)
 		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(35), y: .mm(10)))
@@ -508,7 +489,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(1)))
 		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(10), y: .mm(10)))
 
-		// The selection follows the copper it was holding into the fused segment
 		XCTAssertEqual(moved, [.trace(0)])
 	}
 
@@ -621,17 +601,12 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let delta = Pt(x: 0, y: .mm(-1))
 		board.move([.trace(2)], by: delta, grid: .mm(1))
 
-		// Both sides keep the heading they were drawn at, so the joints slide
-		// along to where those headings cross now: the segment dragged runs
-		// the same way from a millimetre further along, one neighbour is a
-		// millimetre longer for it and the other a millimetre shorter
 		XCTAssertEqual(board.traces.count, 5)
 		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(16), y: .mm(15)))
 		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(21), y: .mm(20)))
 		XCTAssertEqual(board.traces[1].end, board.traces[2].start)
 		XCTAssertEqual(board.traces[3].start, board.traces[2].end)
 
-		// The corners past them are none of the drag's business
 		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(5), y: .mm(15)))
 		XCTAssertEqual(board.traces[3].end, Pt(x: .mm(30), y: .mm(20)))
 		XCTAssertEqual(board.traces[0], trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(5), y: .mm(15))))
@@ -651,8 +626,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.move([.trace(2)], by: Pt(x: 0, y: .mm(-2)), grid: .mm(1))
 
-		// Two millimetres up the U, the bottom is four millimetres wider and
-		// the legs it hangs off two millimetres shorter each
 		XCTAssertEqual(board.traces.count, 5)
 		XCTAssertEqual(board.traces[2].start, Pt(x: .mm(1), y: .mm(11)))
 		XCTAssertEqual(board.traces[2].end, Pt(x: .mm(9), y: .mm(11)))
@@ -675,9 +648,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.move([.trace(2)], by: Pt(x: 0, y: .mm(-3)), grid: .mm(1))
 
-		// The diagonal is taken up exactly, so it fuses away rather than
-		// leaving a stub, and the corner it left behind is square: it comes
-		// apart into the two 45s it is really made of
 		XCTAssertEqual(board.traces.count, 3)
 		XCTAssertEqual(board.traces[0], trace(from: Pt(x: 0, y: 0), to: Pt(x: 0, y: .mm(9))))
 		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(1), y: .mm(10)))
@@ -697,9 +667,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-1)), grid: .mm(1))
 
-		// The via holds the far end of the copper the drag stretches, so that
-		// end stays where it is and the joint slides a millimetre along the
-		// straight to meet the segment that moved
 		XCTAssertEqual(board.traces.count, 2)
 		XCTAssertEqual(board.traces[0].start, via)
 		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(11), y: .mm(10)))
@@ -719,8 +686,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNil(board.heading(leaving: end, layer: 1))
 		XCTAssertNil(board.heading(leaving: Pt(x: .mm(5), y: 0), layer: 0))
 
-		// A branch has no one heading to keep to, and a via joins copper
-		// rather than bending it, so neither says which way a route may leave
 		board.traces.append(trace(from: end, to: Pt(x: .mm(15), y: .mm(5))))
 		XCTAssertNil(board.heading(leaving: end, layer: 0))
 
@@ -737,8 +702,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let leaving = try XCTUnwrap(board.heading(leaving: start, layer: 0))
 		XCTAssertEqual(leaving, Pt(x: -1, y: 0))
 
-		// The pointer is all but square to the copper drawn so far, so the next
-		// segment takes the 45 nearest it instead
 		let end = snapped45(from: start, to: Pt(x: .mm(11), y: .mm(10)), after: -leaving)
 		XCTAssertEqual(end, Pt(x: .mm(15.5), y: .mm(5.5)))
 		XCTAssertTrue((start - .zero).bends(to: end - start))
@@ -746,8 +709,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 
 	func testCopperThatAlreadyTurnedHardIsNotHeldHostage() {
 		var board = board()
-		// A corner sharper than a drag is allowed to leave, the way an older
-		// document may well carry one
 		board.traces = [
 			trace(from: Pt(x: 0, y: .mm(20)), to: Pt(x: .mm(10), y: .mm(20))),
 			trace(from: Pt(x: .mm(10), y: .mm(20)), to: Pt(x: .mm(5), y: .mm(25))),
@@ -755,8 +716,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		let delta = Pt(x: .mm(1), y: .mm(1))
 		board.move([.trace(0), .trace(1)], by: delta, grid: .mm(1))
 
-		// Carried along as it was drawn rather than refused for a corner the
-		// drag did not make
 		XCTAssertEqual(board.traces.count, 2)
 		XCTAssertEqual(board.traces[0].start, Pt(x: .mm(1), y: .mm(21)))
 		XCTAssertEqual(board.traces[1].end, Pt(x: .mm(6), y: .mm(26)))
@@ -867,9 +826,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(1))
 
-		// The stretched segment lands back on the grid on its own, but it meets
-		// the copper that moved square, so the corner comes apart: both legs
-		// give up a grid step and a short segment joins where they left off
 		XCTAssertEqual(board.traces.count, 3)
 		XCTAssertEqual(board.traces[0].start, Pt(x: 0, y: .mm(20)))
 		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(9), y: .mm(11)))
@@ -893,13 +849,10 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		board.vias = [Via(at: junction, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
 
-		// Square copper is fine while a via joins it rather than bending it
 		XCTAssertEqual(sharpestTurn(board), 0)
 
 		board.move([.via(0)], by: Pt(x: .mm(5), y: .mm(5)), grid: .mm(1))
 
-		// The via gone, the copper it held is a plain corner turning square, so
-		// it comes apart into the two 45s it is really made of
 		XCTAssertEqual(board.traces.count, 3)
 		XCTAssertEqual(board.traces[0].end, Pt(x: .mm(9), y: .mm(20)))
 		XCTAssertEqual(board.traces[1].start, Pt(x: .mm(10), y: .mm(21)))
@@ -917,8 +870,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		let stored = board
 
-		// Nothing short of a loop turns that corner 45 degrees at a time, so
-		// the copper does not follow the pointer at all
 		let moved = board.move([.trace(1)], by: Pt(x: .mm(-10), y: .mm(10)), grid: .mm(1))
 		XCTAssertNil(moved)
 		XCTAssertEqual(board, stored)
@@ -932,12 +883,9 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		let stored = board
 
-		// The same drag as the corner that comes apart, but the leg that would
-		// have to give up a grid step is only one step long to begin with
 		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(1))
 		XCTAssertEqual(board, stored)
 
-		// On a finer grid the same corner has a step to spare
 		board.move([.trace(1)], by: Pt(x: 0, y: .mm(-10)), grid: .mm(0.25))
 		XCTAssertEqual(board.traces.count, 3)
 		XCTAssertEqual(sharpestTurn(board), 1)

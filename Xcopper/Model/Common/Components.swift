@@ -1,7 +1,5 @@
 import Foundation
 
-/// Built-in, manufacturer-specific parts. Pin names and package choices follow
-/// the manufacturers' data sheets; package variants prefer SOIC when offered.
 enum Component: String, Codable, CaseIterable, Identifiable {
 	case ad823 = "AD823"
 	case ad823a = "AD823A"
@@ -30,9 +28,6 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 	var id: String { rawValue }
 	var name: String { rawValue }
 
-	/// The shelf of the library a part sits on. Parts are grouped by what they
-	/// do rather than by the package they come in, so the picker reads the way
-	/// a parts drawer is arranged.
 	enum Category: String, CaseIterable, Identifiable {
 		case opAmps = "Op-amps"
 		case multipliers = "Multipliers"
@@ -45,10 +40,8 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		var id: String { rawValue }
 		var name: String { rawValue }
 
-		/// The parts on the shelf, in library order.
 		var components: [Component] { Component.allCases.filter { $0.category == self } }
 
-		/// Those of them that also stand on the board, for the layout picker.
 		var layoutComponents: [Component] { components.filter(\.hasFootprint) }
 	}
 
@@ -82,7 +75,6 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		}
 	}
 
-	/// Pin names in physical pin-number order, starting at pin 1.
 	var pinNames: [String] {
 		switch self {
 		case .ad823, .ad823a:
@@ -151,8 +143,6 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		switch symbolKind {
 		case .diode:
 			symbol = .diode()
-			// The schematic anode remains on the left and cathode bar on the
-			// right, while SOD-123 and 5 mm LEDs number K=1 and A=2.
 			symbol.pins[0].name = "A"
 			symbol.pins[0].number = "2"
 			symbol.pins[1].name = "K"

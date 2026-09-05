@@ -46,7 +46,6 @@ struct CounterpartButton: View {
 @MainActor
 struct PartPicker: View {
 	@Binding var component: Component?
-	/// The layout offers only the parts that also stand on the board
 	var onBoard: Bool = false
 
 	var body: some View {

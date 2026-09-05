@@ -1,6 +1,5 @@
 import Foundation
 
-/// Copper or clearance primitive, board coordinates
 enum Figure: Hashable {
 	case rect(Rect)
 	case round(Pt, Nm)
@@ -40,7 +39,6 @@ extension Figure {
 	}
 }
 
-/// How far apart two points are, in millimeters
 func length(from start: Pt, to end: Pt) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
@@ -60,14 +58,8 @@ func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 	return (ox * ox + oy * oy).squareRoot()
 }
 
-/// 0.1 inch, the one pitch both snap grids share, so a part the editor parks
-/// stands on the grid whatever the snap is set to
-let parkingPitch = Int.mil(100)
+private let parkingPitch = Int.mil(100)
 
-/// Where something whose extent is `extent` when it stands at the origin can go
-/// inside `bounds` without covering anything in `taken`: the first spot in
-/// reading order on the parking pitch. Falls back to the first spot that fits at
-/// all when nothing is clear, so a part is always somewhere the canvas reaches.
 func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Pt {
 	var fallback: Pt?
 	var y = bounds.minY + parkingPitch
@@ -89,12 +81,9 @@ func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Pt {
 	return fallback ?? bounds.center
 }
 
-/// Tangent of 22.5 degrees, scaled by 1000: where one routing direction gives
-/// way to the next
-let octantEdge = 414
+private let octantEdge = 414
 
-/// The eight directions copper is routed along, counted round from east
-let compass = [
+private let compass = [
 	Pt(x: 1, y: 0), Pt(x: 1, y: 1), Pt(x: 0, y: 1), Pt(x: -1, y: 1),
 	Pt(x: -1, y: 0), Pt(x: -1, y: -1), Pt(x: 0, y: -1), Pt(x: 1, y: -1),
 ]
@@ -116,25 +105,17 @@ func snapped45(from start: Pt, to end: Pt) -> Pt {
 	return Pt(x: start.x + sx * length, y: start.y + sy * length)
 }
 
-/// Nearest routing direction copper arriving along `heading` is allowed to
-/// leave along, projected onto the way `snapped45` does. Straight on and the
-/// two 45 degree turns are the whole of it: a route that would square the
-/// corner is swung back to the nearer of the two.
 func snapped45(from start: Pt, to end: Pt, after heading: Pt) -> Pt {
 	let free = snapped45(from: start, to: end)
 	guard let arriving = heading.octant, let wanted = (free - start).octant,
 		!heading.bends(to: free - start)
 	else { return free }
 
-	// Swung back onto whichever of the two 45s lies nearer, counting round the
-	// compass the short way
 	let turn = (wanted - arriving + 8) % 8
 	let direction = compass[(arriving + (turn <= 4 ? 1 : 7)) % 8]
 	return start + direction * projection(of: end - start, onto: direction)
 }
 
-/// How far along `direction` an offset reaches, in whole steps of it, never
-/// behind the start
 private func projection(of offset: Pt, onto direction: Pt) -> Int {
 	let along = offset.x * direction.x + offset.y * direction.y
 	let step = direction.x != 0 && direction.y != 0 ? 2 : 1
@@ -143,56 +124,34 @@ private func projection(of offset: Pt, onto direction: Pt) -> Int {
 
 extension Pt {
 
-	/// Whether an offset runs along one of the eight routing directions
 	var isOctilinear: Bool { x == 0 || y == 0 || abs(x) == abs(y) }
 
-	/// The eight way step an octilinear offset runs along, zero for no offset
 	var heading: Pt { Pt(x: x.signum(), y: y.signum()) }
 
-	/// The shortest whole step along the same line, which every whole point on
-	/// that line is a number of. The heading for copper on the routing grid,
-	/// and the nearest thing to one for copper drawn at a free angle.
 	var step: Pt {
 		let divisor = gcd(x, y)
 		return divisor > 1 ? Pt(x: x / divisor, y: y / divisor) : self
 	}
 
-	/// Whether an offset runs the way `direction` does rather than back against
-	/// it. Only worth asking of two that lie along the one line.
 	func runsAlong(_ direction: Pt) -> Bool { x * direction.x + y * direction.y > 0 }
 
-	/// Where the step an offset runs along sits on the compass, nil for no
-	/// offset and for one drawn at a free angle
 	var octant: Int? { isOctilinear ? compass.firstIndex(of: heading) : nil }
 
-	/// How far, in eighths of a turn, copper running along self has to swing to
-	/// leave along `next`: none carries straight on, one is the 45 degree bend
-	/// copper is drawn with and two squares the corner. Nil where either side
-	/// runs at a free angle, which is not this rule's to judge.
 	func turn(to next: Pt) -> Int? {
 		guard let from = octant, let to = next.octant else { return nil }
 		let eighths = abs(to - from)
 		return min(eighths, 8 - eighths)
 	}
 
-	/// Whether copper running along self may leave along `next`. A board turns
-	/// 45 degrees at a time, so a right angle, and anything sharper, is a
-	/// corner the copper is not allowed to make.
 	func bends(to next: Pt) -> Bool { turn(to: next).map { $0 <= 1 } ?? true }
 }
 
-/// Greatest common divisor, what reduces an offset to the step it is made of
 private func gcd(_ a: Int, _ b: Int) -> Int {
 	var (a, b) = (abs(a), abs(b))
 	while b != 0 { (a, b) = (b, a % b) }
 	return a
 }
 
-/// Corner of the two legged 45 degree route from `start` to `end`. The bend
-/// sits by `start`, the end that moved, unless the route already ran into
-/// `end` along `heading` and the diagonal leg can keep that approach. Copper
-/// running on from `start` along `leaving` outranks both: the leg order that
-/// turns gently there wins, since a right angle is no corner to leave behind.
 func bend(from start: Pt, to end: Pt, heading: Pt, leaving: Pt) -> Pt {
 	let offset = end - start
 	let diagonal = offset.heading
@@ -205,17 +164,11 @@ func bend(from start: Pt, to end: Pt, heading: Pt, leaving: Pt) -> Pt {
 	return bend <= 1 || bend <= turn(other) ? kept : other
 }
 
-/// Where the line through `a` along `da` meets the one through `b` along `db`,
-/// nil unless they meet at all, meet on a whole nanometer, and meet somewhere
-/// a board coordinate reaches: two headings that all but agree cross a long
-/// way past anything a drag was asking about.
 func crossing(line a: Pt, _ da: Pt, line b: Pt, _ db: Pt) -> Pt? {
 	let (da, db) = (da.step, db.step)
 	let determinant = db.x * da.y - da.x * db.y
 	guard determinant != 0 else { return nil }
 
-	// How far along `da` the crossing lies. Counted in whole steps of it, since
-	// the shortest step along a line reaches every whole point on it.
 	let offset = b - a
 	let along = db.x * offset.y - db.y * offset.x
 	guard along.isMultiple(of: determinant) else { return nil }
@@ -226,8 +179,6 @@ func crossing(line a: Pt, _ da: Pt, line b: Pt, _ db: Pt) -> Pt? {
 	return a + da * steps
 }
 
-/// Where the ray leaving `a` along `da` meets the one leaving `b` along `db`,
-/// nil unless they cross ahead of both on a whole nanometer
 func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
 	guard let at = crossing(line: a, da, line: b, db),
 		(at - a).runsAlong(da), (at - b).runsAlong(db)
@@ -235,7 +186,6 @@ func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
 	return at
 }
 
-/// Nearest orthogonal projection, the convention for schematic wires
 func snapped90(from start: Pt, to end: Pt) -> Pt {
 	let dx = end.x - start.x
 	let dy = end.y - start.y
@@ -244,8 +194,6 @@ func snapped90(from start: Pt, to end: Pt) -> Pt {
 
 extension Board {
 
-	/// Placed pads reaching `layer`. A through pad reaches every layer, so it
-	/// turns up on both faces.
 	func pads(on layer: Int) -> [Pad] {
 		footprints.flatMap { footprint in
 			footprint.placedPads.filter { pad in
@@ -254,7 +202,6 @@ extension Board {
 		}
 	}
 
-	/// Copper on `layer`, paired with the net it belongs to
 	func figures(on layer: Int) -> [(Figure, Net.ID?)] {
 		var result: [(Figure, Net.ID?)] = []
 
@@ -270,9 +217,6 @@ extension Board {
 		return result
 	}
 
-	/// Copper on `layer` belonging to `refs`, what a selection lights up. A
-	/// footprint brings its pads, so picking a part brightens the copper it
-	/// stands on rather than the outline round it.
 	func figures(on layer: Int, of refs: Set<Ref>) -> [Figure] {
 		var result: [Figure] = []
 
@@ -295,7 +239,6 @@ extension Board {
 		return result
 	}
 
-	/// Everything on `layer` that a plane carrying `net` must keep clear of
 	func clearances(on layer: Int, net: Net.ID?) -> [Figure] {
 		var result = figures(on: layer)
 			.filter { _, other in other != net }
@@ -307,7 +250,6 @@ extension Board {
 		return result
 	}
 
-	/// Drill barrels punched on every layer
 	var drills: [Figure] {
 		vias.map { via in .round(via.at, via.drill) }
 			+ holes.map { hole in .round(hole.at, hole.diameter) }
@@ -369,18 +311,12 @@ extension Board {
 		return nil
 	}
 
-	/// Everything one click picks up: the segment under the pointer, or, with
-	/// `whole` on, the rest of the run it was drawn as part of, so a route
-	/// selects, moves and deletes as the single object it was drawn as.
 	func refs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
 		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
 		guard whole, case let .trace(index) = hit else { return [hit] }
 		return Set(run(of: index).map(Ref.trace))
 	}
 
-	/// Everything a rubber band picks up. A segment comes along when the band
-	/// holds both its ends; with `whole` on a run is one object, so a band
-	/// covering part of one takes none of it.
 	func refs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
 		var result: Set<Ref> = []
 
@@ -421,9 +357,6 @@ extension Board {
 		})
 	}
 
-	/// Segments chained end to end with `index` on its layer. The run stops
-	/// where copper branches or lands on a pad or via, so it spans exactly what
-	/// one routing gesture draws between two terminals.
 	func run(of index: Int) -> Set<Int> {
 		guard traces.indices.contains(index) else { return [] }
 
@@ -440,8 +373,6 @@ extension Board {
 		return run
 	}
 
-	/// The one other segment meeting `index` at `point`, when the junction is a
-	/// plain corner: two ends and no terminal
 	func continuation(of index: Int, at point: Pt) -> Int? {
 		let layer = traces[index].layer
 		guard !isTerminal(point, layer: layer) else { return nil }
@@ -456,10 +387,6 @@ extension Board {
 		return corner
 	}
 
-	/// The one heading copper leaves `point` along, passing over `ignoring`,
-	/// when the junction is a corner a bend has to keep to. A pad or a via
-	/// joins copper rather than bending it, and neither a branch nor copper
-	/// drawn at a free angle has one heading, so none of them tie a route down.
 	func heading(leaving point: Pt, layer: Int, ignoring skipped: Int? = nil) -> Pt? {
 		guard !isTerminal(point, layer: layer) else { return nil }
 
@@ -474,7 +401,6 @@ extension Board {
 		return heading
 	}
 
-	/// Whether a pad or via lands on `point`, where a run ends
 	func isTerminal(_ point: Pt, layer: Int) -> Bool {
 		for via in vias
 		where via.spans(layer) && Figure.round(via.at, via.pad).contains(point) {
@@ -490,8 +416,6 @@ extension Board {
 		return false
 	}
 
-	/// Where a route lands and is done: a pad, a via, or the end of copper
-	/// already drawn on the layer
 	func isConnection(_ point: Pt, layer: Int) -> Bool {
 		isTerminal(point, layer: layer)
 			|| traces.contains { trace in
@@ -499,7 +423,6 @@ extension Board {
 			}
 	}
 
-	/// Pad, via or trace endpoint worth snapping a route to
 	func snapTarget(near point: Pt, layer: Int, radius: Int) -> (Pt, Net.ID?)? {
 		var best: (Pt, Net.ID?)?
 		var bestDistance = radius * radius + 1
@@ -530,11 +453,6 @@ extension Board {
 
 extension Figure {
 
-	/// The outline as a closed loop of points, wound the way the layout draws
-	/// it. Curves are cut into `arc` steps per quarter turn, which is what
-	/// gives the 3D preview something flat to raise copper and packages over,
-	/// and left to itself into as many steps as the curve is wide enough to
-	/// show.
 	func polygon(arc: Int? = nil) -> [Pt] {
 		switch self {
 		case let .rect(rect):
@@ -547,18 +465,10 @@ extension Figure {
 	}
 }
 
-/// How finely a curve this wide is cut, in steps per quarter turn. A side of
-/// the ring a curve is drawn as falls a little inside the curve itself, and
-/// holding that under about twenty microns is what settles this: a via's barrel
-/// comes back with the twelve sides it has always had, and a panel jack's ring
-/// with thirty two, which is as fine as anything is cut. Past that the sides
-/// are shorter than anything reads and the model is better off carrying fewer
-/// of them.
 func fineness(across width: Int) -> Int {
 	min(8, max(3, Int((3.0 * Double(width).mm.squareRoot()).rounded())))
 }
 
-/// A closed ring of points around `center`, wound like `Rect.corners`
 func circle(at center: Pt, diameter: Int, arc: Int? = nil) -> [Pt] {
 	let steps = max(3, (arc ?? fineness(across: diameter)) * 4)
 	let radius = Double(diameter) / 2.0
@@ -571,8 +481,6 @@ func circle(at center: Pt, diameter: Int, arc: Int? = nil) -> [Pt] {
 	}
 }
 
-/// A trace as a closed outline: the two sides of the run, with a half turn
-/// round each end, the same shape the layout fills it with
 func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 	let radius = Double(width) / 2.0
 	let offset = end - start
@@ -596,14 +504,8 @@ func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 	return loop
 }
 
-// MARK: measuring a gap
-
 extension Figure {
 
-	/// The shape a figure is drawn round: the point a round pad is, the line a
-	/// trace runs along, the rectangle a square pad covers. Everything the fab
-	/// makes is one of those grown by `radius` all round, which is what lets
-	/// one measurement serve all of them.
 	var core: [Pt] {
 		switch self {
 		case let .rect(rect): rect.corners
@@ -612,8 +514,6 @@ extension Figure {
 		}
 	}
 
-	/// How far the copper stands out from its core, read the way `contains`
-	/// reads it, so copper that counts as joined measures as joined
 	var radius: Int {
 		switch self {
 		case .rect: 0
@@ -623,16 +523,10 @@ extension Figure {
 	}
 }
 
-/// How wide a gap two figures leave between them, in nanometers, and zero
-/// where they touch or overlap. Copper is measured from its core out, so a
-/// pad, a via and a trace are all measured the same way.
 func gap(_ a: Figure, _ b: Figure) -> Double {
 	max(0.0, gap(a.core, b.core) - Double(a.radius + b.radius))
 }
 
-/// How far apart two convex loops are, zero where they meet or one holds the
-/// other. A loop of one point is that point and a loop of two the line
-/// between them, so a degenerate loop measures like the point or line it is.
 func gap(_ a: [Pt], _ b: [Pt]) -> Double {
 	guard let here = a.first, let there = b.first else { return .infinity }
 	guard !covers(a, there), !covers(b, here) else { return 0.0 }
@@ -646,8 +540,6 @@ func gap(_ a: [Pt], _ b: [Pt]) -> Double {
 	return least
 }
 
-/// The place on a convex loop nearest `point`: the point itself where the loop
-/// covers it, and the nearest place on its edge otherwise
 func nearest(_ loop: [Pt], to point: Pt) -> Pt {
 	guard !covers(loop, point) else { return point }
 
@@ -663,10 +555,6 @@ func nearest(_ loop: [Pt], to point: Pt) -> Pt {
 	return best
 }
 
-/// Where two figures come nearest one another: the spot a violation is marked
-/// at, and the spot a click on it scrolls to. Read off by stepping from the
-/// middle of one to the other and back again, which lands on the contact
-/// itself rather than halfway along a trace that only touches at its end.
 func meeting(_ a: Figure, _ b: Figure) -> Pt {
 	let near = nearest(a.core, to: b.bounds.center)
 	let far = nearest(b.core, to: near)
@@ -674,7 +562,6 @@ func meeting(_ a: Figure, _ b: Figure) -> Pt {
 	return Pt(x: (back.x + far.x) / 2, y: (back.y + far.y) / 2)
 }
 
-/// How far apart two lines of finite length are, zero where they cross
 private func gap(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Double {
 	guard !crosses(a, b) else { return 0.0 }
 	return min(
@@ -683,8 +570,6 @@ private func gap(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Double {
 	)
 }
 
-/// Whether two lines of finite length step clean over one another. Ends that
-/// merely touch are left to the distance between them, which is nothing.
 private func crosses(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Bool {
 	func straddles(_ from: Pt, _ to: Pt, _ first: Pt, _ second: Pt) -> Bool {
 		let here = cross(from, to, first)
@@ -694,10 +579,6 @@ private func crosses(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Bool {
 	return straddles(a.0, a.1, b.0, b.1) && straddles(b.0, b.1, a.0, a.1)
 }
 
-/// Whether a convex loop covers `point`, its edge counting as covered. A loop
-/// with no inside to speak of — fewer than three points, or three and more that
-/// enclose nothing between them — covers nothing, and the gap to its edges
-/// answers for it.
 private func covers(_ loop: [Pt], _ point: Pt) -> Bool {
 	guard loop.count >= 3 else { return false }
 
@@ -710,9 +591,6 @@ private func covers(_ loop: [Pt], _ point: Pt) -> Bool {
 	return enclosed
 }
 
-/// The sides a gap is measured against. A loop of one point is a side of no
-/// length and a loop of two a single side, drawn once rather than there and
-/// back again.
 private func edges(_ loop: [Pt]) -> [(Pt, Pt)] {
 	switch loop.count {
 	case 0: []
@@ -722,8 +600,6 @@ private func edges(_ loop: [Pt]) -> [(Pt, Pt)] {
 	}
 }
 
-/// The place on the line from `start` to `end` nearest `point`, on the nearest
-/// whole nanometer
 private func nearest(from start: Pt, to end: Pt, near point: Pt) -> Pt {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
@@ -738,29 +614,12 @@ private func nearest(from start: Pt, to end: Pt, near point: Pt) -> Pt {
 	)
 }
 
-// MARK: punching a face
-
-/// What is left of a face once the drills reaching into it are punched through
-/// it. A hole is drilled after the copper is laid, so no copper stands over
-/// one: a pad is cut back to the rim of its own barrel, and so is a trace
-/// running onto it or a ring overlapping the hole beside it.
-///
-/// A drill is taken out one edge at a time. What falls beyond an edge is
-/// outside the drill and comes away as a piece of the face in its own right;
-/// what falls behind every edge of it is inside the drill and is what the drill
-/// takes away. Both cuts are made along a straight line, so a convex face comes
-/// back in convex pieces and the next drill is punched through those in turn —
-/// which is what makes the cutting exact however many holes reach into one
-/// face, and however they overlap it and each other.
 func punched(_ loop: [Pt], by drills: [[Pt]]) -> [[Pt]] {
 	drills.reduce([loop]) { pieces, drill in
 		pieces.flatMap { piece in punched(piece, by: drill) }
 	}
 }
 
-/// Whether a convex loop holds another whole, which is what tells a drill the
-/// face closes round — one the fab leaves as a hole through it — from a drill
-/// that cuts into its edge and takes a piece of it away
 func holds(_ outline: [Pt], _ loop: [Pt]) -> Bool {
 	guard outline.count >= 3 else { return false }
 	return loop.allSatisfy { point in
@@ -773,20 +632,12 @@ func holds(_ outline: [Pt], _ loop: [Pt]) -> Bool {
 private func punched(_ loop: [Pt], by drill: [Pt]) -> [[Pt]] {
 	guard drill.count >= 3, loop.count >= 3 else { return [loop] }
 
-	// A cut is made along the line an edge of the drill lies on, and a line
-	// runs on for ever. So the face is cut down to the square the drill stands
-	// in first: copper out there is nowhere near the hole and comes away whole,
-	// rather than in as many slivers as the drill has edges.
 	let (away, near) = cut(loop, to: reach(of: drill).corners)
 	guard near.count >= 3 else { return [loop] }
 
 	return away + cut(near, to: drill).outside
 }
 
-/// Cuts a loop to a convex one, edge by edge: the pieces of it lying outside,
-/// and what is left of it inside. Every cut runs along a straight line, so each
-/// piece is as convex as the loop it was cut from and the two sides of a cut
-/// meet along it exactly.
 private func cut(_ loop: [Pt], to convex: [Pt]) -> (outside: [[Pt]], inside: [Pt]) {
 	var outside: [[Pt]] = []
 	var inside = loop
@@ -797,13 +648,11 @@ private func cut(_ loop: [Pt], to convex: [Pt]) -> (outside: [[Pt]], inside: [Pt
 		if beyond.count >= 3 { outside.append(beyond) }
 
 		inside = clipped(inside, by: from, to, keeping: true)
-		// Nothing of the loop is left for the rest of the edges to cut
 		guard inside.count >= 3 else { return (outside, []) }
 	}
 	return (outside, inside)
 }
 
-/// The square a loop stands in
 private func reach(of loop: [Pt]) -> Rect {
 	var lower = loop[0]
 	var upper = loop[0]
@@ -815,11 +664,6 @@ private func reach(of loop: [Pt]) -> Rect {
 	return Rect(from: lower, to: upper)
 }
 
-/// The part of a loop lying to one side of the line from `a` to `b`, cut where
-/// the loop crosses it: the side the drill keeps its inside on, or the side
-/// beyond it. A corner standing on the line belongs to both sides, so the two
-/// parts a cut leaves meet along it exactly rather than with a gap between
-/// them, and each is wound the way the loop it was cut from is.
 private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [Pt] {
 	var kept: [Pt] = []
 	kept.reserveCapacity(loop.count + 2)
@@ -829,8 +673,6 @@ private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [
 		let (here, there) = (cross(a, b, from), cross(a, b, to))
 
 		if inside ? here >= 0 : here <= 0 { kept.append(from) }
-		// A corner on the line is where the loop crosses it, and is already
-		// kept by both sides; only an edge that steps clean over needs cutting
 		if (here > 0 && there < 0) || (here < 0 && there > 0) {
 			kept.append(meeting(from, to, crossing: a, b))
 		}
@@ -838,9 +680,6 @@ private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [
 	return kept
 }
 
-/// Where the edge from `from` to `to` crosses the line from `a` to `b`, on the
-/// nearest whole nanometer. Only asked of an edge that steps over the line, so
-/// there is always somewhere it crosses.
 private func meeting(_ from: Pt, _ to: Pt, crossing a: Pt, _ b: Pt) -> Pt {
 	let here = Double(cross(a, b, from))
 	let there = Double(cross(a, b, to))
@@ -852,9 +691,6 @@ private func meeting(_ from: Pt, _ to: Pt, crossing a: Pt, _ b: Pt) -> Pt {
 	)
 }
 
-/// Twice the area of the triangle `abc`, positive where `c` lies to the left of
-/// the line from `a` to `b`, which for a loop wound the way the layout draws
-/// one is its inside
 private func cross(_ a: Pt, _ b: Pt, _ c: Pt) -> Int {
 	(b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }

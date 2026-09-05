@@ -1,7 +1,5 @@
 import Foundation
 
-/// A drill program, one tool per distinct diameter. Y is flipped the same way
-/// the Gerbers flip it, so the two sets land on each other without an offset.
 struct Excellon {
 	private let height: Int
 	private let layers: Int

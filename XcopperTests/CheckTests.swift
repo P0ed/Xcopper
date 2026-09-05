@@ -41,8 +41,6 @@ final class CheckTests: XCTestCase {
 		)
 	}
 
-	// MARK: measuring the gap between two figures
-
 	func testTwoCirclesAreMeasuredBetweenTheirRimsRatherThanTheirCentres() {
 		XCTAssertEqual(
 			gap(.round(at(10.0, 10.0), .mm(2.0)), .round(at(20.0, 10.0), .mm(4.0))),
@@ -83,8 +81,6 @@ final class CheckTests: XCTestCase {
 			accuracy: 1.0
 		)
 	}
-
-	// MARK: shorts
 
 	func testCopperOfTwoNetsCrossingIsReportedAsAShortWhereItCrosses() {
 		var design = design()
@@ -140,8 +136,6 @@ final class CheckTests: XCTestCase {
 		XCTAssertEqual(design.check(), [])
 	}
 
-	// MARK: clearance
-
 	func testCopperRunningTooCloseToAnotherNetIsReportedWithTheGapItLeaves() {
 		var design = design()
 		design.board.traces = [
@@ -188,8 +182,6 @@ final class CheckTests: XCTestCase {
 		XCTAssertEqual(violations[0].refs, [.footprint(0), .footprint(1)])
 		XCTAssertEqual(violations[0].text, "GND 0.10 mm from VCC")
 	}
-
-	// MARK: holes and the cut edge
 
 	func testCopperPassingTooNearAHoleIsReported() {
 		var design = design()
@@ -241,8 +233,6 @@ final class CheckTests: XCTestCase {
 		XCTAssertEqual(design.check(), [])
 	}
 
-	// MARK: what the copper does not yet do
-
 	func testANetTheCopperDoesNotJoinIsReportedAsUnrouted() {
 		var design = design()
 		design.board.footprints = [
@@ -277,8 +267,6 @@ final class CheckTests: XCTestCase {
 		XCTAssertEqual(design.faults(), [])
 		XCTAssertEqual(design.check().count, 1)
 	}
-
-	// MARK: the order they are read in
 
 	func testTheWorstIsListedFirstAndTheOrderIsTheSameEveryTime() {
 		var design = design()

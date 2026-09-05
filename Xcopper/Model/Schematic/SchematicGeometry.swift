@@ -54,7 +54,6 @@ extension Schematic {
 		})
 	}
 
-	/// Pin tip or wire endpoint worth snapping a wire to
 	func snapTarget(near point: Pt, radius: Int) -> Pt? {
 		var best: Pt?
 		var bestDistance = radius * radius + 1
@@ -146,8 +145,6 @@ extension Schematic {
 		}
 	}
 
-	/// `used` holds the designators the other half of the document has spoken
-	/// for, so a copy never takes the name of a part that already exists
 	mutating func duplicate(
 		_ refs: Set<Ref>,
 		by delta: Pt,
@@ -185,9 +182,6 @@ extension Schematic {
 
 extension Schematic {
 
-	/// Where `symbol`, built at the origin, can stand clear of everything already
-	/// drawn. Keeping off the wires matters as much as looking tidy: a pin tip
-	/// landing on one would join its net.
 	func parking(for symbol: Symbol) -> Pt {
 		Xcopper.parking(symbol.placedExtent, in: bounds, clear: occupied)
 	}

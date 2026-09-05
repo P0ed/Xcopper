@@ -32,7 +32,6 @@ enum Sheet: String, Identifiable {
 	var id: String { rawValue }
 }
 
-/// A tool the canvas can be in, in either mode
 protocol ToolKind: Hashable, CaseIterable {
 	var actionName: String { get }
 	var systemImage: String { get }

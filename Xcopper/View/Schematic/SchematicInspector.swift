@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Properties of the one symbol, wire or label picked on the sheet. The net a
-/// wire lands in is read back out of the drawing rather than stored, so the
-/// inspector reports it and does not offer to change it: name a net by putting
-/// a label or a power flag on it.
 @MainActor
 struct SchematicInspector: View {
 	@Binding var schematic: Schematic
@@ -56,8 +52,6 @@ struct SymbolInspector: View {
 			property: .reference,
 			focus: $focus
 		)
-		// A flag's value is the name of the net it sits on, which is why it is
-		// the one thing worth typing on one
 		TextRow(
 			title: symbol.kind.isPower ? "Net" : "Value",
 			prompt: symbol.kind.defaultValue,

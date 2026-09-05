@@ -29,7 +29,6 @@ struct SymbolDialog: View {
 		)
 	}
 
-	/// Changing kind carries the value over only when it still means something
 	private var kind: Binding<Symbol.Kind> {
 		Binding(
 			get: { current.kind },
@@ -62,7 +61,6 @@ struct SymbolDialog: View {
 						Stepper("Pins: \(current.pins)", value: binding.pins, in: 2 ... 64)
 					}
 				}
-				// The footprint that goes on the board with it, named before it does
 				HStack {
 					Text("Package")
 						.foregroundStyle(.secondary)

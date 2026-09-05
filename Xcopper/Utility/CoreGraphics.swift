@@ -22,7 +22,6 @@ extension Size {
 }
 
 extension Double {
-	/// Nanometers as millimeters
 	var mm: Double { self / 1_000_000.0 }
 }
 

@@ -30,7 +30,6 @@ struct StandButton: View {
 	var board: Board
 	@Binding var state: PreviewState
 
-	/// Lit while the view has not been turned away from where it put it
 	private var isActive: Bool {
 		abs(state.camera.elevation - stand.elevation) < 0.001
 			&& abs(state.camera.azimuth - stand.azimuth) < 0.001

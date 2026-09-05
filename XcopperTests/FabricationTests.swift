@@ -33,8 +33,6 @@ final class FabricationTests: XCTestCase {
 		)
 	}
 
-	// MARK: Coordinates and apertures
-
 	func testTheOutlineFileIsWrittenWholeWithYCountingUpFromTheBottom() {
 		XCTAssertEqual(
 			file(design(), "Edge_Cuts.gbr"),
@@ -126,8 +124,6 @@ final class FabricationTests: XCTestCase {
 		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%ADD10R,0.800000X1.200000*%"))
 	}
 
-	// MARK: Planes
-
 	func testAPlanePoursTheBoardThenClearsItBackAroundForeignCopper() {
 		var design = design()
 		design.board.setPlane(0, on: 1)
@@ -174,11 +170,8 @@ final class FabricationTests: XCTestCase {
 		design.board.vias = [
 			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
-		// 0.9 mm pad plus 0.33 mm of clearance on each side
 		XCTAssertTrue(file(design, "In1_Cu.gbr").contains("%ADD10C,1.560000*%"))
 	}
-
-	// MARK: Nets
 
 	func testCopperCarriesTheNetItBelongsToAndDropsTheAttributeWhenItEnds() {
 		var design = design()
@@ -200,8 +193,6 @@ final class FabricationTests: XCTestCase {
 		]
 		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%TO.N,A_B_C*%"))
 	}
-
-	// MARK: Mask and paste
 
 	func testTheMaskOpensOverEveryPadGrownByTheMaskExpansion() {
 		var design = design()
@@ -271,8 +262,6 @@ final class FabricationTests: XCTestCase {
 			XCTAssertTrue(file(design, "B_\(face).gbr").contains("D03*"), face)
 		}
 	}
-
-	// MARK: Drilling
 
 	func testPlatedHolesAreGroupedIntoOneToolPerDiameterSmallestFirst() {
 		var design = design()
@@ -349,8 +338,6 @@ final class FabricationTests: XCTestCase {
 			"""
 		)
 	}
-
-	// MARK: The set
 
 	func testTheSetCoversEveryCopperLayerOfTheStack() {
 		XCTAssertEqual(

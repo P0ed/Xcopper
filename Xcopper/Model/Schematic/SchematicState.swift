@@ -111,7 +111,6 @@ extension SchematicState {
 		updateWire(to: point)
 	}
 
-	/// Commits the current segment and keeps drawing from its end
 	mutating func endWire() -> Wire? {
 		guard let session = wireSession, case let .gesture(committable) = session.phase else {
 			return nil

@@ -1,14 +1,7 @@
 import Foundation
 
-/// An RS-274X file under construction.
-///
-/// Board nanometers are exactly the unit of the 4.6 millimeter coordinate
-/// format, so a coordinate goes out as its own integer and nothing rounds on
-/// the way. Y is flipped: Gerber counts up from the bottom left corner, the
-/// board counts down from the top left one.
 struct Gerber {
 
-	/// The shape a flash puts down, or that a draw sweeps along its line
 	enum Aperture: Hashable {
 		case circle(Nm)
 		case rect(Size)
@@ -27,8 +20,6 @@ struct Gerber {
 	private var codes: [Aperture: Int] = [:]
 	private var selected: Int?
 
-	/// Net attribute standing on the objects written next, unset until the
-	/// first one is written
 	private var attached: String??
 	private var lines: [String] = []
 
@@ -41,14 +32,12 @@ struct Gerber {
 
 extension Gerber {
 
-	/// Widths and expansions the fabrication set is drawn with
 	static var outlineWidth: Nm { .mm(0.1) }
 	static var maskExpansion: Nm { .mm(0.05) }
 }
 
 extension Gerber {
 
-	/// The copper, mask opening or paste opening one figure stands for
 	mutating func fill(_ figure: Figure, net: String? = nil) {
 		attach(net)
 		switch figure {
@@ -61,12 +50,10 @@ extension Gerber {
 		}
 	}
 
-	/// A closed outline, for the one file that says where to cut
 	mutating func stroke(_ rect: Rect, width: Nm) {
 		draw(rect.corners + [rect.corners[0]], width: width)
 	}
 
-	/// A filled polygon, for the plane pour no aperture is big enough to flash
 	mutating func region(_ rect: Rect, net: String? = nil) {
 		guard !rect.size.isEmpty else { return }
 		attach(net)
@@ -78,13 +65,10 @@ extension Gerber {
 		lines.append("G37*")
 	}
 
-	/// Everything written from here on adds copper, or clears it back out of
-	/// what a `.dark` pass laid down
 	mutating func polarity(_ polarity: Polarity) {
 		lines.append("%LP\(polarity.rawValue)*%")
 	}
 
-	/// The finished file
 	var text: String {
 		var out = [
 			"G04 Xcopper*",
@@ -107,7 +91,6 @@ extension Gerber {
 
 private extension Gerber {
 
-	/// Lowest D code the standard leaves for apertures
 	static var first: Int { 10 }
 
 	mutating func flash(_ aperture: Aperture, at point: Pt) {
@@ -152,7 +135,6 @@ private extension Gerber {
 		"X\(point.x)Y\(height - point.y)"
 	}
 
-	/// An attribute value may not carry the characters that delimit it
 	static func escaped(_ name: String) -> String {
 		String(name.map { character in "%*,\\".contains(character) ? "_" : character })
 	}

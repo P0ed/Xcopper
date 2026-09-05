@@ -9,11 +9,8 @@ struct Pin: Hashable, Codable {
 enum PinText {
 	static let nameHeight = Int.mm(1.27)
 	static let numberHeight = Int.mm(1.016)
-	/// Between the edge of a body and the first letter of a name written inside
 	static let inset = Int.mm(0.762)
-	/// Between a leg and the text written alongside it
 	static let gap = Int.mm(0.254)
-	/// Nominal advance per character, as a fraction of the height
 	static let advance = 0.62
 
 	static func width(_ text: String, height: Int = nameHeight) -> Int {
@@ -84,7 +81,6 @@ extension Schematic {
 
 extension Pin {
 
-	/// Where the leg meets the body
 	var root: Pt { at + Pt(x: -Int(length), y: 0).rotated(direction) }
 
 	var figure: Figure { .segment(at, root, .mm(0.2)) }

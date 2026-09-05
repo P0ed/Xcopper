@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Properties of the one object picked on the board. A selection of several
-/// has no properties in common, so the inspector only counts it: what the
-/// whole selection can be given at once, a net, is the Nets panel's job.
 @MainActor
 struct LayoutInspector: View {
 	@Binding var design: Design

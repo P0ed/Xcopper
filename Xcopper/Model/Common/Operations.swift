@@ -9,7 +9,6 @@ struct Operations {
 	@Binding var design: Design
 	@Binding var clipboard: Clipboard
 
-	/// Name of the file on disk, the stem the fabrication set is named after
 	var documentName: String
 }
 
@@ -140,8 +139,6 @@ extension Operations {
 		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
 		case .layout:
-			// A nudge the copper cannot take leaves the document alone, the
-			// same way a refused drag does
 			var board = design.board
 			guard let selection = board.move(layout.selection, by: delta, grid: snap) else { return }
 			design.board = board
@@ -151,12 +148,6 @@ extension Operations {
 		}
 	}
 
-	/// How many objects the other half of the document has to show for what is
-	/// picked here: the parts on the board that go with the symbols on the
-	/// sheet, or the symbols that go with the parts. Nothing picked has a
-	/// counterpart when it is a wire, a length of copper, or a power flag,
-	/// which names a net rather than standing for a part, and neither has a
-	/// part whose other half has been deleted.
 	var counterpartCount: Int {
 		switch mode {
 		case .schematic: design.footprints(for: schematic.selection).count
@@ -165,8 +156,6 @@ extension Operations {
 		}
 	}
 
-	/// What showing it is called, which is the half being left rather than the
-	/// one arrived at
 	var counterpartName: String {
 		let several = counterpartCount > 1
 		return switch mode {
@@ -179,8 +168,6 @@ extension Operations {
 		mode == .layout ? "square.on.circle" : "square.grid.3x3.square"
 	}
 
-	/// Turns the document over to its other half, picks what stands there for
-	/// the selection and scrolls it into view
 	func showCounterpart() {
 		switch mode {
 		case .schematic:
@@ -202,10 +189,6 @@ extension Operations {
 		}
 	}
 
-	/// Takes the document to a violation: turns it over to the board, picks up
-	/// the copper at fault and scrolls the spot into the middle of the view.
-	/// What is unrouted has nothing to pick up, so a click on one of those
-	/// only takes the view there.
 	func show(_ violation: Violation) {
 		layout.cancelSessions()
 		layout.selection = violation.refs
@@ -214,10 +197,6 @@ extension Operations {
 		editor.mode = .layout
 	}
 
-	/// Arms the placement tool with a 1206 chip, so the next click on the canvas
-	/// drops one. Which half of the document is showing decides whether that is
-	/// a part on the board or a symbol on the sheet; either way the other half
-	/// gets its counterpart the way the dialogs place one.
 	func place(_ part: Footprint.Part) {
 		switch mode {
 		case .layout:
@@ -360,8 +339,6 @@ extension Operations {
 		design.board.setPlane(net, on: layer)
 	}
 
-	/// Pushes the schematic netlist onto the layout and keeps the result around
-	/// so the sidebar can show what matched and what did not
 	func updateBoard() {
 		editor.report = design.updateBoardFromSchematic()
 	}

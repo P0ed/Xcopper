@@ -4,7 +4,6 @@ import SwiftUI
 struct SchematicToolBar: ToolbarContent {
 	@Binding var state: SchematicState
 	@Binding var sheet: Sheet?
-	/// Off while an inspector field has the keyboard
 	var shortcuts: Bool = true
 	var update: () -> Void
 

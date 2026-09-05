@@ -8,21 +8,6 @@ struct PreviewSideBar: View {
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				Panel(title: "View") {
-					LazyVGrid(columns: [GridItem(.adaptive(minimum: 62.0), spacing: 4.0)], spacing: 4.0) {
-						ForEach(Standpoint.allCases) { stand in
-							Button(stand.name) { state.look(from: stand, at: board) }
-								.buttonStyle(.bordered)
-								.controlSize(.small)
-						}
-					}
-					Button("Fit", systemImage: "arrow.up.left.and.down.right.magnifyingglass") {
-						state.frame(board)
-					}
-					.buttonStyle(.borderless)
-					.padding(.top, 2.0)
-				}
-
 				Panel(title: "Finish") {
 					ChoiceRow(title: "Mask", value: $state.finish.mask) {
 						ForEach(Mask.allCases) { mask in
@@ -64,14 +49,10 @@ struct PreviewSideBar: View {
 	}
 }
 
-/// What one part is and how tall it stands, the two things the flat views
-/// cannot tell you
 @MainActor
 struct PartRow: View {
 	var footprint: Footprint
 
-	/// How tall the part stands, or a dash for one the board only carries the
-	/// pads of, which stands on the panel rather than on the board
 	private var height: String {
 		let package = footprint.package
 		return package.stands ? "\(package.height.label) mm" : "—"

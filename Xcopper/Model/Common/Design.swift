@@ -1,5 +1,3 @@
-/// One document: a net table, the layout that carries it, and the schematic
-/// that defines it.
 struct Design: Equatable, Codable {
 	var nets: [Net]
 	var board: Board
@@ -39,13 +37,11 @@ extension Design {
 		nets.modifyEach { net in if net.id == id { net.name = name } }
 	}
 
-	/// The net called `name`, created if the design does not have one yet
 	mutating func net(named name: String) -> (id: Net.ID, created: Bool) {
 		if let existing = nets.first(where: { $0.name == name }) { return (existing.id, false) }
 		return (addNet(name: name), true)
 	}
 
-	/// First `N$n` free in the net table
 	var nextAnonymousName: String {
 		let used = Set(nets.map(\.name))
 		var index = 1

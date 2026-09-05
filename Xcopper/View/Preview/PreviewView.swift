@@ -230,7 +230,6 @@ struct ScrollWheel: ViewModifier {
 		func listen() {
 			guard monitor == nil else { return }
 			monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [self] event in
-				// A wheel reports whole notches where a trackpad reports pixels
 				let delta = event.hasPreciseScrollingDeltas
 					? event.scrollingDeltaY
 					: event.deltaY * 6.0

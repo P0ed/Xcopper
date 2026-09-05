@@ -1,7 +1,5 @@
 import Foundation
 
-/// What a fab house is sent: one Gerber per layer plus the two drill programs.
-/// No legend — the board carries no silkscreen.
 enum Fabrication {
 
 	struct File: Hashable {
@@ -20,7 +18,6 @@ enum Fabrication {
 		}
 	}
 
-	/// A document name cut down to something safe to build file names from
 	static func stem(_ name: String) -> String {
 		let cleaned = String(name.map { character in
 			character.isLetter || character.isNumber || "-_ ".contains(character)
@@ -34,8 +31,6 @@ enum Fabrication {
 
 extension Design {
 
-	/// The whole set, each file named for `name` and the layer it carries, the
-	/// way every fab portal expects to find it
 	func fabrication(named name: String) -> [Fabrication.File] {
 		let stack = board.stack
 		return stack.copper.map { layer in copper(layer, named: name) }
@@ -55,8 +50,6 @@ private extension Design {
 
 	var height: Int { board.size.height }
 
-	/// Copper, with a plane poured first and cleared back around everything
-	/// carrying another net — the same order the layout draws it in
 	func copper(_ layer: Int, named name: String) -> Fabrication.File {
 		var gerber = Gerber(height: height, function: board.stack.function(of: layer))
 
@@ -77,8 +70,6 @@ private extension Design {
 		return file(gerber, name: name, suffix: board.stack.suffix(of: layer))
 	}
 
-	/// Mask openings, drawn as the holes in the resist rather than the resist.
-	/// Pads open and vias do not, which tents them.
 	func mask(on layer: Int, named name: String) -> Fabrication.File {
 		var gerber = Gerber(
 			height: height,
@@ -91,7 +82,6 @@ private extension Design {
 		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Mask")
 	}
 
-	/// Stencil openings, one per surface mount pad at its bare size
 	func paste(on layer: Int, named name: String) -> Fabrication.File {
 		var gerber = Gerber(
 			height: height,
@@ -103,14 +93,12 @@ private extension Design {
 		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Paste")
 	}
 
-	/// The board outline, the one file that says where to cut
 	func profile(named name: String) -> Fabrication.File {
 		var gerber = Gerber(height: height, function: "Profile,NP")
 		gerber.stroke(board.bounds, width: Gerber.outlineWidth)
 		return file(gerber, name: name, suffix: "Edge_Cuts")
 	}
 
-	/// Vias and through pads are plated, mounting holes are not
 	func drills(plated: Bool, named name: String) -> Fabrication.File {
 		var program = Excellon(height: height, layers: board.stack.count, plated: plated)
 
@@ -141,7 +129,6 @@ private extension Design {
 
 extension Stack {
 
-	/// Gerber file name suffix for a copper layer
 	func suffix(of layer: Int) -> String {
 		switch layer {
 		case top: "F_Cu"
@@ -150,7 +137,6 @@ extension Stack {
 		}
 	}
 
-	/// X2 file function for a copper layer, numbered from the top
 	func function(of layer: Int) -> String {
 		let side = switch layer {
 		case top: "Top"
@@ -160,8 +146,6 @@ extension Stack {
 		return "Copper,L\(layer + 1),\(side)"
 	}
 
-	/// The outside a non copper layer belongs to. Everything but copper exists
-	/// on one of the two faces, so anything not on top is bottom.
 	func side(of layer: Int) -> String { layer == top ? "F" : "B" }
 
 	func sideName(of layer: Int) -> String { layer == top ? "Top" : "Bot" }

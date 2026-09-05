@@ -71,8 +71,6 @@ struct FootprintDialog: View {
 						}
 						.pickerStyle(.segmented)
 					}
-					// The symbol that goes on the sheet with it. A library part draws
-					// its own, which the Part picker has already named.
 					HStack {
 						Text("Symbol")
 							.foregroundStyle(.secondary)

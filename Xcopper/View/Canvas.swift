@@ -29,7 +29,6 @@ enum Layout {
 	}
 }
 
-/// Scrolling, zooming host shared by the layout and schematic canvases
 @MainActor
 struct CanvasScroll<Content: View>: View {
 	@Binding var viewport: Viewport
@@ -54,17 +53,12 @@ struct CanvasScroll<Content: View>: View {
 		.scrollPosition($viewport.scrollPosition)
 		.gesture(magnificationController)
 		.background { background }
-		// A canvas already on screen when it is asked to look somewhere has
-		// only to go there; one appearing with the request already made goes
-		// as soon as it has measured itself, below
 		.onChange(of: viewport.pending) { _, _ in viewport.revealPending(in: size) }
 	}
 
 	private var background: some View {
 		GeometryReader { geo in
 			Color(nsColor: .underPageBackgroundColor)
-				// `initial` matters: the second mode's canvas appears at a size that
-				// never changes afterwards, so it would otherwise never fit itself
 				.onChange(of: geo.size, initial: true) { _, new in
 					guard new.width != 0.0, new.height != 0.0 else { return }
 

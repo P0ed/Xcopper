@@ -1,9 +1,6 @@
 import AppKit
 import RealityKit
 
-/// The board as RealityKit holds it: one entity carrying the whole model, a
-/// camera to look at it from, and the light that rides on that camera, so that
-/// whichever side of the board is turned towards you is the side that is lit.
 @MainActor
 final class PreviewScene {
 	let root = Entity()
@@ -13,17 +10,12 @@ final class PreviewScene {
 	private var standing: (board: Board, finish: Finish)?
 	private var moving: Bool?
 	private var fieldOfView: Double?
-	/// What each surface of the board standing there is painted in, in the order
-	/// the mesh carries them, so that a change of finish can repaint it
 	private var shades: [Shade] = []
 
 	init() {
 		root.addChild(stage)
 		root.addChild(eye)
 
-		// A key light over the viewer's shoulder and two weaker ones filling in
-		// from the other side, so that nothing turned away from the key goes to
-		// black. All three hang off the camera and turn with it.
 		for (travel, intensity) in PreviewScene.lighting {
 			let light = DirectionalLight()
 			light.light.intensity = intensity
@@ -32,21 +24,12 @@ final class PreviewScene {
 		}
 	}
 
-	/// Which way each light shines, in the camera's own axes, and how brightly
 	private static let lighting: [(SIMD3<Float>, Float)] = [
 		(SIMD3(0.35, -0.45, -1.0), 2_600.0),
 		(SIMD3(-0.6, 0.3, -1.0), 900.0),
 		(SIMD3(0.1, 0.9, 0.4), 600.0),
 	]
 
-	/// Builds the board, unless it is already the one standing there. Every turn
-	/// of the view comes back through here, and cutting the same board into
-	/// triangles again would be the whole of the work for none of it.
-	///
-	/// A mask or a plating picked in the sidebar changes what the board is
-	/// painted in and not one corner of what it is made of, so it hands the
-	/// triangles already cut a new set of materials and leaves them where they
-	/// stand.
 	func show(_ board: Board, finish: Finish) {
 		guard standing?.board != board || standing?.finish != finish else { return }
 		let rebuilding = standing?.board != board || standing?.finish.shape != finish.shape
@@ -58,14 +41,11 @@ final class PreviewScene {
 			}
 			return
 		}
-		// A surface with nothing in it is nothing to draw, and dropping it here
-		// is what keeps a shade lined up with the material painting it
 		let drawn = board.model(finish.shape).surfaces.filter { $0.corners.count >= 3 }
 		shades = drawn.map(\.shade)
 		stage.model = component(of: drawn, finish: finish)
 	}
 
-	/// Stands the eye where the camera says, looking the way it is turned
 	func aim(_ camera: Camera) {
 		eye.transform = Transform(matrix: camera.pose)
 		guard fieldOfView != camera.fov else { return }
@@ -78,15 +58,12 @@ final class PreviewScene {
 		)
 	}
 
-	/// Whether the RealityView's render targets need switching between the
-	/// cheaper moving frame and the fully antialiased still one
 	func rendering(changedToMoving moving: Bool, force: Bool = false) -> Bool {
 		guard force || self.moving != moving else { return false }
 		self.moving = moving
 		return true
 	}
 
-	/// The surfaces as one mesh, each with the material its shade asks for
 	private func component(of drawn: [Surface], finish: Finish) -> ModelComponent? {
 		guard !drawn.isEmpty else { return nil }
 
@@ -105,9 +82,6 @@ final class PreviewScene {
 		)
 	}
 
-	/// The corners of each triangle, in the order the scene wants them. Board
-	/// space is the mirror of scene space, so a face wound towards the eye on
-	/// the board is wound away from it here until its corners are turned round.
 	private static func winding(of surface: Surface) -> [UInt32] {
 		var indices: [UInt32] = []
 		indices.reserveCapacity(surface.corners.count)
@@ -125,8 +99,6 @@ final class PreviewScene {
 			blue: color.b,
 			alpha: 1.0
 		))
-		// Mask, laminate and moulding are all matt enough to read as themselves
-		// under a light that moves with the eye; nothing on a board is a mirror
 		material.roughness = 0.45
 		material.metallic = 0.0
 		if color.a < 1.0 {

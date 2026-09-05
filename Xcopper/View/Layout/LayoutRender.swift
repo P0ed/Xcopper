@@ -2,13 +2,6 @@ import SwiftUI
 
 extension LayoutView {
 
-	/// The board as the drag in progress would leave it, and the selection as
-	/// it lands on that board. Drawing this rather than the stored board is
-	/// what puts a move on the canvas as it happens: the copper it stretches,
-	/// the corners it breaks, the segments it fuses, the planes it clears
-	/// again and the ratsnest it satisfies all follow the pointer — and a drag
-	/// the copper cannot take leaves the board where it is, so the selection
-	/// visibly stops rather than bending square.
 	private var drawn: (board: Board, selection: Set<Ref>) {
 		guard let session = state.moveSession, session.didMove else {
 			return (board, state.selection)
@@ -147,7 +140,6 @@ extension LayoutView {
 		}
 	}
 
-	/// What the netlist asks for and copper does not yet deliver
 	private func renderRatsnest(
 		_ board: Board,
 		in context: GraphicsContext,
@@ -166,10 +158,6 @@ extension LayoutView {
 		}
 	}
 
-	/// What the checker finds wrong with the copper, ringed where it stands.
-	/// Worked out from the board the drag would leave, so a fault appears and
-	/// clears as the copper that causes it follows the pointer. What is
-	/// unrouted is left to the ratsnest, which draws it already.
 	private func renderViolations(
 		_ board: Board,
 		in context: GraphicsContext,
@@ -200,8 +188,6 @@ extension LayoutView {
 		}
 		context.fill(path, with: .color(Palette.drill))
 
-		// A hole is a hole because it is dark, so a picked one lights up round
-		// its rim rather than filling in
 		var picked = Path()
 		for case let .hole(index) in selection where board.holes.indices.contains(index) {
 			let hole = board.holes[index]

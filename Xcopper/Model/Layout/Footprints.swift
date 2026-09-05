@@ -245,7 +245,6 @@ extension Footprint {
 		)
 	}
 
-	/// Sound Semiconductor PSSL10: 3.9 mm body, 1.00 mm lead pitch.
 	static func ssop10() -> Footprint {
 		let pitch = Int.mm(1.0)
 		let span = Int.mm(5.2)
@@ -305,7 +304,6 @@ extension Footprint {
 		)
 	}
 
-	/// Nexperia SOT457 / SC-74 / TSOP6 land pattern.
 	static func sot457() -> Footprint {
 		let size = Size(width: .mm(0.9), height: .mm(0.55))
 		let span = Int.mm(2.6)
