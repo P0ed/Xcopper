@@ -12,9 +12,6 @@ extension Design {
 		}
 	}
 
-	/// Pushes the schematic's netlist onto the layout, matching footprints by
-	/// reference designator and pads by pin number. Additive: a pad the
-	/// schematic says nothing about keeps whatever net it already had.
 	mutating func updateBoardFromSchematic() -> Report {
 		let netlist = Netlist(schematic)
 		var report = Report()
@@ -66,8 +63,6 @@ extension Design {
 
 extension Symbol.Spec {
 
-	/// The package a part drawn like this goes in. A power or ground flag names
-	/// a net rather than standing for a part, so it has none.
 	var footprint: Footprint.Spec? {
 		if let component { return Footprint.Spec(component: component) }
 
@@ -75,8 +70,6 @@ extension Symbol.Spec {
 		case .capacitor: Footprint.Spec(kind: .chip, part: .capacitor)
 		case .resistor, .inductor, .diode: Footprint.Spec(kind: .chip)
 		case .transistor: Footprint.Spec(kind: .sot23)
-		// SOIC rounds an odd pin count down, which would leave the last pin with
-		// nowhere to land, so the package is asked for one pad more instead
 		case .ic: Footprint.Spec(kind: .soic, pins: pins + pins % 2)
 		case .power, .ground: nil
 		}
@@ -85,7 +78,6 @@ extension Symbol.Spec {
 
 extension Footprint.Part {
 
-	/// How a chip is drawn on the sheet
 	var symbol: Symbol.Kind {
 		switch self {
 		case .resistor: .resistor
@@ -96,7 +88,6 @@ extension Footprint.Part {
 
 extension Footprint.Spec {
 
-	/// The symbol that stands for a part in this package
 	var symbol: Symbol.Spec {
 		if let component { return Symbol.Spec(kind: component.symbolKind, component: component) }
 
@@ -111,8 +102,6 @@ extension Footprint.Spec {
 
 extension Design {
 
-	/// A designator free on both halves of the document, so a symbol and the
-	/// footprint that goes with it can share one
 	func nextReference(like reference: String) -> String {
 		Xcopper.nextReference(
 			like: reference,
@@ -121,10 +110,6 @@ extension Design {
 		)
 	}
 
-	/// Draws a symbol on the sheet and stands the footprint that goes with it on
-	/// the board, parked where it covers nothing already drawn. Nothing links the
-	/// two but the designator they share, which is all `updateBoardFromSchematic`
-	/// needs to pair them again.
 	@discardableResult
 	mutating func place(_ spec: Symbol.Spec, at point: Pt) -> Schematic.Ref {
 		let reference = nextReference(like: spec.referencePrefix)
@@ -139,8 +124,6 @@ extension Design {
 		return .symbol(schematic.symbols.count - 1)
 	}
 
-	/// Stands a footprint on the board and draws the symbol that goes with it on
-	/// the sheet, the other way about
 	@discardableResult
 	mutating func place(_ spec: Footprint.Spec, at point: Pt) -> Ref {
 		let reference = nextReference(like: spec.referencePrefix)
@@ -156,9 +139,6 @@ extension Design {
 
 extension Design {
 
-	/// The parts on the board that stand for the symbols picked on the sheet.
-	/// Nothing links the two halves but the designator they share, so they are
-	/// paired by name here the way `updateBoardFromSchematic` pairs them.
 	func footprints(for selection: Set<Schematic.Ref>) -> Set<Ref> {
 		let references = Set(selection.compactMap { ref -> String? in
 			guard case let .symbol(index) = ref, schematic.symbols.indices.contains(index)
@@ -174,8 +154,6 @@ extension Design {
 		)
 	}
 
-	/// The symbols on the sheet that stand for the parts picked on the board,
-	/// the other way about
 	func symbols(for selection: Set<Ref>) -> Set<Schematic.Ref> {
 		let references = Set(selection.compactMap { ref -> String? in
 			guard case let .footprint(index) = ref, board.footprints.indices.contains(index)

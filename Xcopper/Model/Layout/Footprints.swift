@@ -28,9 +28,6 @@ extension Footprint {
 		var hasChip: Bool { self == .chip }
 	}
 
-	/// What a two-terminal chip stands for. Both land on the same pair of pads,
-	/// so nothing but the symbol drawn on the sheet and the designator it takes
-	/// tells a resistor from a capacitor.
 	enum Part: String, Codable, CaseIterable, Identifiable {
 		case resistor, capacitor
 
@@ -57,7 +54,6 @@ extension Footprint {
 		var id: String { rawValue }
 		var name: String { String(rawValue.dropFirst()) }
 
-		/// Pad size and center offset from the origin
 		var metrics: (pad: Size, offset: Int, body: Size) {
 			switch self {
 			case .c0402: (Size(width: .mm(0.6), height: .mm(0.6)), .mm(0.5), Size(width: .mm(1.0), height: .mm(0.5)))
@@ -83,7 +79,6 @@ extension Footprint {
 			return kind.hasChip ? part.prefix : kind.prefix
 		}
 
-		/// What the sidebar and the symbol dialog call this package
 		var summary: String {
 			if let component { return component.packageName }
 
@@ -99,9 +94,6 @@ extension Footprint {
 
 extension Footprint {
 
-	/// What the designator says a part is. A chip is the same land pattern
-	/// whichever it holds, so once it stands on the board the letter it was
-	/// placed under is all that tells a capacitor from a resistor.
 	var part: Part? {
 		let prefix = String(reference.prefix { !$0.isNumber })
 		return Part.allCases.first { $0.prefix == prefix }
@@ -347,9 +339,6 @@ extension Footprint {
 		)
 	}
 
-	/// Pomona 1581 panel jack adapted for PCB mounting. The auxiliary pad
-	/// overlaps the 10 mm annulus and shares its pin number, making one
-	/// continuous copper connection with a 1 mm wire hole.
 	static func pomona1581() -> Footprint {
 		make(
 			pads: [
@@ -376,7 +365,6 @@ extension Footprint {
 		)
 	}
 
-	/// NKK MN12SS1G03 / MN15SS1G03 straight-PC terminal pattern.
 	static func nkkMNPC() -> Footprint {
 		let pitch = Int.mm(4.7)
 		return make(

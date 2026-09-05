@@ -183,8 +183,8 @@ extension SchematicView {
 		for symbol in schematic.symbols where !symbol.kind.isPower {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
 
-			// Only an IC is built wide enough to write its names between its legs
 			let inside = symbol.kind == .ic
+			let numbered = symbol.kind.showsPinNumbers
 
 			for pin in symbol.placedPins {
 				let quarter = pin.direction.isQuarter
@@ -192,16 +192,18 @@ extension SchematicView {
 				let root = pin.root.cg(scale, origin: origin)
 				let middle = CGPoint(x: (tip.x + root.x) / 2.0, y: (tip.y + root.y) / 2.0)
 
-				drawAlongLeg(
-					Text(pin.number)
-						.font(.system(size: numberSize))
-						.foregroundStyle(Palette.pin),
-					at: middle,
-					offset: CGPoint(x: 0.0, y: -gap),
-					anchor: .bottom,
-					quarter: quarter,
-					in: context
-				)
+				if numbered {
+					drawAlongLeg(
+						Text(pin.number)
+							.font(.system(size: numberSize))
+							.foregroundStyle(Palette.pin),
+						at: middle,
+						offset: CGPoint(x: 0.0, y: -gap),
+						anchor: .bottom,
+						quarter: quarter,
+						in: context
+					)
+				}
 				guard pin.isNamed else { continue }
 
 				let name = Text(pin.name)

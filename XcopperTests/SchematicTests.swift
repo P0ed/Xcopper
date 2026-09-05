@@ -150,6 +150,20 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(Symbol.transistor().pins.filter(\.isNamed).map(\.name), ["B", "E", "C"])
 	}
 
+	func testAChipTakesItsNetsFromAPassiveThatWritesNoPinNumbers() {
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		design.place(Symbol.Spec(kind: .capacitor), at: .zero)
+		design.place(Symbol.Spec(kind: .resistor), at: Pt(x: .mm(20), y: 0))
+
+		let from = design.schematic.symbols[0].placedPins[1].at
+		let to = design.schematic.symbols[1].placedPins[0].at
+		design.schematic.wires = [Wire(start: from, end: to)]
+
+		let report = design.updateBoardFromSchematic()
+		XCTAssertEqual(report.assigned, 2)
+		XCTAssertTrue(report.missingPins.isEmpty)
+	}
+
 	func testPinNamesWidenTheICTheyAreWrittenInsideAndNumbersDoNot() {
 		// Nothing is written inside a plainly numbered IC, so it keeps its size
 		XCTAssertEqual(Symbol.ic(pins: 8).body.size.width, .mm(12.7))

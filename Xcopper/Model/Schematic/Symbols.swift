@@ -34,7 +34,13 @@ extension Symbol {
 
 		var hasPins: Bool { self == .ic }
 
-		/// Power and ground flags name the net they touch instead of carrying a value
+		var showsPinNumbers: Bool {
+			switch self {
+			case .capacitor, .resistor: false
+			default: true
+			}
+		}
+
 		var isPower: Bool { self == .power || self == .ground }
 
 		var defaultValue: String {

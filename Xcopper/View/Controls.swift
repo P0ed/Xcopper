@@ -26,9 +26,6 @@ struct ToolButton<T: ToolKind>: View {
 	}
 }
 
-/// Turns the document over to its other half, where the part picked here also
-/// stands. Nothing but the shared designator pairs the two, so the button is
-/// there only while the selection has a counterpart to show.
 @MainActor
 struct CounterpartButton: View {
 	var operations: Operations
@@ -161,23 +158,14 @@ struct GridPicker: View {
 	}
 }
 
-/// Which inspector field has the keyboard. Plain key shortcuts stand down
-/// while one of them does, so a letter typed into a value cannot pick a tool
-/// and a backspace cannot delete the very object being described.
 enum Property: Hashable {
 	case reference, value, text, x, y, width, drill, pad, diameter, clearance
 }
 
-/// Room for the longest caption any panel puts in front of a control. Rows
-/// built by hand rather than out of `PropertyRow` measure their own caption
-/// against it, so a panel of one kind still lines up with a panel of another.
-let captionWidth = 52.0
+extension CGFloat {
+	static var captionWidth: CGFloat { 52.0 }
+}
 
-/// One line of a panel: a caption of a fixed width, then the control with the
-/// rest of the sidebar to itself. Every row is built this way, so the controls
-/// of one panel start on the same line as those of the panel above, and the
-/// ones that can stretch — the fields — run out to the sidebar's own edge
-/// however wide it is drawn.
 @MainActor
 struct PropertyRow<Content: View>: View {
 	var title: String
@@ -187,7 +175,7 @@ struct PropertyRow<Content: View>: View {
 		HStack(spacing: 6.0) {
 			Text(title)
 				.foregroundStyle(.secondary)
-				.frame(width: captionWidth, alignment: .leading)
+				.frame(width: .captionWidth, alignment: .leading)
 			content()
 				.frame(maxWidth: .infinity, alignment: .leading)
 		}
@@ -239,8 +227,6 @@ struct LengthRow: View {
 		}
 	}
 
-	/// Inside the field rather than after it, so a length is as wide as every
-	/// other control on the panel and the column of values stays straight
 	private var unit: some View {
 		Text("mm")
 			.font(.caption)
@@ -250,14 +236,11 @@ struct LengthRow: View {
 	}
 }
 
-/// Where a one point object sits, the only geometry it has
 @MainActor
 struct PositionRows: View {
 	@Binding var at: Pt
 	@FocusState.Binding var focus: Property?
 
-	/// Objects are allowed off the edge of the board, so a coordinate may be
-	/// negative
 	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
 
 	private var x: Binding<Nm> {
