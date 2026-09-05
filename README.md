@@ -263,9 +263,11 @@ One JSON document holding `nets`, `board` and `schematic`.
 - - When imported displayed in schematic as IC block with pins picked up from IO labels.
 - - Can't import a module with higher layer count than a board supports.
 - - Imported layout is not editable, only movable.
+- - Modules can import other modules.
+- - Modules must be in the same folder.
 - BOM:
 - - Include in BOM toggle for component.
 - - BOM export.
 - - Pick and place export.
-- Tool to check component value against part number and availability on `jlcpcb.com/parts`.
 - API.
+- Tool to check component value against part number and availability on `jlcpcb.com/parts`.
