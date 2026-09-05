@@ -99,15 +99,21 @@ extension LayoutState {
 	}
 
 	mutating func prevLayer(_ stack: Stack) {
-		layer = (layer + stack.count - 1) % stack.count
+		step(stack, by: -1)
 	}
 
 	mutating func nextLayer(_ stack: Stack) {
-		layer = (layer + 1) % stack.count
+		step(stack, by: 1)
 	}
 
 	mutating func clampLayer(_ stack: Stack) {
-		layer = min(layer, stack.bottom)
+		layer = stack.isSignal(layer) ? layer : stack.bottom
+	}
+
+	private mutating func step(_ stack: Stack, by offset: Int) {
+		let signals = stack.signals
+		let index = signals.firstIndex(of: layer) ?? 0
+		layer = signals[(index + offset + signals.count) % signals.count]
 	}
 }
 

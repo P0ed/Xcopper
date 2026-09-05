@@ -59,11 +59,21 @@ extension Board {
 		return result
 	}
 
-	func ratsnest() -> [Rat] {
+	func ratsnest(planes: [Net.ID?] = []) -> [Rat] {
 		let terminals = terminals
 		guard terminals.count > 1 else { return [] }
 
-		var merge = Merge(count: terminals.count + traces.count)
+		var merge = Merge(count: terminals.count + traces.count + planes.count)
+
+		for (layer, plane) in planes.enumerated() {
+			guard let plane else { continue }
+			let node = terminals.count + traces.count + layer
+
+			for (index, terminal) in terminals.enumerated()
+			where terminal.net == plane && terminal.layers.contains(layer) {
+				merge.union(node, index)
+			}
+		}
 
 		for index in terminals.indices {
 			for other in terminals.indices where other > index {

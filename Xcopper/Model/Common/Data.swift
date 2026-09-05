@@ -187,18 +187,46 @@ enum Rotation: Int, Codable, CaseIterable {
 }
 
 enum Stack: Int, Codable, CaseIterable {
-	case two = 2, four = 4, six = 6
+	case classic = 2, digital = 4, analog = 6
 
 	var count: Int { rawValue }
 	var top: Int { 0 }
 	var bottom: Int { rawValue - 1 }
 	var copper: Range<Int> { 0 ..< rawValue }
 	var internals: Range<Int> { 1 ..< rawValue - 1 }
+	var signals: [Int] { [top, bottom] }
 
 	func isInternal(_ layer: Int) -> Bool { internals.contains(layer) }
+	func isSignal(_ layer: Int) -> Bool { layer == top || layer == bottom }
 	func contains(_ layer: Int) -> Bool { copper.contains(layer) }
 
-	var name: String { "\(rawValue) layers" }
+	var name: String {
+		switch self {
+		case .classic: "Classic"
+		case .digital: "Digital"
+		case .analog: "Analog"
+		}
+	}
+
+	var roles: [String] {
+		switch self {
+		case .classic: ["SIG", "SIG"]
+		case .digital: ["SIG", "GND", "VCC", "SIG"]
+		case .analog: ["SIG", "GND", "VCC", "VEE", "GND", "SIG"]
+		}
+	}
+
+	var summary: String { roles.joined(separator: " · ") }
+
+	func plane(of layer: Int) -> String? {
+		isInternal(layer) ? roles[layer] : nil
+	}
+
+	var planeNames: [String] { internals.map { layer in roles[layer] } }
+
+	func signal(matching layer: Int, in old: Stack) -> Int {
+		layer == old.top ? top : bottom
+	}
 
 	func name(of layer: Int) -> String {
 		switch layer {

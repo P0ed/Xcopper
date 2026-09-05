@@ -20,6 +20,21 @@ extension Design {
 		id.flatMap { id in nets.first { $0.id == id } }
 	}
 
+	func plane(_ layer: Int) -> Net.ID? {
+		board.stack.plane(of: layer).flatMap { name in nets.first { $0.name == name }?.id }
+	}
+
+	var planes: [Net.ID?] { board.stack.copper.map { layer in plane(layer) } }
+
+	func isPlaneNet(_ id: Net.ID) -> Bool {
+		net(id).map { net in board.stack.planeNames.contains(net.name) } ?? false
+	}
+
+	mutating func restack(_ stack: Stack) {
+		board.restack(stack)
+		for name in stack.planeNames { _ = net(named: name) }
+	}
+
 	var nextNetID: Net.ID { (nets.map(\.id).max() ?? -1) + 1 }
 
 	mutating func addNet(name: String) -> Net.ID {
@@ -29,6 +44,7 @@ extension Design {
 	}
 
 	mutating func removeNet(_ id: Net.ID) {
+		guard !isPlaneNet(id) else { return }
 		nets.removeAll { $0.id == id }
 		board.clearNet(id)
 	}

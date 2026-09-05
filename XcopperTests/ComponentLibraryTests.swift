@@ -93,7 +93,7 @@ final class ComponentLibraryTests: XCTestCase {
 	}
 
 	func testPomonaCompoundPadSyncsAndFormsOneCopperIsland() {
-		var design = Design(board: Board(size: Size(width: .mm(30), height: .mm(30)), stack: .two))
+		var design = Design(board: Board(size: Size(width: .mm(30), height: .mm(30)), stack: .classic))
 		design.schematic.symbols = [
 			Symbol(spec: .init(component: .pomona1581), reference: "J1", at: .zero),
 		]

@@ -25,9 +25,6 @@ struct Document: FileDocument {
 
 		guard !design.board.size.isEmpty else { throw Err("Board has no size") }
 		guard !design.schematic.size.isEmpty else { throw Err("Sheet has no size") }
-		guard design.board.planes.count == design.board.stack.count else {
-			throw Err("Corrupted layer stack")
-		}
 		return design
 	}
 

@@ -188,7 +188,7 @@ private extension Design {
 	}
 
 	func unrouted() -> [Violation] {
-		board.ratsnest().map { rat in
+		board.ratsnest(planes: planes).map { rat in
 			Violation(
 				kind: .unrouted,
 				at: Pt(x: (rat.from.x + rat.to.x) / 2, y: (rat.from.y + rat.to.y) / 2),

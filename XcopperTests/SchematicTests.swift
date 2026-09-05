@@ -145,7 +145,7 @@ final class SchematicTests: XCTestCase {
 	}
 
 	func testAChipTakesItsNetsFromAPassiveThatWritesNoPinNumbers() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
 		design.place(Symbol.Spec(kind: .capacitor), at: .zero)
 		design.place(Symbol.Spec(kind: .resistor), at: Pt(x: .mm(20), y: 0))
 
@@ -451,7 +451,7 @@ final class SchematicTests: XCTestCase {
 	}
 
 	private func wiredDesign() -> Design {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
 		design.schematic.symbols = [
 			Symbol(spec: .init(kind: .resistor), reference: "R1", at: .zero),
 			Symbol(spec: .init(kind: .ic, pins: 8), reference: "U1", at: Pt(x: .mm(40), y: 0)),
@@ -535,7 +535,7 @@ final class SchematicTests: XCTestCase {
 	}
 
 	func testRatsnestIgnoresPadsWithNoNetAndViaBridgedCopper() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
 		design.board.footprints = [
 			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
 		]
@@ -557,10 +557,40 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(design.board.ratsnest(), [])
 	}
 
+	func testAPlaneJoinsWhatIsDrilledThroughIt() {
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .digital))
+		design.board.footprints = [
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Pt(x: .mm(10), y: .mm(10))),
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J2", at: Pt(x: .mm(30), y: .mm(30))),
+		]
+		design.board.footprints.modifyEach { footprint in
+			footprint.pads.modifyEach { pad in pad.net = 0 }
+		}
+		XCTAssertEqual(design.board.ratsnest().count, 3)
+		XCTAssertEqual(design.board.ratsnest(planes: design.planes), [])
+
+		design.board.footprints.modifyEach { footprint in
+			footprint.pads.modifyEach { pad in pad.net = 2 }
+		}
+		XCTAssertEqual(design.board.ratsnest(planes: design.planes).count, 3, "VEE is no plane here")
+	}
+
+	func testAPlaneLeavesCopperItDoesNotReachAlone() {
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .digital))
+		design.board.footprints = [
+			modifying(
+				Footprint(spec: .init(kind: .chip), reference: "R1", at: Pt(x: .mm(10), y: .mm(10)))
+			) { footprint in footprint.pads.modifyEach { pad in pad.net = 0 } },
+			modifying(
+				Footprint(spec: .init(kind: .chip), reference: "R2", at: Pt(x: .mm(30), y: .mm(30)))
+			) { footprint in footprint.pads.modifyEach { pad in pad.net = 0 } },
+		]
+		XCTAssertEqual(design.board.ratsnest(planes: design.planes).count, 3)
+	}
+
 	func testDesignRoundTripsThroughJSON() throws {
 		var design = wiredDesign()
 		_ = design.updateBoardFromSchematic()
-		design.board.planes = [nil, nil]
 
 		let data = try JSONEncoder().encode(design)
 		XCTAssertEqual(try JSONDecoder().decode(Design.self, from: data), design)
@@ -614,7 +644,7 @@ final class SchematicTests: XCTestCase {
 
 	@MainActor
 	func testPinTextRendersAtEveryRotationOnceTheSheetIsZoomedIn() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .two))
+		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
 		for (index, rotation) in Rotation.allCases.enumerated() {
 			design.schematic.symbols.append(modifying(
 				Symbol(

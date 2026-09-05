@@ -11,7 +11,6 @@ private enum BoardUnit: CaseIterable, Identifiable {
 struct BoardDialog: View {
 	var size: Size
 	var stack: Stack
-	var loss: (Stack) -> Int
 	var confirm: (Size, Stack) -> Void
 
 	@State var width: String = ""
@@ -27,8 +26,6 @@ struct BoardDialog: View {
 		guard let w, let h else { return false }
 		return w > 0 && h > 0 && w <= .mm(500) && h <= .mm(500)
 	}
-
-	private var dropped: Int { chosen == stack ? 0 : loss(chosen) }
 
 	var body: some View {
 		Dialog(
@@ -58,18 +55,17 @@ struct BoardDialog: View {
 						.multilineTextAlignment(.trailing)
 					Text(unit.label)
 				}
-				Picker("Layers", selection: Binding(get: { chosen }, set: { selected = $0 })) {
+				Picker("Stackup", selection: Binding(get: { chosen }, set: { selected = $0 })) {
 					ForEach(Stack.allCases, id: \.self) { stack in
-						Text("\(stack.rawValue)").tag(stack)
+						Text(stack.name).tag(stack)
 					}
 				}
 				.pickerStyle(.segmented)
+				.labelsHidden()
 
-				if dropped > 0 {
-					Text("Discards \(dropped) object\(dropped == 1 ? "" : "s")")
-						.font(.caption)
-						.foregroundStyle(.orange)
-				}
+				Text(chosen.summary)
+					.font(.caption)
+					.foregroundStyle(.secondary)
 			}
 			.frame(width: 240.0)
 		}

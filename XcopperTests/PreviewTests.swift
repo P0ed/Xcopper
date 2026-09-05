@@ -5,7 +5,7 @@ import XCTest
 
 final class PreviewTests: XCTestCase {
 
-	private func board(_ stack: Stack = .two) -> Board {
+	private func board(_ stack: Stack = .classic) -> Board {
 		Board(size: Size(width: .mm(40), height: .mm(30)), stack: stack)
 	}
 
@@ -130,7 +130,7 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testAnInnerLayerHasNothingToShow() {
-		var board = board(.four)
+		var board = board(.digital)
 		board.traces.append(Trace(start: .zero, end: Pt(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
 
 		let model = board.model(Finish().shape)

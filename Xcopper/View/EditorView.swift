@@ -102,11 +102,7 @@ struct EditorView: View {
 	private func dialog(_ sheet: Sheet) -> some View {
 		switch sheet {
 		case .board:
-			BoardDialog(
-				size: design.board.size,
-				stack: design.board.stack,
-				loss: design.board.restackLoss
-			) { size, stack in
+			BoardDialog(size: design.board.size, stack: design.board.stack) { size, stack in
 				operations.resize(size: size, stack: stack)
 			}
 		case .footprint:

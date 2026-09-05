@@ -149,7 +149,7 @@ struct LayerChoice: View {
 
 	var body: some View {
 		ChoiceRow(title: title, value: $layer) {
-			ForEach(Array(stack.copper), id: \.self) { layer in
+			ForEach(stack.signals, id: \.self) { layer in
 				Text(stack.name(of: layer)).tag(layer)
 			}
 		}

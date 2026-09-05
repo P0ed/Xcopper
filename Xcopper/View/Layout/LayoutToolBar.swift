@@ -9,8 +9,13 @@ struct LayoutToolBar: ToolbarContent {
 
 	var body: some ToolbarContent {
 		ToolbarItemGroup {
-			ForEach(Array(stack.copper), id: \.self) { layer in
-				LayerButton(layer: layer, stack: stack, state: $state, shortcuts: shortcuts)
+			ForEach(Array(stack.signals.enumerated()), id: \.element) { index, layer in
+				LayerButton(
+					layer: layer,
+					stack: stack,
+					state: $state,
+					shortcut: shortcuts ? Character("\(index + 1)") : nil
+				)
 			}
 		}
 		ToolbarItemGroup { Spacer() }
@@ -36,14 +41,14 @@ struct LayerButton: View {
 	var stack: Stack
 	@Binding
 	var state: LayoutState
-	var shortcuts: Bool = true
+	var shortcut: Character?
 
 	private var isActive: Bool { state.layer == layer }
 
 	var body: some View {
 		Button(stack.name(of: layer), systemImage: image) { state.layer = layer }
 		.foregroundStyle(isActive ? Palette.color(of: layer, in: stack) : .primary)
-		.modifier(Shortcut(shortcut: shortcuts ? Character("\(layer + 1)") : nil, modifiers: []))
+		.modifier(Shortcut(shortcut: shortcut, modifiers: []))
 	}
 
 	private var image: String {

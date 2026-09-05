@@ -320,7 +320,7 @@ extension Operations {
 	func resize(size: Size, stack: Stack) {
 		design.board.resize(size: size)
 		if stack != design.board.stack {
-			design.board.restack(stack)
+			design.restack(stack)
 			layout.clampLayer(design.board.stack)
 		}
 		layout.resetTransientInteractions()
@@ -333,10 +333,6 @@ extension Operations {
 	func removeNet(_ id: Net.ID) {
 		design.removeNet(id)
 		if layout.net == id { layout.net = nil }
-	}
-
-	func setPlane(_ net: Net.ID?, on layer: Int) {
-		design.board.setPlane(net, on: layer)
 	}
 
 	func updateBoard() {

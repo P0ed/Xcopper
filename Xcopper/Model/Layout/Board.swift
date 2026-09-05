@@ -77,8 +77,8 @@ struct Rules: Hashable, Codable {
 
 	static var `default`: Rules {
 		Rules(
-			clearance: .mm(0.33),
-			traceWidth: .mm(0.47),
+			clearance: .mm(0.3),
+			traceWidth: .mm(0.4),
 			viaDrill: .mm(0.5),
 			viaPad: .mm(0.9)
 		)
@@ -88,7 +88,6 @@ struct Rules: Hashable, Codable {
 struct Board: Equatable, Codable {
 	var size: Size
 	var stack: Stack
-	var planes: [Net.ID?]
 	var traces: [Trace]
 	var vias: [Via]
 	var holes: [Hole]
@@ -98,10 +97,9 @@ struct Board: Equatable, Codable {
 
 extension Board {
 
-	init(size: Size = .init(width: .inches(4), height: .inches(6)), stack: Stack = .six) {
+	init(size: Size = .init(width: .inches(4), height: .inches(6)), stack: Stack = .analog) {
 		self.size = size
 		self.stack = stack
-		planes = .init(repeating: nil, count: stack.count)
 		traces = []
 		vias = []
 		holes = []
@@ -110,10 +108,6 @@ extension Board {
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
-
-	func plane(_ layer: Int) -> Net.ID? {
-		planes.indices.contains(layer) ? planes[layer] : nil
-	}
 }
 
 extension Footprint {
@@ -157,34 +151,21 @@ extension Board {
 	mutating func restack(_ stack: Stack) {
 		let old = self.stack
 		self.stack = stack
-		planes = (0 ..< stack.count).map { layer in
-			old.contains(layer) && stack.isInternal(layer) ? planes[layer] : nil
-		}
-		traces.removeAll { !stack.contains($0.layer) }
+		traces.removeAll { !old.isSignal($0.layer) }
+		traces.modifyEach { trace in trace.layer = stack.signal(matching: trace.layer, in: old) }
 		vias.modifyEach { via in
-			via.from = min(via.from, stack.bottom)
-			via.to = min(via.to, stack.bottom)
+			via.from = stack.signal(matching: via.from, in: old)
+			via.to = stack.signal(matching: via.to, in: old)
 		}
 		vias.removeAll { $0.from == $0.to }
 	}
 
-	func restackLoss(_ stack: Stack) -> Int {
-		traces.count { !stack.contains($0.layer) }
-			+ vias.count { min($0.from, stack.bottom) == min($0.to, stack.bottom) }
-	}
-
 	mutating func clearNet(_ id: Net.ID) {
-		planes.modifyEach { plane in if plane == id { plane = nil } }
 		traces.modifyEach { trace in if trace.net == id { trace.net = nil } }
 		vias.modifyEach { via in if via.net == id { via.net = nil } }
 		footprints.modifyEach { footprint in
 			footprint.pads.modifyEach { pad in if pad.net == id { pad.net = nil } }
 		}
-	}
-
-	mutating func setPlane(_ net: Net.ID?, on layer: Int) {
-		guard stack.isInternal(layer), planes.indices.contains(layer) else { return }
-		planes[layer] = net
 	}
 }
 

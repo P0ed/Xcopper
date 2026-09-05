@@ -3,7 +3,7 @@ import XCTest
 
 final class FabricationTests: XCTestCase {
 
-	private func design(_ stack: Stack = .four) -> Design {
+	private func design(_ stack: Stack = .digital) -> Design {
 		Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack))
 	}
 
@@ -126,7 +126,6 @@ final class FabricationTests: XCTestCase {
 
 	func testAPlanePoursTheBoardThenClearsItBackAroundForeignCopper() {
 		var design = design()
-		design.board.setPlane(0, on: 1)
 		design.board.vias = [
 			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
@@ -138,7 +137,6 @@ final class FabricationTests: XCTestCase {
 
 	func testThePlaneRegionStopsOneClearanceShortOfTheBoardEdge() {
 		var design = design()
-		design.board.setPlane(0, on: 1)
 		let inset = Int(design.board.rules.clearance)
 		let text = file(design, "In1_Cu.gbr")
 
@@ -149,8 +147,7 @@ final class FabricationTests: XCTestCase {
 	func testCopperOnThePlanesOwnNetIsNotClearedAwayFromIt() {
 		func knockouts(net: Net.ID?) -> Int {
 			var design = design()
-			design.board.setPlane(0, on: 1)
-			design.board.vias = [
+				design.board.vias = [
 				Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: net),
 			]
 			let all = lines(file(design, "In1_Cu.gbr"))
@@ -166,7 +163,6 @@ final class FabricationTests: XCTestCase {
 
 	func testKnockoutsAreGrownByTheClearanceRule() {
 		var design = design()
-		design.board.setPlane(0, on: 1)
 		design.board.vias = [
 			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
@@ -341,7 +337,7 @@ final class FabricationTests: XCTestCase {
 
 	func testTheSetCoversEveryCopperLayerOfTheStack() {
 		XCTAssertEqual(
-			design(.two).fabrication(named: "Board").map(\.name),
+			design(.classic).fabrication(named: "Board").map(\.name),
 			[
 				"Board-F_Cu.gbr", "Board-B_Cu.gbr",
 				"Board-F_Mask.gbr", "Board-B_Mask.gbr",
@@ -351,7 +347,7 @@ final class FabricationTests: XCTestCase {
 			]
 		)
 		XCTAssertEqual(
-			design(.six).fabrication(named: "Board").map(\.name).prefix(6),
+			design(.analog).fabrication(named: "Board").map(\.name).prefix(6),
 			[
 				"Board-F_Cu.gbr", "Board-In1_Cu.gbr", "Board-In2_Cu.gbr",
 				"Board-In3_Cu.gbr", "Board-In4_Cu.gbr", "Board-B_Cu.gbr",
@@ -360,7 +356,7 @@ final class FabricationTests: XCTestCase {
 	}
 
 	func testEveryCopperFileNamesItsPlaceInTheStack() {
-		let functions = design(.four).fabrication(named: "Board")
+		let functions = design(.digital).fabrication(named: "Board")
 			.filter { $0.name.hasSuffix("_Cu.gbr") }
 			.compactMap { file in
 				lines(file.text).first { $0.hasPrefix("%TF.FileFunction") }
@@ -377,7 +373,7 @@ final class FabricationTests: XCTestCase {
 	}
 
 	func testEveryFileOpensWithTheFormatItIsWrittenIn() {
-		for file in design(.six).fabrication(named: "Board") where file.name.hasSuffix(".gbr") {
+		for file in design(.analog).fabrication(named: "Board") where file.name.hasSuffix(".gbr") {
 			XCTAssertTrue(file.text.contains("%FSLAX46Y46*%"), file.name)
 			XCTAssertTrue(file.text.contains("%MOMM*%"), file.name)
 			XCTAssertTrue(file.text.hasSuffix("M02*\n"), file.name)
@@ -395,7 +391,7 @@ final class FabricationTests: XCTestCase {
 			.appending(path: "Xcopper-\(UUID().uuidString)")
 		defer { try? FileManager.default.removeItem(at: directory) }
 
-		let files = design(.two).fabrication(named: "Board")
+		let files = design(.classic).fabrication(named: "Board")
 		try Fabrication.write(files, to: directory)
 
 		for file in files {

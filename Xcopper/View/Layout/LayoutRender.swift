@@ -93,7 +93,7 @@ extension LayoutView {
 		let color = Palette.color(of: layer, in: board.stack)
 		let opacity = dimmed ? 0.38 : 1.0
 
-		if let plane = board.plane(layer) {
+		if let plane = design.plane(layer) {
 			renderPlane(
 				layer,
 				of: board,
@@ -146,7 +146,7 @@ extension LayoutView {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		for rat in board.ratsnest() {
+		for rat in board.ratsnest(planes: design.planes) {
 			var path = Path()
 			path.move(to: rat.from.cg(scale, origin: origin))
 			path.addLine(to: rat.to.cg(scale, origin: origin))

@@ -32,7 +32,9 @@ struct LayoutSideBar: View {
 							color: Palette.color(of: net.id),
 							selected: state.net == net.id,
 							select: { state.net = net.id },
-							remove: { operations.removeNet(net.id) }
+							remove: design.isPlaneNet(net.id)
+								? nil
+								: { operations.removeNet(net.id) }
 						)
 					}
 					HStack {
@@ -51,9 +53,7 @@ struct LayoutSideBar: View {
 							PlaneRow(
 								layer: layer,
 								stack: stack,
-								nets: design.nets,
-								plane: design.board.plane(layer),
-								select: { net in operations.setPlane(net, on: layer) }
+								name: design.net(design.plane(layer))?.name ?? "None"
 							)
 						}
 					}
@@ -174,22 +174,18 @@ extension Violation.Kind {
 struct PlaneRow: View {
 	var layer: Int
 	var stack: Stack
-	var nets: [Net]
-	var plane: Net.ID?
-	var select: (Net.ID?) -> Void
+	var name: String
 
 	var body: some View {
 		HStack(spacing: 6.0) {
 			Text(stack.name(of: layer))
 				.foregroundStyle(Palette.color(of: layer, in: stack))
 				.frame(width: .captionWidth, alignment: .leading)
-			Picker("", selection: Binding(get: { plane }, set: { net in select(net) })) {
-				Text("None").tag(Net.ID?.none)
-				ForEach(nets) { net in
-					Text(net.name).tag(Net.ID?.some(net.id))
-				}
-			}
-			.labelsHidden()
+			Text(name)
+			Spacer(minLength: 0.0)
 		}
+		.font(.caption)
+		.padding(.horizontal, 6.0)
+		.padding(.vertical, 3.0)
 	}
 }

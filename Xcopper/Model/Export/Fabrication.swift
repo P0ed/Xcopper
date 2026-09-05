@@ -53,7 +53,7 @@ private extension Design {
 	func copper(_ layer: Int, named name: String) -> Fabrication.File {
 		var gerber = Gerber(height: height, function: board.stack.function(of: layer))
 
-		if let plane = board.plane(layer) {
+		if let plane = plane(layer) {
 			gerber.region(
 				board.bounds.outset(-Int(board.rules.clearance)),
 				net: net(plane)?.name

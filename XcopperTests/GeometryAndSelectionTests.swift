@@ -4,7 +4,7 @@ import XCTest
 
 final class GeometryAndSelectionTests: XCTestCase {
 
-	private func board(_ stack: Stack = .four) -> Board {
+	private func board(_ stack: Stack = .digital) -> Board {
 		Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack)
 	}
 
@@ -31,13 +31,48 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(EditorState().mode, .schematic)
 	}
 
-	func testNewDesignDefaultsToFourBySixInchesAndSixLayers() {
+	func testNewDesignDefaultsToFourBySixInchesAndTheAnalogStackup() {
 		let design = Design()
 		XCTAssertEqual(design.board.size, Size(width: .inches(4), height: .inches(6)))
-		XCTAssertEqual(design.board.stack, .six)
-		XCTAssertEqual(design.board.planes, Array(repeating: nil, count: 6))
+		XCTAssertEqual(design.board.stack, .analog)
 		XCTAssertEqual(design.nets.map(\.name), ["GND", "VCC", "VEE"])
 		XCTAssertEqual(design.net(2)?.name, "VEE")
+	}
+
+	func testEveryStackupSignalsOnItsOuterLayersAndPlanesOnTheRest() {
+		XCTAssertEqual(Stack.classic.roles, ["SIG", "SIG"])
+		XCTAssertEqual(Stack.digital.roles, ["SIG", "GND", "VCC", "SIG"])
+		XCTAssertEqual(Stack.analog.roles, ["SIG", "GND", "VCC", "VEE", "GND", "SIG"])
+
+		for stack in Stack.allCases {
+			XCTAssertEqual(stack.signals, [stack.top, stack.bottom])
+			XCTAssertNil(stack.plane(of: stack.top))
+			XCTAssertNil(stack.plane(of: stack.bottom))
+			for layer in stack.internals { XCTAssertNotNil(stack.plane(of: layer)) }
+		}
+	}
+
+	func testPlanesAreTheStackupsNetsAndCannotBeRemoved() {
+		var design = Design(board: board(.analog))
+		XCTAssertEqual(design.planes, [nil, 0, 1, 2, 0, nil])
+
+		design.removeNet(0)
+		XCTAssertEqual(design.net(0)?.name, "GND")
+
+		design.restack(.classic)
+		XCTAssertEqual(design.planes, [nil, nil])
+
+		design.removeNet(0)
+		XCTAssertNil(design.net(0))
+	}
+
+	func testRestackingAStripedBoardBringsItsPlaneNets() {
+		var design = Design(board: board(.classic))
+		design.nets = []
+		design.restack(.digital)
+
+		XCTAssertEqual(design.nets.map(\.name), ["GND", "VCC"])
+		XCTAssertEqual(design.planes, [nil, 0, 1, nil])
 	}
 
 	func testSnap45PicksNearestOctantAndProjectsOntoIt() {
@@ -299,7 +334,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Pt(x: .mm(10.8), y: .mm(20)),
 			Pt(x: .mm(9.2), y: .mm(20)),
 		])
-		XCTAssertEqual(footprint.layer(of: footprint.placedPads[0], in: .four), Stack.four.bottom)
+		XCTAssertEqual(footprint.layer(of: footprint.placedPads[0], in: .digital), Stack.digital.bottom)
 	}
 
 	func testThroughHolePadsStayOnBothSidesWhenFlipped() {
@@ -367,49 +402,48 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testPlaneKnockoutsIgnoreLayersTheViaDoesNotSpan() {
-		var board = board(.six)
+		var board = board(.analog)
 		board.vias = [Via(at: Pt(x: .mm(5), y: .mm(5)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: 1)]
 
 		XCTAssertEqual(board.clearances(on: 1, net: 0).count, 1)
 		XCTAssertEqual(board.clearances(on: 2, net: 0).count, 0)
 	}
 
-	func testRestackDropsUnreachableTracesAndCollapsedViasAndKeepsPlanes() {
-		var board = board(.six)
-		board.planes[1] = 0
-		board.planes[4] = 1
+	func testRestackCarriesSignalCopperOntoTheNewOuterLayers() {
+		var board = board(.classic)
 		board.traces = [
 			Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: nil),
-			Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 4, net: nil),
+			Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 1, net: nil),
 		]
-		board.vias = [
-			Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: nil),
-			Via(at: Pt(x: .mm(1), y: 0), drill: .mm(0.3), pad: .mm(0.6), from: 4, to: 5, net: nil),
-		]
+		board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: nil)]
 
-		XCTAssertEqual(board.restackLoss(.two), 2)
-		board.restack(.two)
+		board.restack(.analog)
 
-		XCTAssertEqual(board.stack, .two)
-		XCTAssertEqual(board.planes, [nil, nil])
-		XCTAssertEqual(board.traces.map(\.layer), [0])
-		XCTAssertEqual(board.vias.count, 1)
-		XCTAssertEqual(board.vias[0].span, 0 ... 1)
+		XCTAssertEqual(board.stack, .analog)
+		XCTAssertEqual(board.traces.map(\.layer), [0, 5])
+		XCTAssertEqual(board.vias[0].span, 0 ... 5)
+
+		board.restack(.digital)
+
+		XCTAssertEqual(board.traces.map(\.layer), [0, 3])
+		XCTAssertEqual(board.vias[0].span, 0 ... 3)
 	}
 
-	func testSetPlaneOnlyAppliesToInternalLayers() {
-		var board = board()
-		board.setPlane(0, on: 0)
-		board.setPlane(0, on: 3)
-		board.setPlane(0, on: 1)
+	func testRestackDropsCopperBuriedUnderTheNewPlanes() {
+		var board = board(.analog)
+		board.traces = [
+			Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: nil),
+			Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 3, net: nil),
+		]
 
-		XCTAssertEqual(board.planes, [nil, 0, nil, nil])
+		board.restack(.classic)
+
+		XCTAssertEqual(board.traces.map(\.layer), [0])
 	}
 
 	func testRemovingANetClearsEveryReferenceToIt() {
 		var design = Design(board: board())
 		let net = design.addNet(name: "SIG")
-		design.board.setPlane(net, on: 1)
 		design.board.traces = [Trace(start: .zero, end: Pt(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: net)]
 		design.board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: net)]
 		design.board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: .zero)]
@@ -418,7 +452,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		design.removeNet(net)
 
 		XCTAssertNil(design.net(net))
-		XCTAssertEqual(design.board.planes, [nil, nil, nil, nil])
 		XCTAssertNil(design.board.traces[0].net)
 		XCTAssertNil(design.board.vias[0].net)
 		XCTAssertTrue(design.board.footprints[0].pads.allSatisfy { $0.net == nil })
@@ -776,28 +809,29 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNil(state.traceSession)
 	}
 
-	func testLayerCyclingWrapsAroundTheStack() {
+	func testLayerCyclingVisitsTheSignalLayersOnly() {
 		var state = LayoutState()
-		state.nextLayer(.four)
-		state.nextLayer(.four)
-		XCTAssertEqual(state.layer, 2)
-		state.prevLayer(.four)
-		XCTAssertEqual(state.layer, 1)
-		state.layer = 0
-		state.prevLayer(.four)
-		XCTAssertEqual(state.layer, 3)
+		state.nextLayer(.analog)
+		XCTAssertEqual(state.layer, 5)
+		state.nextLayer(.analog)
+		XCTAssertEqual(state.layer, 0)
+		state.prevLayer(.analog)
+		XCTAssertEqual(state.layer, 5)
 
-		state.clampLayer(.two)
+		state.clampLayer(.classic)
 		XCTAssertEqual(state.layer, 1)
+
+		state.layer = 2
+		state.clampLayer(.digital)
+		XCTAssertEqual(state.layer, 3)
 	}
 
 	@MainActor
 	func testCanvasRendersAPopulatedBoardWithoutFailing() throws {
-		var board = board(.six)
-		board.planes[2] = 0
+		var board = board(.analog)
 		board.traces = [
 			Trace(start: Pt(x: .mm(2), y: .mm(2)), end: Pt(x: .mm(20), y: .mm(20)), width: .mm(0.25), layer: 0, net: 0),
-			Trace(start: Pt(x: .mm(2), y: .mm(30)), end: Pt(x: .mm(30), y: .mm(30)), width: .mm(0.4), layer: 2, net: 1),
+			Trace(start: Pt(x: .mm(2), y: .mm(30)), end: Pt(x: .mm(30), y: .mm(30)), width: .mm(0.4), layer: 5, net: 1),
 		]
 		board.vias = [
 			Via(at: Pt(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: 0),
@@ -892,9 +926,8 @@ final class GeometryAndSelectionTests: XCTestCase {
 	}
 
 	func testBoardRoundTripsThroughJSON() throws {
-		var board = board(.six)
-		board.planes[2] = 1
-		board.traces = [Trace(start: .zero, end: Pt(x: .mm(5), y: .mm(5)), width: .mm(0.25), layer: 3, net: 1)]
+		var board = board(.analog)
+		board.traces = [Trace(start: .zero, end: Pt(x: .mm(5), y: .mm(5)), width: .mm(0.25), layer: 5, net: 1)]
 		board.vias = [Via(at: Pt(x: .mm(2), y: .mm(2)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: 1)]
 		board.holes = [Hole(at: Pt(x: .mm(3), y: .mm(3)), diameter: .mm(3.2))]
 		board.footprints = [Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: Pt(x: .mm(20), y: .mm(20)))]

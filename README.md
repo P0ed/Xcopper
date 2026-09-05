@@ -8,7 +8,7 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
 - Design rule check against the clearance, every violation a place to go
 - Inspector in the sidebar with the properties of whatever is selected
-- 2, 4 or 6 copper layers
+- Classic, Digital or Analog stackup, of 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
@@ -51,8 +51,8 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 | `H` | Hole |
 | `F` | Place footprint |
 
-`1`…`6` pick the active copper layer. `⇥` / `⇧⇥` step through layers and `G`
-cycles snap spacing. Grid dots have their own 1.27 mm and 2.54 mm display
+`1` and `2` pick the signal layer to draw on. `⇥` / `⇧⇥` step between them and
+`G` cycles snap spacing. Grid dots have their own 1.27 mm and 2.54 mm display
 spacing setting. `R` rotates a selection clockwise and `⇧R` rotates it
 counterclockwise.
 
@@ -198,10 +198,28 @@ that caused it moves away.
 
 ## Layers
 
-Copper layers are indexed from the top. On a 4 or 6 layer board any internal
-layer can be turned into a plane by picking a net for it in the sidebar: the
-plane fills the board and clears around every pad, via, hole and trace that
-carries a different net.
+A board is drawn on one of three stackups rather than on a bare layer count.
+Classic is two copper layers, Digital four and Analog six, indexed from the top:
+
+| Stackup | Layers |
+| --- | --- |
+| Classic | `SIG` `SIG` |
+| Digital | `SIG` `GND` `VCC` `SIG` |
+| Analog | `SIG` `GND` `VCC` `VEE` `GND` `SIG` |
+
+The outer two are the signal layers, and they are the ones drawn on. Everything
+between them is a plane, and which net it carries is the stackup's to say rather
+than the drawing's: the sidebar reports the pairing but does not offer it for
+editing, and a net a plane stands on cannot be deleted. Choosing a stackup that
+wants one brings the net with it.
+
+A plane fills the board and clears around every pad, via, hole and trace that
+carries a different net. It joins what is drilled through it, so a through-hole
+pad or a via on the plane's net needs no ratsnest line to reach the rest of that
+net, while copper that only ever touches an outer layer still does.
+
+Changing the stackup keeps the drawing: copper on the top stays on the top and
+copper on the bottom follows the bottom to wherever the new stackup puts it.
 
 ## 3D preview
 
@@ -251,12 +269,6 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
-- Stackups:
-- - Simplified model instead of `2/4/6` offer `Classic/Digital/Analog`.
-- - - Classic is 2 layer board.
-- - - Digital is 4 layer with `SIG/GND/VCC/SIG` top to bottom.
-- - - Analog is 6 layer `SIG/GND/VCC/VEE/GND/SIG` top to bottom. 
-- - Internal planes are fixed. Signal planes are user editable.
 - Modularity:
 - - New `.xcm` file with same structure as `.xcb`, defines the IO and layout.
 - - IO marked with net labels (with `#IO.<NAME>` format).

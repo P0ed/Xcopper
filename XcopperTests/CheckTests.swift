@@ -3,7 +3,7 @@ import XCTest
 
 final class CheckTests: XCTestCase {
 
-	private func design(_ stack: Stack = .two) -> Design {
+	private func design(_ stack: Stack = .classic) -> Design {
 		Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack))
 	}
 
@@ -171,7 +171,7 @@ final class CheckTests: XCTestCase {
 	}
 
 	func testTwoThroughPadsAreReportedOnceRatherThanOncePerLayerTheyReach() {
-		var design = design(.six)
+		var design = design(.analog)
 		design.board.footprints = [
 			part("J1", at: at(10.0, 10.0), net: 0),
 			part("J2", at: at(10.0, 11.7), net: 1),
