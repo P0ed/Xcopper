@@ -59,11 +59,16 @@ extension Package {
 
 		switch (through, footprint.pads.count) {
 		case (false, 2):
+			// Both chips land on the same pair of pads, so the designator is
+			// what tells them apart. A capacitor is a fired ceramic block and
+			// stands a good deal taller than the film printed on a resistor.
+			let capacitor = footprint.part == .capacitor
+			let element = min(max(across * 0.42, 0.3), 1.1)
 			self.init(
 				shell: .block,
-				height: .mm(min(max(across * 0.42, 0.3), 1.1)),
+				height: .mm(capacitor ? element * 3.0 : element),
 				inset: .mm(0.05),
-				color: Palette.chip,
+				color: capacitor ? Palette.ceramic : Palette.chip,
 				leads: true
 			)
 		case (false, _):

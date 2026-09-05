@@ -72,12 +72,24 @@ extension Symbol.Spec {
 		if let component { return Footprint.Spec(component: component) }
 
 		return switch kind {
-		case .resistor, .capacitor, .inductor, .diode: Footprint.Spec(kind: .chip)
+		case .capacitor: Footprint.Spec(kind: .chip, part: .capacitor)
+		case .resistor, .inductor, .diode: Footprint.Spec(kind: .chip)
 		case .transistor: Footprint.Spec(kind: .sot23)
 		// SOIC rounds an odd pin count down, which would leave the last pin with
 		// nowhere to land, so the package is asked for one pad more instead
 		case .ic: Footprint.Spec(kind: .soic, pins: pins + pins % 2)
 		case .power, .ground: nil
+		}
+	}
+}
+
+extension Footprint.Part {
+
+	/// How a chip is drawn on the sheet
+	var symbol: Symbol.Kind {
+		switch self {
+		case .resistor: .resistor
+		case .capacitor: .capacitor
 		}
 	}
 }
@@ -89,7 +101,7 @@ extension Footprint.Spec {
 		if let component { return Symbol.Spec(kind: component.symbolKind, component: component) }
 
 		return switch kind {
-		case .chip: Symbol.Spec(kind: .resistor)
+		case .chip: Symbol.Spec(kind: part.symbol)
 		case .sot23: Symbol.Spec(kind: .transistor)
 		case .soic, .dip: Symbol.Spec(kind: .ic, pins: pins)
 		case .header: Symbol.Spec(kind: .ic, pins: pins * rows)

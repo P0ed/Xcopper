@@ -250,6 +250,22 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(design.schematic.symbols[0].pins.count, 8)
 	}
 
+	func testACapacitorChipIsDrawnAndDesignatedAsOneRatherThanAsAResistor() {
+		var design = Design()
+		design.place(Footprint.Spec(kind: .chip, chip: .c1206, part: .capacitor), at: .zero)
+		design.place(Footprint.Spec(kind: .chip, chip: .c1206), at: Pt(x: .mm(10), y: 0))
+
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["C1", "R1"])
+		XCTAssertEqual(design.schematic.symbols.map(\.kind), [.capacitor, .resistor])
+	}
+
+	func testACapacitorAskedForFromTheSheetComesBackToAChipOfItsOwnKind() {
+		let package = Symbol.Spec(kind: .capacitor).footprint
+		XCTAssertEqual(package, Footprint.Spec(kind: .chip, chip: .c1206, part: .capacitor))
+		XCTAssertEqual(package?.symbol.kind, .capacitor)
+		XCTAssertEqual(package?.referencePrefix, "C")
+	}
+
 	func testAPowerFlagStandsOnTheSheetAlone() {
 		var design = Design()
 		design.place(Symbol.Spec(kind: .ground), at: .zero)

@@ -584,6 +584,17 @@ final class PreviewTests: XCTestCase {
 		XCTAssertGreaterThan(soic.package.height, chip.package.height)
 	}
 
+	func testACapacitorChipStandsThreeTimesAResistorAndIsMadeOfSomethingElse() {
+		let resistor = Footprint(spec: .init(kind: .chip, chip: .c1206), reference: "R1", at: .zero)
+		let capacitor = Footprint(spec: .init(kind: .chip, chip: .c1206, part: .capacitor), reference: "C1", at: .zero)
+
+		XCTAssertEqual(capacitor.package.height, resistor.package.height * 3)
+		XCTAssertEqual(capacitor.package.color, Palette.ceramic)
+		XCTAssertEqual(resistor.package.color, Palette.chip)
+		XCTAssertEqual(capacitor.package.shell, resistor.package.shell, "both are the same block")
+		XCTAssertTrue(capacitor.package.leads, "a chip is held up on its terminations either way")
+	}
+
 	func testASurfaceMountLegIsThinnerThanTheLandItIsSolderedTo() throws {
 		let soic = Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: .zero)
 		let pad = try XCTUnwrap(soic.placedPads.first)

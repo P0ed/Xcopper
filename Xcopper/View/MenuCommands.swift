@@ -12,6 +12,8 @@ extension Operations? {
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
 	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }
 	var schematicDisabled: Bool { actionsDisabled || self?.mode != .schematic }
+	/// Nothing is placed on the 3D view, which only looks at the board
+	var placementDisabled: Bool { actionsDisabled || self?.mode == .preview }
 }
 
 @MainActor
@@ -195,10 +197,25 @@ struct MenuCommands: Commands {
 			)
 			Divider()
 			ActionButton(
+				name: "Place resistor",
+				image: "square.grid.3x3.square",
+				shortcut: "R",
+				disabled: op.placementDisabled,
+				action: { op?.place(.resistor) }
+			)
+			ActionButton(
+				name: "Place capacitor",
+				image: "square.grid.3x3.square",
+				shortcut: "C",
+				disabled: op.placementDisabled,
+				action: { op?.place(.capacitor) }
+			)
+			Divider()
+			ActionButton(
 				name: "Rotate left",
 				image: "rotate.left",
 				shortcut: "R",
-				modifiers: .shift,
+				modifiers: [.command, .shift],
 				disabled: op.selectionDisabled,
 				action: { op?.rotate(clockwise: false) }
 			)
@@ -206,6 +223,7 @@ struct MenuCommands: Commands {
 				name: "Rotate right",
 				image: "rotate.right",
 				shortcut: "R",
+				modifiers: .command,
 				disabled: op.selectionDisabled,
 				action: { op?.rotate(clockwise: true) }
 			)

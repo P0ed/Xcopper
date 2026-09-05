@@ -111,8 +111,10 @@ extension Palette {
 	static let solder = RGBA(r: 0.70, g: 0.71, b: 0.73)
 	/// Moulded epoxy, the body of most packages
 	static let moulding = RGBA(r: 0.13, g: 0.13, b: 0.14)
-	/// Ceramic and film chips
+	/// The dark element printed over a chip resistor
 	static let chip = RGBA(r: 0.19, g: 0.17, b: 0.16)
+	/// The fired body of a ceramic chip capacitor
+	static let ceramic = RGBA(r: 0.85, g: 0.60, b: 0.20)
 	/// Natural nylon, what connector shrouds are moulded from
 	static let nylon = RGBA(r: 0.85, g: 0.84, b: 0.79)
 	static let trimmer = RGBA(r: 0.11, g: 0.24, b: 0.58)

@@ -214,6 +214,23 @@ extension Operations {
 		editor.mode = .layout
 	}
 
+	/// Arms the placement tool with a 1206 chip, so the next click on the canvas
+	/// drops one. Which half of the document is showing decides whether that is
+	/// a part on the board or a symbol on the sheet; either way the other half
+	/// gets its counterpart the way the dialogs place one.
+	func place(_ part: Footprint.Part) {
+		switch mode {
+		case .layout:
+			layout.spec = Footprint.Spec(kind: .chip, chip: .c1206, part: part)
+			layout.tool = .footprint
+		case .schematic:
+			schematic.spec = Symbol.Spec(kind: part.symbol)
+			schematic.tool = .symbol
+		case .preview:
+			break
+		}
+	}
+
 	func assignNet(_ net: Net.ID?) {
 		guard mode == .layout else { return }
 		for ref in layout.selection {

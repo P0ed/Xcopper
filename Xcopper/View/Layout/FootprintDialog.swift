@@ -45,6 +45,11 @@ struct FootprintDialog: View {
 						}
 					}
 					if current.kind.hasChip {
+						Picker("Part", selection: binding.part) {
+							ForEach(Footprint.Part.allCases) { part in
+								Text(part.name).tag(part)
+							}
+						}
 						Picker("Size", selection: binding.chip) {
 							ForEach(Footprint.Chip.allCases) { chip in
 								Text(chip.name).tag(chip)

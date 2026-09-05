@@ -28,6 +28,29 @@ extension Footprint {
 		var hasChip: Bool { self == .chip }
 	}
 
+	/// What a two-terminal chip stands for. Both land on the same pair of pads,
+	/// so nothing but the symbol drawn on the sheet and the designator it takes
+	/// tells a resistor from a capacitor.
+	enum Part: String, Codable, CaseIterable, Identifiable {
+		case resistor, capacitor
+
+		var id: String { rawValue }
+
+		var name: String {
+			switch self {
+			case .resistor: "Resistor"
+			case .capacitor: "Capacitor"
+			}
+		}
+
+		var prefix: String {
+			switch self {
+			case .resistor: "R"
+			case .capacitor: "C"
+			}
+		}
+	}
+
 	enum Chip: String, Codable, CaseIterable, Identifiable {
 		case c0402, c0603, c0805, c1206
 
@@ -48,20 +71,24 @@ extension Footprint {
 	struct Spec: Hashable, Codable {
 		var kind: Kind = .chip
 		var chip: Chip = .c1206
+		var part: Part = .resistor
 		var pins: Int = 8
 		var rows: Int = 1
 		var component: Component?
 
 		static var `default`: Spec { Spec() }
 
-		var referencePrefix: String { component?.referencePrefix ?? kind.prefix }
+		var referencePrefix: String {
+			if let component { return component.referencePrefix }
+			return kind.hasChip ? part.prefix : kind.prefix
+		}
 
 		/// What the sidebar and the symbol dialog call this package
 		var summary: String {
 			if let component { return component.packageName }
 
 			return switch kind {
-			case .chip: "Chip \(chip.name)"
+			case .chip: "\(part.name) \(chip.name)"
 			case .sot23: "SOT-23"
 			case .header: "Header \(rows)×\(pins)"
 			default: "\(kind.name)-\(pins)"
@@ -71,6 +98,14 @@ extension Footprint {
 }
 
 extension Footprint {
+
+	/// What the designator says a part is. A chip is the same land pattern
+	/// whichever it holds, so once it stands on the board the letter it was
+	/// placed under is all that tells a capacitor from a resistor.
+	var part: Part? {
+		let prefix = String(reference.prefix { !$0.isNumber })
+		return Part.allCases.first { $0.prefix == prefix }
+	}
 
 	init(spec: Footprint.Spec, reference: String, at: Pt) {
 		if let component = spec.component {
