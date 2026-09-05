@@ -12,6 +12,7 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
+- Reusable `.xcm` modules with schematic IO blocks and locked layout groups
 - Gerber and Excellon export of the whole manufacturing set
 - 3D preview of the finished board with the parts standing on it
 
@@ -265,18 +266,63 @@ everything on another net, then the copper on that layer drawn over the top.
 
 ## File format
 
-One JSON document holding `nets`, `board` and `schematic`.
+One JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
+
+## Modularity
+
+Save a reusable circuit as **Circuit module (`.xcm`)** in the Save dialog. Modules
+open and edit with the same schematic and layout tools as a board (`.xcb`). Mark
+schematic connections with labels such as `#IO.IN`, `#IO.OUT` and `#IO.ENABLE`.
+IO names are case sensitive and must be nonempty. Repeated names must resolve to
+the same internal net. Ordinary net labels and power symbols can connect separate
+parts of an interface net.
+
+Save the parent design and put all module sources in the same folder. Choose
+**File → Import Module…** to add a source. Xcopper validates its dependencies and
+parks an IC block on the schematic and a matching group on the layout. The block
+lists IO pins in lexical order. A module can import other modules, provided each
+source has no more copper layers than its containing design. Circular dependencies
+and paths outside the document folder are rejected.
+
+Wire the block's pins and use **Update board from schematic** (`⌘U`). Connections
+pass through module IO to imported pads, traces, vias and nested modules. Private
+nets and component references belong to their instance hierarchy. Separate
+instances share only connected IO and the `GND`, `VCC` and `VEE` supply nets.
+The parent supplies its stack, internal planes, clearance rules and 3D thickness.
+Source top and bottom copper map to the parent's outer layers, and through holes
+span the parent stack. Module rectangles are placement bounds; fabrication
+exports only the parent's outline.
+
+Click imported copper, a block or its layout rectangle to select the whole
+instance. Move, quarter-turn, duplicate, copy, paste or delete it using the usual
+commands. A duplicate has a new identity and both representations; deleting
+either representation removes both. `⌘J` shows the counterpart. The inspector
+edits the instance reference and each representation's position and rotation.
+Imported internals remain locked, including nested modules; use **Open Module
+Source** to edit them. Flipping and assigning a net to an instance are disabled.
+Moving a layout group keeps its geometry rigid and stretches parent traces
+attached to its pads or vias. If trace repair fails, the whole move is refused.
+Rotating a group leaves external copper in place.
+
+Sources reload when the parent opens or moves. After editing a source, choose
+**File → Reload Modules** in its parent. Placements stay fixed; if the IO list
+changes, pins regenerate and a notice asks you to check the parent wires, which
+retain their coordinates. Missing, malformed, cyclic or incompatible dependencies
+appear as unresolved blocks and layout rectangles. The Modules panel explains
+how to recover. Unresolved geometry is excluded, and fabrication stays blocked
+until every dependency resolves. Stack reductions that would invalidate imports
+are refused. Pasting into another document validates sources in that destination's
+folder before adding any instances.
+
+macOS may ask you to select the containing folder to grant sibling-file access.
+Xcopper retains that grant in its preferences, outside the design. Moving the
+parent to another folder resolves dependencies there and may require a new grant.
+Import, movement, rotation, duplication, deletion, paste and explicit reload are
+undoable. Undo restores the previous resolved snapshot even if sources have since
+changed or disappeared; source files are never modified by parent edits.
 
 ## Roadmap
 
-- Modularity:
-- - New `.xcm` file with same structure as `.xcb`, defines the IO and layout.
-- - IO marked with net labels (with `#IO.<NAME>` format).
-- - When imported displayed in schematic as IC block with pins picked up from IO labels.
-- - Can't import a module with higher layer count than a board supports.
-- - Imported layout is not editable, only movable.
-- - Modules can import other modules.
-- - Modules must be in the same folder.
 - BOM:
 - - Include in BOM toggle for component.
 - - BOM export.

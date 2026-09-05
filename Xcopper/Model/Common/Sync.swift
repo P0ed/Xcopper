@@ -13,6 +13,15 @@ extension Design {
 	}
 
 	mutating func updateBoardFromSchematic() -> Report {
+		if !modules.isEmpty {
+			let projection = moduleProjection(syncNative: true)
+			board.traces = Array(projection.design.board.traces.prefix(board.traces.count))
+			board.vias = Array(projection.design.board.vias.prefix(board.vias.count))
+			board.footprints = Array(projection.design.board.footprints.prefix(board.footprints.count))
+			nets = projection.design.nets
+			return projection.report
+		}
+
 		let netlist = Netlist(schematic)
 		var report = Report()
 		var placed: [String: Int] = [:]
@@ -106,6 +115,7 @@ extension Design {
 			like: reference,
 			used: Set(schematic.symbols.map(\.reference))
 				.union(board.footprints.map(\.reference))
+				.union(modules.map(\.reference))
 		)
 	}
 
@@ -144,13 +154,13 @@ extension Design {
 			else { return nil }
 			return schematic.symbols[index].reference
 		})
-		guard !references.isEmpty else { return [] }
+
 
 		return Set(
 			board.footprints.indices
 				.filter { references.contains(board.footprints[$0].reference) }
 				.map(Ref.footprint)
-		)
+		).union(selection.moduleIDs.map(Ref.module))
 	}
 
 	func symbols(for selection: Set<Ref>) -> Set<Schematic.Ref> {
@@ -159,12 +169,12 @@ extension Design {
 			else { return nil }
 			return board.footprints[index].reference
 		})
-		guard !references.isEmpty else { return [] }
+
 
 		return Set(
 			schematic.symbols.indices
 				.filter { references.contains(schematic.symbols[$0].reference) }
 				.map(Schematic.Ref.symbol)
-		)
+		).union(selection.moduleIDs.map(Schematic.Ref.module))
 	}
 }

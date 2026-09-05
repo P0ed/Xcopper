@@ -58,6 +58,10 @@ struct MenuCommands: Commands {
 			}
 		}
 		CommandGroup(replacing: .importExport) {
+			Button("Import Module…") { op?.importModule() }.disabled(op.actionsDisabled)
+			Button("Reload Modules") { op?.reloadModules() }.disabled(op.actionsDisabled || (op?.design.modules.isEmpty ?? true))
+			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !(op?.hasModuleSelection ?? false))
+			Divider()
 			ActionButton(
 				name: "Export Gerbers…",
 				image: "square.and.arrow.up",
@@ -191,7 +195,7 @@ struct MenuCommands: Commands {
 				image: "link",
 				shortcut: "L",
 				modifiers: .command,
-				disabled: op.layoutDisabled || op.selectionDisabled,
+				disabled: op.layoutDisabled || op.selectionDisabled || (op?.hasModuleSelection ?? false),
 				action: { op.map { op in op.assignNet(op.layout.net) } }
 			)
 			Divider()
@@ -231,7 +235,7 @@ struct MenuCommands: Commands {
 				image: "arrow.left.and.right.righttriangle.left.righttriangle.right",
 				shortcut: "H",
 				modifiers: [.command, .shift],
-				disabled: op.selectionDisabled,
+				disabled: op.selectionDisabled || (op?.hasModuleSelection ?? false),
 				action: { op?.flip() }
 			)
 			ActionButton(

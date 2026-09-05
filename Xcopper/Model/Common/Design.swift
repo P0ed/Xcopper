@@ -2,6 +2,19 @@ struct Design: Equatable, Codable {
 	var nets: [Net]
 	var board: Board
 	var schematic: Schematic
+	var modules: [ModuleInstance] = []
+	// Value snapshots participate in undo, but are never embedded in saved files.
+	var moduleCache = ModuleCache()
+
+	enum CodingKeys: String, CodingKey { case nets, board, schematic, modules }
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		nets = try values.decode([Net].self, forKey: .nets)
+		board = try values.decode(Board.self, forKey: .board)
+		schematic = try values.decode(Schematic.self, forKey: .schematic)
+		modules = try values.decodeIfPresent([ModuleInstance].self, forKey: .modules) ?? []
+	}
 }
 
 extension Design {
@@ -31,6 +44,7 @@ extension Design {
 	}
 
 	mutating func restack(_ stack: Stack) {
+		guard canRestack(stack) else { return }
 		board.restack(stack)
 		for name in stack.planeNames { _ = net(named: name) }
 	}

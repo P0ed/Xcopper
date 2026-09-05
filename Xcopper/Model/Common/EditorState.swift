@@ -1,3 +1,5 @@
+import Foundation
+
 enum Mode: Hashable, CaseIterable {
 	case schematic, layout, preview
 
@@ -43,6 +45,7 @@ struct EditorState: Equatable {
 	var sheet: Sheet?
 	var report: Design.Report?
 	var editing: Bool = false
+	var pastedModuleIDs: Set<UUID> = []
 }
 
 extension EditorState {

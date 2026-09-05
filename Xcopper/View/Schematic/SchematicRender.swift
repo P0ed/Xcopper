@@ -2,17 +2,19 @@ import SwiftUI
 
 extension SchematicView {
 
-	private var drawn: Schematic {
-		guard let session = state.moveSession, session.didMove else { return schematic }
-		return modifying(schematic) { $0.move(state.selection, by: session.delta) }
+	private var drawn: ModuleProjection {
+		var moved = design
+		if let session = state.moveSession, session.didMove { moved.moveSchematic(state.selection, by: session.delta) }
+		return moved.moduleProjection()
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let schematic = drawn
+		let projection = drawn
+		let schematic = projection.design.schematic
 		let netlist = Netlist(schematic)
-		let selection = state.selection
+		let selection = projection.expanded(state.selection)
 		let visible = state.viewport.visibleRect(in: size)
 
 		context.fill(
@@ -181,7 +183,8 @@ extension SchematicView {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
 
 			let inside = symbol.kind == .ic
-			let numbered = symbol.kind.showsPinNumbers
+			let isModule = design.modules.contains { $0.reference == symbol.reference }
+			let numbered = symbol.kind.showsPinNumbers && !isModule
 
 			for pin in symbol.placedPins {
 				let quarter = pin.direction.isQuarter
@@ -201,7 +204,7 @@ extension SchematicView {
 						in: context
 					)
 				}
-				guard pin.isNamed else { continue }
+				guard pin.isNamed || isModule else { continue }
 
 				let name = Text(pin.name)
 					.font(.system(size: nameSize))

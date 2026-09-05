@@ -1,3 +1,5 @@
+import Foundation
+
 struct Pin: Hashable, Codable {
 	var at: Pt
 	var direction: Rotation
@@ -56,12 +58,14 @@ struct Schematic: Equatable, Codable {
 extension Schematic {
 
 	enum Ref: Hashable, Codable {
+		case module(UUID)
 		case symbol(Int)
 		case wire(Int)
 		case label(Int)
 
 		var index: Int {
 			switch self {
+			case .module: Int.max
 			case let .symbol(index), let .wire(index), let .label(index): index
 			}
 		}

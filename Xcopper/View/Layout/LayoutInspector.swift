@@ -21,6 +21,8 @@ struct LayoutInspector: View {
 	@ViewBuilder
 	private func properties(of ref: Ref) -> some View {
 		switch ref {
+		case let .module(id):
+			ModuleInspector(design: $design, id: id, layout: true, focus: $focus)
 		case let .trace(index) where board.traces.indices.contains(index):
 			TraceInspector(
 				trace: $design.board.traces[index, or: board.traces[index]],

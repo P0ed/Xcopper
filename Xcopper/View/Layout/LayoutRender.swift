@@ -2,21 +2,19 @@ import SwiftUI
 
 extension LayoutView {
 
-	private var drawn: (board: Board, selection: Set<Ref>) {
-		guard let session = state.moveSession, session.didMove else {
-			return (board, state.selection)
-		}
-		var moved = board
-		guard let selection = moved.move(state.selection, by: session.delta, grid: state.snap) else {
-			return (board, state.selection)
-		}
-		return (moved, selection)
+	private var drawn: (board: Board, selection: Set<Ref>, modules: [ModuleInstance]) {
+		var moved = design
+		var selection = state.selection
+		if let session = state.moveSession, session.didMove,
+			let next = moved.moveLayout(selection, by: session.delta, grid: state.snap) { selection = next }
+		let projection = moved.moduleProjection()
+		return (projection.design.board, projection.expanded(selection), moved.modules)
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let (board, selection) = drawn
+		let (board, selection, modules) = drawn
 
 		renderSubstrate(board, in: context, scale: scale, origin: origin)
 		renderGrid(
@@ -53,10 +51,21 @@ extension LayoutView {
 		renderSilk(board, selection, in: context, scale: scale, origin: origin)
 		renderRatsnest(board, in: context, scale: scale, origin: origin)
 
+		renderModules(modules, in: context, scale: scale, origin: origin)
 		renderOutline(board, in: context, scale: scale, origin: origin)
 		renderViolations(board, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
+	}
+
+	private func renderModules(_ modules: [ModuleInstance], in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+		for module in modules {
+			let unresolved = design.moduleStatus(module.id) != nil
+			let color: Color = unresolved ? .red : state.selection.contains(.module(module.id)) ? Palette.preview : Palette.silk
+			let rect = module.bounds.cg(scale, origin: origin)
+			context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+			context.draw(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color), at: CGPoint(x: rect.midX, y: rect.minY - 10))
+		}
 	}
 
 	private func renderSubstrate(
@@ -166,7 +175,7 @@ extension LayoutView {
 	) {
 		var rings = Path()
 		var dots = Path()
-		for violation in modifying(design, { design in design.board = board }).faults() {
+		for violation in modifying(Design(board: board), { $0.nets = design.resolved.nets }).faults() {
 			let at = violation.at.cg(scale, origin: origin)
 			rings.addEllipse(in: CGRect(center: at, radius: 6.0))
 			dots.addEllipse(in: CGRect(center: at, radius: 1.25))

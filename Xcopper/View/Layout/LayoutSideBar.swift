@@ -19,6 +19,8 @@ struct LayoutSideBar: View {
 					CounterpartButton(operations: operations)
 				}
 
+				ModulePanel(operations: operations)
+
 				Panel(title: "Nets") {
 					NetRow(
 						name: "None",
@@ -41,7 +43,7 @@ struct LayoutSideBar: View {
 						Button("Add", systemImage: "plus") { editor.sheet = .net }
 						Spacer()
 						Button("Assign", systemImage: "link") { operations.assignNet(state.net) }
-							.disabled(state.selection.isEmpty)
+							.disabled(state.selection.isEmpty || operations.hasModuleSelection)
 					}
 					.buttonStyle(.borderless)
 					.padding(.top, 2.0)
