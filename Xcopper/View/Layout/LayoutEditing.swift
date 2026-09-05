@@ -13,7 +13,7 @@ extension LayoutView {
 
 	func snapped(_ point: Pt, layer: Int) -> (Pt, Net.ID?) {
 		if !modifierFlags.contains(.control),
-			let target = board.snapTarget(near: point, layer: layer, radius: snapRadius) {
+			let target = design.resolved.board.snapTarget(near: point, layer: layer, radius: snapRadius) {
 			return target
 		}
 		return (point.snapped(to: state.snap), nil)
@@ -46,7 +46,7 @@ extension LayoutView {
 				case .trace:
 					state.updateTrace(to: routeEnd(current))
 					if let trace = state.endTrace() {
-						let landed = board.isConnection(trace.end, layer: trace.layer)
+						let landed = design.resolved.board.isConnection(trace.end, layer: trace.layer)
 						undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
 						if landed { state.tool = .select }
 					}
@@ -101,12 +101,12 @@ private extension LayoutView {
 			return snapped(point, layer: state.layer).0
 		}
 		if !modifierFlags.contains(.control),
-			let (target, _) = board.snapTarget(near: point, layer: session.layer, radius: snapRadius) {
+			let (target, _) = design.resolved.board.snapTarget(near: point, layer: session.layer, radius: snapRadius) {
 			return target
 		}
 		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
 
-		let arriving = board.heading(leaving: session.start, layer: session.layer) ?? .zero
+		let arriving = design.resolved.board.heading(leaving: session.start, layer: session.layer) ?? .zero
 		let projected = snapped45(from: session.start, to: point, after: -arriving)
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
@@ -116,7 +116,7 @@ private extension LayoutView {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
 		if state.selectSession == nil, !picksRun {
-			let hit = board.hitTest(at: start, layer: state.layer, tolerance: hitTolerance)
+			let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance).first
 			if let hit, state.selection.contains(hit) {
 				state.beginMove(at: start.snapped(to: state.snap))
 				return state.updateMove(to: current.snapped(to: state.snap))
@@ -129,10 +129,10 @@ private extension LayoutView {
 	func endSelection(from start: Pt, to current: Pt) {
 		if let session = state.moveSession {
 			if session.didMove {
-				var moved = board
-				if let selection = moved.move(state.selection, by: session.delta, grid: state.snap) {
+				var moved = design
+				if let selection = moved.moveLayout(state.selection, by: session.delta, grid: state.snap) {
 					undoGroup("Move") {
-						board = moved
+						design = moved
 						state.selection = selection
 					}
 				}
@@ -145,8 +145,8 @@ private extension LayoutView {
 
 		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
-			? board.refs(in: session.rect, layer: state.layer, whole: whole)
-			: board.refs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)
+			? design.layoutRefs(in: session.rect, layer: state.layer)
+			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

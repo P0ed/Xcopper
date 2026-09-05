@@ -4,6 +4,10 @@ import SwiftUI
 extension Operations {
 
 	func exportFabrication() {
+		guard design.moduleErrors.isEmpty else {
+			moduleAlert("Resolve modules before exporting", design.moduleErrors.joined(separator: "\n"))
+			return
+		}
 		guard preflight() else { return }
 		let stem = Fabrication.stem(documentName)
 

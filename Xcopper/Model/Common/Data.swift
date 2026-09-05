@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 typealias Nm = Int32
 
@@ -246,6 +247,7 @@ enum Stack: Int, Codable, CaseIterable {
 }
 
 enum Ref: Hashable, Codable {
+	case module(UUID)
 	case trace(Int)
 	case via(Int)
 	case hole(Int)

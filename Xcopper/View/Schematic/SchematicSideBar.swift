@@ -9,20 +9,26 @@ struct SchematicSideBar: View {
 
 	@FocusState private var focus: Property?
 
-	private var netlist: Netlist { Netlist(design.schematic) }
+	private var netlist: Netlist { Netlist(design.resolved.schematic) }
 
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Selection") {
-					SchematicInspector(
-						schematic: $design.schematic,
-						netlist: netlist,
-						selection: state.selection,
-						focus: $focus
-					)
+					if state.selection.count == 1, let id = state.selection.moduleIDs.first {
+						ModuleInspector(design: $design, id: id, layout: false, focus: $focus)
+					} else {
+						SchematicInspector(
+							schematic: $design.schematic,
+							netlist: netlist,
+							selection: state.selection,
+							focus: $focus
+						)
+					}
 					CounterpartButton(operations: operations)
 				}
+
+				ModulePanel(operations: operations)
 
 				Panel(title: "Sheet") {
 					GridPicker(title: "Snap", value: $state.snap, options: Nm.sheetSnapGrids)

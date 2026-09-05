@@ -29,10 +29,22 @@ extension Violation {
 extension Design {
 
 	func check() -> [Violation] {
-		(faults() + unrouted()).sorted(by: Violation.order)
+		if !modules.isEmpty {
+			let projection = moduleProjection()
+			return projection.design.check().map { violation in
+				modifying(violation) { $0.refs = Set($0.refs.map { projection.owner($0) }) }
+			}
+		}
+		return (faults() + unrouted()).sorted(by: Violation.order)
 	}
 
 	func faults() -> [Violation] {
+		if !modules.isEmpty {
+			let projection = moduleProjection()
+			return projection.design.faults().map { violation in
+				modifying(violation) { $0.refs = Set($0.refs.map { projection.owner($0) }) }
+			}
+		}
 		let clearance = Int(board.rules.clearance)
 		let objects = board.objects
 
