@@ -2,13 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-	static var pcb: Self { UTType("p0.xcopper.pcb")! }
+	static var xcb: Self { UTType("p0.xcopper.xcb")! }
 }
 
 struct Document: FileDocument {
 	var design: Design
 
-	static var readableContentTypes: [UTType] { [.pcb] }
+	static var readableContentTypes: [UTType] { [.xcb] }
 
 	init(design: Design = Design()) {
 		self.design = design

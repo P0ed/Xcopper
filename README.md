@@ -251,10 +251,21 @@ One JSON document holding `nets`, `board` and `schematic`.
 
 ## Roadmap
 
+- Stackups:
+- - Simplified model instead of `2/4/6` offer `Classic/Digital/Analog`.
+- - - Classic is 2 layer board.
+- - - Digital is 4 layer with `SIG/GND/VCC/SIG` top to bottom.
+- - - Analog is 6 layer `SIG/GND/VCC/VEE/GND/SIG` top to bottom. 
+- - Internal planes are fixed. Signal planes are user editable.
+- Modularity:
+- - New `.xcm` file with same structure as `.xcb`, defines the IO and layout.
+- - IO marked with net labels (with `#IO.<NAME>` format).
+- - When imported displayed in schematic as IC block with pins picked up from IO labels.
+- - Can't import a module with higher layer count than a board supports.
+- - Imported layout is not editable, only movable.
 - BOM:
 - - Include in BOM toggle for component.
 - - BOM export.
 - - Pick and place export.
 - Tool to check component value against part number and availability on `jlcpcb.com/parts`.
-- Modularity. Merge several PCBs onto one, sharing power nets.
 - API.
