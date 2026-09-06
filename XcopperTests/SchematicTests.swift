@@ -206,6 +206,20 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(schematic.refs(in: all), [.symbol(0), .wire(0), .label(0)])
 	}
 
+	func testSnapTargetTakesLabelAnchorsAlongsidePinsAndWireEnds() {
+		var schematic = Schematic()
+		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
+		schematic.wires = [wire(0, 30, 10, 30)]
+		schematic.labels = [NetLabel(at: Point(x: .mm(2), y: .mm(40)), text: "CLK")]
+
+		let anchor = Point(x: .mm(2), y: .mm(40))
+		XCTAssertEqual(schematic.snapTarget(near: Point(x: .mm(2.3), y: .mm(40)), radius: .mm(0.8)), anchor)
+		XCTAssertNil(schematic.snapTarget(near: Point(x: .mm(4), y: .mm(40)), radius: .mm(0.8)))
+
+		schematic.labels = []
+		XCTAssertNil(schematic.snapTarget(near: Point(x: .mm(2.3), y: .mm(40)), radius: .mm(0.8)))
+	}
+
 	func testDuplicateOffsetsCopiesAndRenamesSymbols() {
 		var schematic = Schematic()
 		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]

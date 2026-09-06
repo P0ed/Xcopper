@@ -72,6 +72,7 @@ extension Schematic {
 			consider(wire.start)
 			consider(wire.end)
 		}
+		for label in labels { consider(label.at) }
 		return best
 	}
 }

@@ -30,7 +30,7 @@ struct EditorView: View {
 			defer { undoManager?.enableUndoRegistration() }
 			operations.reloadModules(automatic: true)
 		}
-		.onChange(of: editor.editing) { _, editing in if !editing { focused = true } }
+		.onChange(of: editor.editing) { _, editing in if editing == nil { focused = true } }
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)
 	}
@@ -49,7 +49,7 @@ struct EditorView: View {
 	}
 
 	private func claimKeyboard() {
-		if editor.editing { editor.editing = false }
+		if editor.editing != nil { editor.editing = nil }
 		guard !focused else { return }
 		focused = true
 	}
@@ -76,7 +76,12 @@ struct EditorView: View {
 		case .layout:
 			LayoutView(design: $design, state: $layout, claimKeyboard: claimKeyboard)
 		case .schematic:
-			SchematicView(design: $design, state: $schematic, claimKeyboard: claimKeyboard)
+			SchematicView(
+				design: $design,
+				state: $schematic,
+				claimKeyboard: claimKeyboard,
+				beginEditing: { property in editor.editing = property }
+			)
 		case .preview: PreviewView(board: design.resolved.board, state: $preview)
 		}
 	}
@@ -89,13 +94,13 @@ struct EditorView: View {
 				stack: design.board.stack,
 				state: $layout,
 				sheet: $editor.sheet,
-				shortcuts: !editor.editing
+				shortcuts: editor.editing == nil
 			)
 		case .schematic:
 			SchematicToolBar(
 				state: $schematic,
 				sheet: $editor.sheet,
-				shortcuts: !editor.editing,
+				shortcuts: editor.editing == nil,
 				update: operations.updateBoard
 			)
 		case .preview:

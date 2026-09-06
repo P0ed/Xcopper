@@ -34,6 +34,10 @@ enum Sheet: String, Identifiable {
 	var id: String { rawValue }
 }
 
+enum Property: Hashable {
+	case reference, value, text, x, y, width, drill, pad, diameter, clearance
+}
+
 protocol ToolKind: Hashable, CaseIterable {
 	var actionName: String { get }
 	var systemImage: String { get }
@@ -44,10 +48,10 @@ struct EditorState: Equatable {
 	var mode: Mode = .schematic
 	var sheet: Sheet?
 	var report: Design.Report?
-	var editing: Bool = false
+	var editing: Property?
 }
 
 extension EditorState {
 	var dialogPresented: Bool { sheet != nil }
-	var keysAvailable: Bool { sheet == nil && !editing }
+	var keysAvailable: Bool { sheet == nil && editing == nil }
 }

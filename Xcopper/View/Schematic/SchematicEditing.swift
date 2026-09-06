@@ -20,6 +20,12 @@ extension SchematicView {
 	}
 
 	var editingController: some Gesture {
+		SpatialTapGesture(count: 2)
+			.onEnded { gesture in editLabel(at: point(at: gesture.location)) }
+			.simultaneously(with: dragController)
+	}
+
+	var dragController: some Gesture {
 		DragGesture(minimumDistance: 0.0)
 			.onChanged { gesture in
 				claimKeyboard()
@@ -129,6 +135,16 @@ private extension SchematicView {
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil
+	}
+
+	func editLabel(at point: Point) {
+		guard state.tool == .select,
+			let ref = design.schematicRef(at: point, tolerance: hitTolerance),
+			case let .label(index) = ref,
+			schematic.labels.indices.contains(index)
+		else { return }
+		state.selection = [ref]
+		beginEditing(.text)
 	}
 
 	func placeLabel(at point: Point) {

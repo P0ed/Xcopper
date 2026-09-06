@@ -5,6 +5,7 @@ struct SchematicView: View {
 	@Binding var design: Design
 	@Binding var state: SchematicState
 	var claimKeyboard: () -> Void = ø
+	var beginEditing: (Property) -> Void = ø
 
 	@Environment(\.undoManager) var undoManager
 

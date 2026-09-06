@@ -157,10 +157,6 @@ struct GridPicker: View {
 	}
 }
 
-enum Property: Hashable {
-	case reference, value, text, x, y, width, drill, pad, diameter, clearance
-}
-
 extension CGFloat {
 	static var captionWidth: CGFloat { 52.0 }
 }

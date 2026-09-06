@@ -10,6 +10,7 @@ extension EditorView {
 				guard cancelSessions() else { return .ignored }
 				return .handled
 			}
+			guard editor.keysAvailable else { return .ignored }
 
 			@MainActor
 			func step(dx: Int = 0, dy: Int = 0) {

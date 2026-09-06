@@ -256,18 +256,25 @@ extension SchematicView {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		guard scale >= 2.0 else { return }
 		let size = max(7.0, min(15.0, scale * 2.2))
+		let radius = max(1.5, Double(NetLabel.anchor).mm * scale / 2.0)
 
 		for (index, label) in schematic.labels.enumerated() {
 			let anchor = label.at.cg(scale, origin: origin)
 			let color = color(of: netlist.name(at: label.at))
 			let picked = selection.contains(.label(index))
+			let tint = picked ? Palette.lit(color) : color
+
+			context.fill(
+				Path(ellipseIn: CGRect(center: anchor, radius: radius)),
+				with: .color(tint)
+			)
+			guard scale >= 2.0 else { continue }
 
 			let text = context.resolve(
 				Text(label.text)
 					.font(.system(size: size))
-					.foregroundStyle(picked ? Palette.lit(color) : color)
+					.foregroundStyle(tint)
 			)
 			let at = CGPoint(x: anchor.x, y: anchor.y - size)
 			if picked {

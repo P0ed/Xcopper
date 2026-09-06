@@ -99,6 +99,7 @@ extension Wire {
 extension NetLabel {
 
 	static let height = Int.mm(1.8)
+	static let anchor = Int.mm(0.5)
 
 	var bounds: Rect {
 		Rect(
