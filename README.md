@@ -12,7 +12,7 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
-- Reusable `.xcm` modules with schematic IO blocks and locked layout groups
+- Reusable `.xcb` designs as modules with schematic IO blocks and locked layout groups
 - Gerber and Excellon export of the whole manufacturing set
 - 3D preview of the finished board with the parts standing on it
 
@@ -266,13 +266,13 @@ everything on another net, then the copper on that layer drawn over the top.
 
 ## File format
 
-One JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
+Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
 
 ## Modularity
 
-Save a reusable circuit as **Circuit module (`.xcm`)** in the Save dialog. Modules
-open and edit with the same schematic and layout tools as a board (`.xcb`). Mark
-schematic connections with labels such as `#IO.IN`, `#IO.OUT` and `#IO.ENABLE`.
+Any `.xcb` design can be imported into another as a module. Save and edit it with
+the usual schematic and layout tools. Mark schematic connections with labels
+such as `#IO.IN`, `#IO.OUT` and `#IO.ENABLE`.
 IO names are case sensitive and must be nonempty. Repeated names must resolve to
 the same internal net. Ordinary net labels and power symbols can connect separate
 parts of an interface net.

@@ -66,12 +66,12 @@ extension Operations {
 
 	func importModule() {
 		guard let documentURL else {
-			moduleAlert("Save this design before importing", "Save the parent board or module beside its .xcm sources, then use Import Module again.")
+			moduleAlert("Save this design before importing", "Save this design beside its .xcb module sources, then use Import Module again.")
 			return
 		}
 		let panel = NSOpenPanel()
 		panel.title = "Import Module"
-		panel.allowedContentTypes = [.xcm]
+		panel.allowedContentTypes = [.xcb]
 		panel.directoryURL = documentURL.deletingLastPathComponent()
 		guard panel.runModal() == .OK, let source = panel.url else { return }
 		do {

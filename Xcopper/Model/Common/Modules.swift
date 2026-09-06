@@ -252,8 +252,8 @@ struct ModuleResolver {
 	func url(for filename: String) throws -> URL {
 		guard !filename.isEmpty, !filename.contains("/"), !filename.contains("\\"),
 			filename != ".", filename != "..", !filename.contains("\0"),
-			(filename as NSString).pathExtension.lowercased() == "xcm"
-		else { throw Err("Use a sibling .xcm filename without directory components.") }
+			(filename as NSString).pathExtension.lowercased() == "xcb"
+		else { throw Err("Use a sibling .xcb filename without directory components.") }
 		var url = folder.appendingPathComponent(filename).standardizedFileURL
 		var links: Set<URL> = []
 		while let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: url.path) {

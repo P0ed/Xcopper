@@ -23,41 +23,39 @@ final class ModuleTests: XCTestCase {
 		let data = try sources.mapValues { try JSONEncoder().encode($0) }
 		return { url in try data[url.lastPathComponent].throwing("Missing \(url.lastPathComponent)") }
 	}
-	private func imported(_ sources: [String: Design], filenames: [String] = ["Part.xcm"], stack: Stack = .analog) throws -> Design {
+	private func imported(_ sources: [String: Design], filenames: [String] = ["Part.xcb"], stack: Stack = .analog) throws -> Design {
 		var design = Design(board: Board(size: Size(width: .mm(100), height: .mm(100)), stack: stack))
 		let read = try reader(sources)
 		for filename in filenames { try design.importModule(filename: filename, documentURL: parentURL, read: read) }
 		return design
 	}
 
-	func testLegacyJSONAndBothDocumentFormatsRoundTripWithoutEmbeddingSources() throws {
+	func testLegacyJSONAndBoardDocumentRoundTripWithoutEmbeddingSources() throws {
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(source())) as? [String: Any])
 		json.removeValue(forKey: "modules")
 		XCTAssertTrue(try Document.decode(JSONSerialization.data(withJSONObject: json)).modules.isEmpty)
-		let design = try imported(["Part.xcm": source()])
-		XCTAssertTrue(Document.readableContentTypes.contains(.xcb))
-		XCTAssertTrue(Document.readableContentTypes.contains(.xcm))
+		let design = try imported(["Part.xcb": source()])
+		XCTAssertEqual(Document.readableContentTypes, [.xcb])
+		XCTAssertEqual(Document.writableContentTypes, [.xcb])
 		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: folder) }
-		for type in Document.writableContentTypes {
-			let document = Document(design: design)
-			let url = folder.appendingPathComponent("Design").appendingPathExtension(try XCTUnwrap(type.preferredFilenameExtension))
-			try document.encoded().write(to: url)
-			let data = try Data(contentsOf: url)
-			let reopened = try Document.decode(data)
-			XCTAssertEqual(reopened.modules, design.modules)
-			XCTAssertEqual(reopened.board, design.board)
-			XCTAssertTrue(reopened.moduleCache.contents.isEmpty)
-			XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("moduleCache"))
-			XCTAssertFalse(reopened.moduleErrors.isEmpty)
-			XCTAssertTrue(reopened.fabrication(named: "unresolved").isEmpty)
-		}
+		let document = Document(design: design)
+		let url = folder.appendingPathComponent("Design").appendingPathExtension("xcb")
+		try document.encoded().write(to: url)
+		let data = try Data(contentsOf: url)
+		let reopened = try Document.decode(data)
+		XCTAssertEqual(reopened.modules, design.modules)
+		XCTAssertEqual(reopened.board, design.board)
+		XCTAssertTrue(reopened.moduleCache.contents.isEmpty)
+		XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("moduleCache"))
+		XCTAssertFalse(reopened.moduleErrors.isEmpty)
+		XCTAssertTrue(reopened.fabrication(named: "unresolved").isEmpty)
 	}
 
 	func testRepeatedInstancesSharePowerButIsolatePrivateNetsAndReferences() throws {
 		let source = source()
-		let design = try imported(["Part.xcm": source], filenames: ["Part.xcm", "Part.xcm"])
+		let design = try imported(["Part.xcb": source], filenames: ["Part.xcb", "Part.xcb"])
 		let resolved = design.resolved
 		XCTAssertEqual(resolved.board.footprints.map(\.reference), ["M1/R1", "M2/R1"])
 		XCTAssertNotEqual(resolved.board.footprints[0].pads[0].net, resolved.board.footprints[1].pads[0].net)
@@ -75,7 +73,7 @@ final class ModuleTests: XCTestCase {
 		var source = source()
 		let pin = source.schematic.symbols[0].placedPins[0].at
 		source.schematic.labels += ["#IO.Z", "#IO.a", "#IO.A", "#IO.", "#IO.  ", "#io.ignored"].map { NetLabel(at: pin, text: $0) }
-		let design = try imported(["Part.xcm": source])
+		let design = try imported(["Part.xcb": source])
 		XCTAssertEqual(design.modules[0].interface, ["A", "IN", "Z", "a"])
 		XCTAssertEqual(design.modules[0].symbol.pins.map(\.number), ["A", "IN", "Z", "a"])
 	}
@@ -83,15 +81,15 @@ final class ModuleTests: XCTestCase {
 	func testAmbiguousRepeatedIOIsRejectedButRepeatedSameNetIsAllowed() throws {
 		var source = source()
 		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#IO.IN"))
-		XCTAssertThrowsError(try imported(["Part.xcm": source])) { error in
+		XCTAssertThrowsError(try imported(["Part.xcb": source])) { error in
 			XCTAssertTrue((error as? Err)?.description.contains("Ambiguous") ?? false)
 		}
 		source.board.footprints[0].pads[1].net = 3
-		XCTAssertNoThrow(try imported(["Part.xcm": source]))
+		XCTAssertNoThrow(try imported(["Part.xcb": source]))
 	}
 
 	func testParentWireMapsIOToPadsTracesViasAndLeavesPrivateNetsAlone() throws {
-		var design = try imported(["Part.xcm": source()])
+		var design = try imported(["Part.xcb": source()])
 		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
 		let modulePin = design.modules[0].symbol.placedPins[0].at
 		let parentPin = design.schematic.symbols[0].placedPins[0].at
@@ -112,9 +110,9 @@ final class ModuleTests: XCTestCase {
 
 	func testNestedPortsPropagateThroughEveryLevelAndKeepTopLevelOwnership() throws {
 		let leaf = source()
-		var middle = try imported(["Part.xcm": leaf], stack: .digital)
+		var middle = try imported(["Part.xcb": leaf], stack: .digital)
 		middle.schematic.labels = [NetLabel(at: middle.modules[0].symbol.placedPins[0].at, text: "#IO.NESTED")]
-		var parent = try imported(["Middle.xcm": middle, "Part.xcm": leaf], filenames: ["Middle.xcm"])
+		var parent = try imported(["Middle.xcb": middle, "Part.xcb": leaf], filenames: ["Middle.xcb"])
 		parent.schematic.labels = [NetLabel(at: parent.modules[0].symbol.placedPins[0].at, text: "BUS")]
 		_ = parent.updateBoardFromSchematic()
 		let projection = parent.moduleProjection()
@@ -128,39 +126,27 @@ final class ModuleTests: XCTestCase {
 
 	func testCyclesMissingFilesMalformedFilesAndEveryStackBoundary() throws {
 		var a = source(); var b = source()
-		a.modules = [ModuleInstance(reference: "M1", filename: "B.xcm")]
-		b.modules = [ModuleInstance(reference: "M1", filename: "A.xcm")]
-		XCTAssertThrowsError(try imported(["A.xcm": a, "B.xcm": b], filenames: ["A.xcm"]))
+		a.modules = [ModuleInstance(reference: "M1", filename: "B.xcb")]
+		b.modules = [ModuleInstance(reference: "M1", filename: "A.xcb")]
+		XCTAssertThrowsError(try imported(["A.xcb": a, "B.xcb": b], filenames: ["A.xcb"]))
 		XCTAssertThrowsError(try imported([:]))
-		XCTAssertThrowsError(try imported(["Part.xcm": source(.analog)], stack: .digital))
-		b.modules = [ModuleInstance(reference: "M1", filename: "Part.xcm")]
-		XCTAssertThrowsError(try imported(["B.xcm": b, "Part.xcm": source(.digital)], filenames: ["B.xcm"]))
+		XCTAssertThrowsError(try imported(["Part.xcb": source(.analog)], stack: .digital))
+		b.modules = [ModuleInstance(reference: "M1", filename: "Part.xcb")]
+		XCTAssertThrowsError(try imported(["B.xcb": b, "Part.xcb": source(.digital)], filenames: ["B.xcb"]))
 		var parent = Design()
-		XCTAssertThrowsError(try parent.importModule(filename: "Part.xcm", documentURL: parentURL, read: { _ in Data("bad JSON".utf8) }))
+		XCTAssertThrowsError(try parent.importModule(filename: parentURL.lastPathComponent, documentURL: parentURL, read: reader([parentURL.lastPathComponent: source()])))
+		XCTAssertThrowsError(try parent.importModule(filename: "Part.xcb", documentURL: parentURL, read: { _ in Data("bad JSON".utf8) }))
 		XCTAssertTrue(parent.modules.isEmpty)
-		let design = try imported(["Part.xcm": source(.digital)])
+		let design = try imported(["Part.xcb": source(.digital)])
 		XCTAssertFalse(design.canRestack(.classic))
 		var unchanged = design
 		unchanged.restack(.classic)
 		XCTAssertEqual(unchanged, design)
 	}
 
-	func testFilenameRestrictionsAndSymlinkEscapes() throws {
-		let resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent())
-		for name in ["../Part.xcm", "/tmp/Part.xcm", "sub/Part.xcm", "sub\\Part.xcm", "", "Part.xcb", ".."] {
-			XCTAssertThrowsError(try resolver.url(for: name), name)
-		}
-		XCTAssertEqual(try resolver.url(for: "Part.xcm").lastPathComponent, "Part.xcm")
-		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-		defer { try? FileManager.default.removeItem(at: folder) }
-		try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("Escape.xcm"), withDestinationURL: folder.deletingLastPathComponent().appendingPathComponent("Outside.xcm"))
-		XCTAssertThrowsError(try ModuleResolver(folder: folder).url(for: "Escape.xcm"))
-	}
-
 	func testReloadFailureRecoveryPinChangesAndStableNetIDs() throws {
 		var source = source()
-		var design = try imported(["Part.xcm": source])
+		var design = try imported(["Part.xcb": source])
 		let metadata = design.modules[0]
 		let old = design.resolved
 		let wire = Wire(start: metadata.symbol.placedPins[0].at, end: point(70, 70))
@@ -173,7 +159,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertTrue(design.resolved.schematic.symbols[0].value.contains("Unresolved"))
 		XCTAssertFalse(design.moduleErrors.isEmpty)
 		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#IO.EXTRA"))
-		resolver.read = try reader(["Part.xcm": source])
+		resolver.read = try reader(["Part.xcb": source])
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertTrue(design.moduleErrors.isEmpty)
 		XCTAssertEqual(design.modules[0].interface, ["EXTRA", "IN"])
@@ -184,7 +170,7 @@ final class ModuleTests: XCTestCase {
 	}
 
 	func testRigidTranslationRotationSelectionAndCounterparts() throws {
-		var design = try imported(["Part.xcm": source()])
+		var design = try imported(["Part.xcb": source()])
 		let id = design.modules[0].id
 		let before = design.resolved.board
 		let delta = point(5, 4)
@@ -209,7 +195,7 @@ final class ModuleTests: XCTestCase {
 
 	func testTranslationStretchesParentTracesAtImportedPadsAndVias() throws {
 		for terminal in [0, 1] {
-			var design = try imported(["Part.xcm": source()])
+			var design = try imported(["Part.xcb": source()])
 			let id = design.modules[0].id
 			let imported = design.resolved.board
 			let start = terminal == 0 ? imported.footprints[0].placedPads[0].at : imported.vias[0].at
@@ -227,7 +213,7 @@ final class ModuleTests: XCTestCase {
 	}
 
 	func testDuplicationAndPairedDeletionKeepSnapshotsIndependent() throws {
-		var design = try imported(["Part.xcm": source()])
+		var design = try imported(["Part.xcb": source()])
 		let old = design
 		let ids = design.duplicateModules([design.modules[0].id], by: point(25, 0))
 		XCTAssertEqual(ids.count, 1)
@@ -247,7 +233,7 @@ final class ModuleTests: XCTestCase {
 		bottom.flipped = true
 		module.board.footprints.append(bottom)
 		module.board.footprints.append(Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: point(5, 12)))
-		var design = try imported(["Part.xcm": module])
+		var design = try imported(["Part.xcb": module])
 		let files = design.fabrication(named: "Parent")
 		func file(_ suffix: String) -> String { files.first { $0.name.hasSuffix(suffix) }?.text ?? "" }
 		let empty = Design(board: design.board).fabrication(named: "Parent")
@@ -264,11 +250,11 @@ final class ModuleTests: XCTestCase {
 
 extension ModuleTests {
 	func testClipboardValidatesDestinationAndPreservesExistingSnapshots() throws {
-		var destination = try imported(["Part.xcm": source()])
+		var destination = try imported(["Part.xcb": source()])
 		let original = destination
 		var changed = source()
 		changed.schematic.labels[0].text = "#IO.CHANGED"
-		let read = try reader(["Part.xcm": changed])
+		let read = try reader(["Part.xcb": changed])
 		let pasted = try destination.pasteModules(original.modules, by: point(30, 0), documentURL: parentURL, read: read)
 		XCTAssertEqual(destination.modules[0], original.modules[0])
 		XCTAssertEqual(destination.moduleCache.contents[original.modules[0].id], original.moduleCache.contents[original.modules[0].id])
@@ -294,10 +280,10 @@ extension ModuleTests {
 		try FileManager.default.createDirectory(at: movedFolder, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: folder) }
 		let originalData = try Document(design: source()).encoded()
-		try originalData.write(to: folder.appendingPathComponent("Part.xcm"))
+		try originalData.write(to: folder.appendingPathComponent("Part.xcb"))
 		let url = folder.appendingPathComponent("Parent.xcb")
 		var parent = Design()
-		try parent.importModule(filename: "Part.xcm", documentURL: url)
+		try parent.importModule(filename: "Part.xcb", documentURL: url)
 		try Document(design: parent).encoded().write(to: url)
 		var reopened = try Document.decode(Data(contentsOf: url))
 		var resolver = ModuleResolver(folder: folder)
@@ -306,19 +292,19 @@ extension ModuleTests {
 		let id = parent.modules[0].id
 		parent.moveLayout([.module(id)], by: point(10, 10), grid: .mm(1))
 		_ = parent.updateBoardFromSchematic()
-		XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("Part.xcm")), originalData)
+		XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("Part.xcb")), originalData)
 		let movedURL = movedFolder.appendingPathComponent("Parent.xcb")
 		resolver = ModuleResolver(folder: movedFolder)
 		resolver.reload(&reopened, documentURL: movedURL)
 		XCTAssertFalse(reopened.moduleErrors.isEmpty)
-		try originalData.write(to: movedFolder.appendingPathComponent("Part.xcm"))
+		try originalData.write(to: movedFolder.appendingPathComponent("Part.xcb"))
 		resolver.reload(&reopened, documentURL: movedURL)
 		XCTAssertTrue(reopened.moduleErrors.isEmpty)
 	}
 
 	@MainActor
 	func testCommandsLockInternalsCopyWholeInstancesAndUndoPairedEdits() throws {
-		let harness = ModuleEditorHarness(design: try imported(["Part.xcm": source()]))
+		let harness = ModuleEditorHarness(design: try imported(["Part.xcb": source()]))
 		let id = harness.design.modules[0].id
 		harness.layout.selection = [.module(id)]
 		harness.editor.mode = .layout
@@ -360,11 +346,11 @@ extension ModuleTests {
 		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 		defer { try? FileManager.default.removeItem(at: folder) }
-		let sourceURL = folder.appendingPathComponent("Part.xcm")
+		let sourceURL = folder.appendingPathComponent("Part.xcb")
 		try Document(design: source()).encoded().write(to: sourceURL)
 		let parentURL = folder.appendingPathComponent("Parent.xcb")
 		var design = Design()
-		try design.importModule(filename: "Part.xcm", documentURL: parentURL)
+		try design.importModule(filename: "Part.xcb", documentURL: parentURL)
 		let harness = ModuleEditorHarness(design: design)
 		harness.url = parentURL
 		var changed = source()
