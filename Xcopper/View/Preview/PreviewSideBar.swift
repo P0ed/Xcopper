@@ -54,14 +54,14 @@ struct PartRow: View {
 	var footprint: Footprint
 
 	private var height: String {
-		let package = footprint.package
+		let package = footprint.appearance
 		return package.stands ? "\(package.height.label) mm" : "—"
 	}
 
 	var body: some View {
 		HStack(spacing: 6.0) {
 			RoundedRectangle(cornerRadius: 2.0)
-				.fill(footprint.package.color.color)
+				.fill(footprint.appearance.color.color)
 				.frame(width: 10.0, height: 10.0)
 			Text(footprint.reference).lineLimit(1)
 			Spacer(minLength: 0.0)

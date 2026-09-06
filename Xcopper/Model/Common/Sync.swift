@@ -75,21 +75,10 @@ extension Symbol.Spec {
 		if let component { return Footprint.Spec(component: component) }
 
 		return switch kind {
-		case .capacitor: Footprint.Spec(kind: .chip, part: .capacitor)
-		case .resistor, .inductor, .diode: Footprint.Spec(kind: .chip)
+		case .resistor, .capacitor, .inductor, .diode: Footprint.Spec(kind: .chip, device: kind.device)
 		case .transistor: Footprint.Spec(kind: .sot23)
 		case .ic: Footprint.Spec(kind: .soic, pins: pins + pins % 2)
 		case .power, .ground: nil
-		}
-	}
-}
-
-extension Footprint.Part {
-
-	var symbol: Symbol.Kind {
-		switch self {
-		case .resistor: .resistor
-		case .capacitor: .capacitor
 		}
 	}
 }
@@ -99,12 +88,7 @@ extension Footprint.Spec {
 	var symbol: Symbol.Spec {
 		if let component { return Symbol.Spec(kind: component.symbolKind, component: component) }
 
-		return switch kind {
-		case .chip: Symbol.Spec(kind: part.symbol)
-		case .sot23: Symbol.Spec(kind: .transistor)
-		case .soic, .dip: Symbol.Spec(kind: .ic, pins: pins)
-		case .header: Symbol.Spec(kind: .ic, pins: pins * rows)
-		}
+		return Symbol.Spec(kind: device.symbolKind, pins: package.makeFootprint()?.pads.count ?? pins)
 	}
 }
 

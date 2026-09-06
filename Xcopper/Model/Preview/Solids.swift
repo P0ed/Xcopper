@@ -176,8 +176,8 @@ extension Board {
 
 	func standing(on underside: Bool) -> Double {
 		footprints
-			.filter { footprint in footprint.flipped == underside && footprint.package.stands }
-			.map { footprint in Double(footprint.package.height + footprint.package.standoff).mm }
+			.filter { footprint in footprint.flipped == underside && footprint.appearance.stands }
+			.map { footprint in Double(footprint.appearance.height + footprint.appearance.standoff).mm }
 			.max() ?? 0.0
 	}
 
@@ -302,7 +302,7 @@ extension Board {
 		far: Side,
 		into model: inout Model
 	) {
-		let package = footprint.package
+		let package = footprint.appearance
 		guard package.stands else { return }
 
 		let standoff = Double(package.standoff).mm

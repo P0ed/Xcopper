@@ -15,37 +15,18 @@ extension Footprint {
 			}
 		}
 
-		var prefix: String {
+		var defaultDevice: Device {
 			switch self {
-			case .chip: "R"
-			case .soic, .sot23, .dip: "U"
-			case .header: "J"
+			case .chip: .resistor
+			case .soic, .dip: .ic
+			case .sot23: .transistor
+			case .header: .connector
 			}
 		}
 
 		var hasPins: Bool { self != .chip && self != .sot23 }
 		var hasRows: Bool { self == .header }
 		var hasChip: Bool { self == .chip }
-	}
-
-	enum Part: String, Codable, CaseIterable, Identifiable {
-		case resistor, capacitor
-
-		var id: String { rawValue }
-
-		var name: String {
-			switch self {
-			case .resistor: "Resistor"
-			case .capacitor: "Capacitor"
-			}
-		}
-
-		var prefix: String {
-			switch self {
-			case .resistor: "R"
-			case .capacitor: "C"
-			}
-		}
 	}
 
 	enum Chip: String, Codable, CaseIterable, Identifiable {
@@ -65,67 +46,60 @@ extension Footprint {
 	}
 
 	struct Spec: Hashable, Codable {
-		var kind: Kind = .chip
-		var chip: Chip = .c1206
-		var part: Part = .resistor
-		var pins: Int = 8
-		var rows: Int = 1
+		var kind: Kind
+		var chip: Chip
+		var device: Device
+		var pins: Int
+		var rows: Int
 		var component: Component?
+
+		init(kind: Kind = .chip, chip: Chip = .c1206, device: Device? = nil, pins: Int = 8, rows: Int = 1, component: Component? = nil) {
+			self.kind = kind
+			self.chip = chip
+			self.device = device ?? kind.defaultDevice
+			self.pins = pins
+			self.rows = rows
+			self.component = component
+		}
 
 		static var `default`: Spec { Spec() }
 
-		var referencePrefix: String {
-			if let component { return component.referencePrefix }
-			return kind.hasChip ? part.prefix : kind.prefix
+		var referencePrefix: String { component?.referencePrefix ?? device.prefix }
+
+		var package: Package {
+			if let component { return component.package }
+			return switch kind {
+			case .chip: .chip(chip)
+			case .soic: .soic(max(2, pins & ~1))
+			case .sot23: .sot23
+			case .dip: .dip(max(2, pins & ~1))
+			case .header: .header(pins: max(1, pins), rows: max(1, min(2, rows)))
+			}
 		}
 
 		var summary: String {
-			if let component { return component.packageName }
-
-			return switch kind {
-			case .chip: "\(part.name) \(chip.name)"
-			case .sot23: "SOT-23"
-			case .header: "Header \(rows)×\(pins)"
-			default: "\(kind.name)-\(pins)"
-			}
+			if component == nil, kind == .chip { return "\(device.name) \(chip.name)" }
+			return package.name
 		}
 	}
 }
 
 extension Footprint {
 
-	var part: Part? {
-		let prefix = String(reference.prefix { !$0.isNumber })
-		return Part.allCases.first { $0.prefix == prefix }
-	}
-
 	init(spec: Footprint.Spec, reference: String, at: Point) {
-		if let component = spec.component {
-			guard let built = component.makeFootprint() else {
-				preconditionFailure("\(component.name) has no PCB footprint")
-			}
-			self = modifying(built) { footprint in
-				footprint.reference = reference
-				footprint.at = at
-			}
-			return
+		guard let built = spec.package.makeFootprint() else {
+			preconditionFailure("\(spec.package.name) has no generated footprint")
 		}
-
-		let built = switch spec.kind {
-		case .chip: Footprint.chip(spec.chip)
-		case .soic: Footprint.soic(pins: max(2, spec.pins & ~1))
-		case .sot23: Footprint.sot23()
-		case .dip: Footprint.dip(pins: max(2, spec.pins & ~1))
-		case .header: Footprint.header(pins: max(1, spec.pins), rows: max(1, min(2, spec.rows)))
-		}
-
 		self = modifying(built) { footprint in
 			footprint.reference = reference
 			footprint.at = at
+			footprint.device = spec.component?.device ?? spec.device
+			footprint.component = spec.component
+			footprint.value = spec.component?.name ?? ""
 		}
 	}
 
-	private static func make(pads: [Pad], body: Size) -> Footprint {
+	private static func make(_ package: Package, pads: [Pad], body: Size) -> Footprint {
 		Footprint(
 			reference: "",
 			value: "",
@@ -133,7 +107,8 @@ extension Footprint {
 			rotation: .r0,
 			flipped: false,
 			pads: pads,
-			body: Rect(center: .zero, size: body)
+			body: Rect(center: .zero, size: body),
+			package: package
 		)
 	}
 
@@ -164,6 +139,7 @@ extension Footprint {
 	static func chip(_ chip: Chip) -> Footprint {
 		let metrics = chip.metrics
 		return make(
+			.chip(chip),
 			pads: [
 				smd(1, -metrics.offset, 0, metrics.pad),
 				smd(2, metrics.offset, 0, metrics.pad),
@@ -186,6 +162,7 @@ extension Footprint {
 			]
 		}
 		return make(
+			.soic(pins),
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
 			body: Size(width: .mm(3.9), height: (perSide - 1) * pitch + .mm(1.2))
 		)
@@ -196,6 +173,7 @@ extension Footprint {
 		let span = Int.mm(2.6)
 		let pitch = Int.mm(0.95)
 		return make(
+			.sot23,
 			pads: [
 				smd(1, -span / 2, -pitch, size),
 				smd(2, -span / 2, pitch, size),
@@ -218,6 +196,7 @@ extension Footprint {
 			]
 		}
 		return make(
+			.dip(pins),
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
 			body: Size(width: .mm(6.4), height: (perSide - 1) * pitch + .mm(2.54))
 		)
@@ -240,6 +219,7 @@ extension Footprint {
 			}
 		}
 		return make(
+			.header(pins: pins, rows: rows),
 			pads: pads,
 			body: Size(width: rows * pitch, height: pins * pitch)
 		)
@@ -257,6 +237,7 @@ extension Footprint {
 			]
 		}
 		return make(
+			.ssop10,
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
 			body: Size(width: .mm(3.9), height: .mm(4.9))
 		)
@@ -266,6 +247,7 @@ extension Footprint {
 		let pitch = Int.mm(2.54)
 		let first = -(pins - 1) * pitch / 2
 		return make(
+			.sip(pins),
 			pads: (0 ..< pins).map { index in
 				through(index + 1, 0, first + index * pitch, drill: .mm(0.9), pad: .mm(1.7))
 			},
@@ -277,6 +259,7 @@ extension Footprint {
 		let pitch = Int.mm(3.96)
 		let first = -(pins - 1) * pitch / 2
 		return make(
+			.mta156(pins),
 			pads: (0 ..< pins).map { index in
 				through(index + 1, 0, first + index * pitch, drill: .mm(1.8), pad: .mm(2.8))
 			},
@@ -286,6 +269,7 @@ extension Footprint {
 
 	static func led5mm() -> Footprint {
 		make(
+			.led5mm,
 			pads: [
 				through(1, 0, -.mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
 				through(2, 0, .mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
@@ -296,6 +280,7 @@ extension Footprint {
 
 	static func sod123() -> Footprint {
 		make(
+			.sod123,
 			pads: [
 				smd(1, -.mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
 				smd(2, .mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
@@ -309,6 +294,7 @@ extension Footprint {
 		let span = Int.mm(2.6)
 		let pitch = Int.mm(0.95)
 		return make(
+			.sot457,
 			pads: [
 				smd(1, -span / 2, -pitch, size),
 				smd(2, -span / 2, 0, size),
@@ -324,6 +310,7 @@ extension Footprint {
 	static func bourns51() -> Footprint {
 		let pitch = Int.mm(2.54)
 		return make(
+			.bourns51,
 			pads: (0 ..< 3).map { index in
 				through(
 					index + 1,
@@ -339,6 +326,7 @@ extension Footprint {
 
 	static func pomona1581() -> Footprint {
 		make(
+			.pomona1581,
 			pads: [
 				Pad(
 					at: .zero,
@@ -366,6 +354,7 @@ extension Footprint {
 	static func nkkMNPC() -> Footprint {
 		let pitch = Int.mm(4.7)
 		return make(
+			.nkkMNPC,
 			pads: (0 ..< 3).map { index in
 				through(index + 1, 0, (index - 1) * pitch, drill: .mm(1.6), pad: .mm(2.8))
 			},

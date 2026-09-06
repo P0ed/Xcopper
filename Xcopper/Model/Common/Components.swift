@@ -57,16 +57,7 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		}
 	}
 
-	var referencePrefix: String {
-		switch self {
-		case .pomona1581, .mta1563, .mta1564: "J"
-		case .bourns51: "P"
-		case .hlmpWL02, .oneN4148W: "D"
-		case .nkkMN12, .nkkMN15: "SW"
-		case .bcm847DS, .bcm857DS, .ssm2212: "Q"
-		default: "U"
-		}
-	}
+	var referencePrefix: String { device.prefix }
 
 	var symbolKind: Symbol.Kind {
 		switch self {
@@ -118,19 +109,16 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		}
 	}
 
-	var packageName: String {
-		switch package {
-		case let .soic(pins): "SOIC-\(pins)"
-		case .sot23: "SOT-23"
-		case .ssop10: "SSOP-10, 1.00 mm pitch"
-		case .sip8: "SIP-8"
-		case let .mta156(pins): "MTA-156, \(pins)-position"
-		case .led5mm: "T-1 3/4 (5 mm)"
-		case .sod123: "SOD-123"
-		case .sot457: "SOT-457 (SC-74)"
-		case .pomona1581: "Panel mount, 6.35 mm ring + wire hole"
-		case .bourns51: "Bourns 51, horizontal PC pins"
-		case .nkkMNPC: "NKK G03 straight PC pins, 4.7 mm pitch"
+	var packageName: String { package.name }
+
+	var device: Device {
+		switch self {
+		case .pomona1581, .mta1563, .mta1564: .connector
+		case .bourns51: .potentiometer
+		case .hlmpWL02, .oneN4148W: .diode
+		case .nkkMN12, .nkkMN15: .switchContact
+		case .bcm847DS, .bcm857DS, .ssm2212: .transistor
+		default: .ic
 		}
 	}
 
@@ -150,50 +138,29 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		default:
 			symbol = .ic(pinNames: pinNames)
 		}
+		symbol.component = self
 		symbol.value = name
 		return symbol
 	}
 
 	func makeFootprint() -> Footprint? {
-		let footprint: Footprint
-		switch package {
-		case let .soic(pins): footprint = .soic(pins: pins)
-		case .sot23: footprint = .sot23()
-		case .ssop10: footprint = .ssop10()
-		case .sip8: footprint = .sip(pins: 8)
-		case let .mta156(pins): footprint = .mta156(pins: pins)
-		case .led5mm: footprint = .led5mm()
-		case .sod123: footprint = .sod123()
-		case .sot457: footprint = .sot457()
-		case .pomona1581: footprint = .pomona1581()
-		case .bourns51: footprint = .bourns51()
-		case .nkkMNPC: footprint = .nkkMNPC()
+		package.makeFootprint().map { footprint in
+			modifying(footprint) {
+				$0.device = device
+				$0.component = self
+				$0.value = name
+			}
 		}
-		return modifying(footprint) { $0.value = name }
 	}
 
-	private enum Package {
-		case soic(Int)
-		case sot23
-		case ssop10
-		case sip8
-		case mta156(Int)
-		case led5mm
-		case sod123
-		case sot457
-		case pomona1581
-		case bourns51
-		case nkkMNPC
-	}
-
-	private var package: Package {
+	var package: Package {
 		switch self {
 		case .ad823, .ad823a, .ad633, .adg419, .ssm2212: .soic(8)
 		case .cd4013, .cd4070, .cd4093, .cd40106: .soic(14)
 		case .cd4029: .soic(16)
 		case .adr5045: .sot23
 		case .ssi2162: .ssop10
-		case .that2180: .sip8
+		case .that2180: .sip(8)
 		case .pomona1581: .pomona1581
 		case .bourns51: .bourns51
 		case .nkkMN12, .nkkMN15: .nkkMNPC

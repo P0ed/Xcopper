@@ -67,6 +67,9 @@ struct Footprint: Hashable, Codable {
 	var flipped: Bool
 	var pads: [Pad]
 	var body: Rect
+	var device: Device = .unknown
+	var package: Package = .custom
+	var component: Component?
 }
 
 struct Rules: Hashable, Codable {

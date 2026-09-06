@@ -127,6 +127,9 @@ struct FootprintInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
+		ValueRow(title: "Device", value: footprint.device.name)
+		ValueRow(title: "Package", value: footprint.package.name)
+		if let component = footprint.component { ValueRow(title: "Part", value: component.name) }
 		TextRow(
 			title: "Ref",
 			prompt: "R1",

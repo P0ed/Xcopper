@@ -268,7 +268,7 @@ final class SchematicTests: XCTestCase {
 
 	func testACapacitorChipIsDrawnAndDesignatedAsOneRatherThanAsAResistor() {
 		var design = Design()
-		design.place(Footprint.Spec(kind: .chip, chip: .c1206, part: .capacitor), at: .zero)
+		design.place(Footprint.Spec(kind: .chip, chip: .c1206, device: .capacitor), at: .zero)
 		design.place(Footprint.Spec(kind: .chip, chip: .c1206), at: Point(x: .mm(10), y: 0))
 
 		XCTAssertEqual(design.board.footprints.map(\.reference), ["C1", "R1"])
@@ -277,7 +277,7 @@ final class SchematicTests: XCTestCase {
 
 	func testACapacitorAskedForFromTheSheetComesBackToAChipOfItsOwnKind() {
 		let package = Symbol.Spec(kind: .capacitor).footprint
-		XCTAssertEqual(package, Footprint.Spec(kind: .chip, chip: .c1206, part: .capacitor))
+		XCTAssertEqual(package, Footprint.Spec(kind: .chip, chip: .c1206, device: .capacitor))
 		XCTAssertEqual(package?.symbol.kind, .capacitor)
 		XCTAssertEqual(package?.referencePrefix, "C")
 	}

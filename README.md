@@ -138,12 +138,19 @@ it comes in — op-amps, multipliers, logic, switches, panel controls, connector
 and discretes — with `Generic` standing above the shelves. The layout's picker
 is shelved the same way, carrying only the parts that stand on the board.
 
-A library part brings its own package. A generic one takes the package its
-symbol implies — a chip for a resistor, capacitor, inductor or diode, SOT-23 for
-a transistor, SOIC for an IC — and the symbol dialog names it before the part is
-placed. To choose a package precisely, place from the layout instead: that draws
-the symbol. Power and ground flags name a net rather than standing for a part,
-so they go on the sheet alone.
+A library part brings its own package. A generic one takes a default package for
+its device type — a chip for a resistor, capacitor, inductor or diode, SOT-23 for
+a transistor, SOIC for an IC — and the symbol dialog names it before placement.
+The layout picker lets you choose the device and a supported package separately,
+including chip size or SOIC versus DIP for an IC, and draws the matching symbol.
+Power and ground flags name a net rather than standing for a part, so they go on
+the sheet alone.
+
+Footprints store device type, physical package and optional library identity
+separately from their reference and value. Renaming a part or importing it into
+a module preserves its identity and appearance. Library parts retain their
+package even with customized pads. Custom land patterns can be represented
+without assigning a device or library identity.
 
 ## Inspector
 
@@ -239,10 +246,10 @@ set carries none.
 | `A` | Angled |
 
 Only the outer copper layers are on show, since those are the only ones a
-finished board lets you see. Part heights come from the library for the parts it
-knows and are read off the land pattern for everything else — two lands and no
-holes is a chip, holes inside the outline are pins coming up through a moulding,
-holes outside it are a package sitting beside them.
+finished board lets you see. Part appearance comes from the stored device and
+package: chip capacitors have a ceramic body and stand taller than resistors of
+the same size. Custom packages use a geometric approximation based on their land
+pattern. Reference and value text do not select a 3D model.
 
 ## Fabrication
 

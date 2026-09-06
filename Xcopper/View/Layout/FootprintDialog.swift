@@ -22,6 +22,17 @@ struct FootprintDialog: View {
 		)
 	}
 
+	private var device: Binding<Device> {
+		Binding(get: { current.device }, set: { device in
+			draft = modifying(current) { spec in
+				spec.device = device
+				if !device.packageKinds.contains(spec.kind), let kind = device.packageKinds.first {
+					spec.kind = kind
+				}
+			}
+		})
+	}
+
 	var body: some View {
 		Dialog(
 			action: "Place",
@@ -39,17 +50,17 @@ struct FootprintDialog: View {
 						Text(component.packageName)
 					}
 				} else {
-					Picker("Kind", selection: binding.kind) {
-						ForEach(Footprint.Kind.allCases) { kind in
+					Picker("Device", selection: device) {
+						ForEach(Device.genericCases) { device in
+							Text(device.name).tag(device)
+						}
+					}
+					Picker("Package", selection: binding.kind) {
+						ForEach(current.device.packageKinds) { kind in
 							Text(kind.name).tag(kind)
 						}
 					}
 					if current.kind.hasChip {
-						Picker("Part", selection: binding.part) {
-							ForEach(Footprint.Part.allCases) { part in
-								Text(part.name).tag(part)
-							}
-						}
 						Picker("Size", selection: binding.chip) {
 							ForEach(Footprint.Chip.allCases) { chip in
 								Text(chip.name).tag(chip)

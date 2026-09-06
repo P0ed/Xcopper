@@ -507,23 +507,23 @@ final class PreviewTests: XCTestCase {
 		let header = Footprint(spec: .init(kind: .header, pins: 4, rows: 1), reference: "J1", at: .zero)
 		let soic = Footprint(spec: .init(kind: .soic, pins: 8), reference: "U2", at: .zero)
 
-		XCTAssertTrue(chip.package.leads, "a chip is held up on its terminations")
-		XCTAssertFalse(chip.package.posts)
-		XCTAssertFalse(dip.package.posts, "a dip's leads are bent under it, not up through it")
-		XCTAssertTrue(header.package.posts, "a header carries pins through its moulding")
-		XCTAssertFalse(header.package.leads)
-		XCTAssertGreaterThan(soic.package.height, chip.package.height)
+		XCTAssertTrue(chip.appearance.leads, "a chip is held up on its terminations")
+		XCTAssertFalse(chip.appearance.posts)
+		XCTAssertFalse(dip.appearance.posts, "a dip's leads are bent under it, not up through it")
+		XCTAssertTrue(header.appearance.posts, "a header carries pins through its moulding")
+		XCTAssertFalse(header.appearance.leads)
+		XCTAssertGreaterThan(soic.appearance.height, chip.appearance.height)
 	}
 
 	func testACapacitorChipStandsTwiceAsTallAsAResistorAndIsMadeOfSomethingElse() {
 		let resistor = Footprint(spec: .init(kind: .chip, chip: .c1206), reference: "R1", at: .zero)
-		let capacitor = Footprint(spec: .init(kind: .chip, chip: .c1206, part: .capacitor), reference: "C1", at: .zero)
+		let capacitor = Footprint(spec: .init(kind: .chip, chip: .c1206, device: .capacitor), reference: "C1", at: .zero)
 
-		XCTAssertEqual(capacitor.package.height, resistor.package.height * 2)
-		XCTAssertEqual(capacitor.package.color, Palette.ceramic)
-		XCTAssertEqual(resistor.package.color, Palette.chip)
-		XCTAssertEqual(capacitor.package.shell, resistor.package.shell, "both are the same block")
-		XCTAssertTrue(capacitor.package.leads, "a chip is held up on its terminations either way")
+		XCTAssertEqual(capacitor.appearance.height, resistor.appearance.height * 2)
+		XCTAssertEqual(capacitor.appearance.color, Palette.ceramic)
+		XCTAssertEqual(resistor.appearance.color, Palette.chip)
+		XCTAssertEqual(capacitor.appearance.shell, resistor.appearance.shell, "both are the same block")
+		XCTAssertTrue(capacitor.appearance.leads, "a chip is held up on its terminations either way")
 	}
 
 	func testASurfaceMountLegIsThinnerThanTheLandItIsSolderedTo() throws {
@@ -546,7 +546,7 @@ final class PreviewTests: XCTestCase {
 
 		let model = board.model(Finish().shape)
 
-		XCTAssertFalse(board.footprints[0].package.stands, "a panel jack is held by the panel")
+		XCTAssertFalse(board.footprints[0].appearance.stands, "a panel jack is held by the panel")
 		XCTAssertEqual(board.standing(on: false), 0.0)
 		XCTAssertEqual(model.pieces.count { abs($0.level) == 50 }, 0)
 	}
@@ -556,11 +556,11 @@ final class PreviewTests: XCTestCase {
 			XCTAssertEqual($0.value, Component.hlmpWL02.name)
 		}
 
-		guard case let .dome(diameter) = led.package.shell else {
+		guard case let .dome(diameter) = led.appearance.shell else {
 			return XCTFail("a 5 mm lamp is a lens, not the header its two holes suggest")
 		}
 		XCTAssertEqual(diameter, .mm(5.0))
-		XCTAssertEqual(led.package.height, .mm(8.6))
+		XCTAssertEqual(led.appearance.height, .mm(8.6))
 	}
 
 	func testLookingStraightDownReadsTheSameWayRoundAsTheLayout() {

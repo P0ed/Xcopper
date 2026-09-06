@@ -36,6 +36,7 @@ struct Symbol: Hashable, Codable {
 	var pins: [Pin]
 	var body: Rect
 	var glyph: [Glyph]
+	var component: Component?
 }
 
 struct Wire: Hashable, Codable {

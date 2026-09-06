@@ -194,13 +194,13 @@ extension Operations {
 		editor.mode = .layout
 	}
 
-	func place(_ part: Footprint.Part) {
+	func place(_ device: Device) {
 		switch mode {
 		case .layout:
-			layout.spec = Footprint.Spec(kind: .chip, chip: .c1206, part: part)
+			layout.spec = Footprint.Spec(kind: .chip, chip: .c1206, device: device)
 			layout.tool = .footprint
 		case .schematic:
-			schematic.spec = Symbol.Spec(kind: part.symbol)
+			schematic.spec = Symbol.Spec(kind: device.symbolKind)
 			schematic.tool = .symbol
 		case .preview:
 			break
