@@ -117,6 +117,10 @@ struct EditorView: View {
 			BoardDialog(size: design.board.size, stack: design.board.stack) { size, stack in
 				operations.resize(size: size, stack: stack)
 			}
+		case .schematic:
+			SchematicDialog(size: design.schematic.size) { size in
+				operations.resizeSheet(size: size)
+			}
 		case .footprint:
 			FootprintDialog(spec: $layout.spec) { layout.tool = .footprint }
 		case .net:

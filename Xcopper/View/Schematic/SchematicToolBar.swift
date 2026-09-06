@@ -31,5 +31,12 @@ struct SchematicToolBar: ToolbarContent {
 				action: update
 			)
 		}
+		ToolbarItemGroup {
+			ActionButton(
+				name: "Sheet",
+				image: "doc",
+				action: { sheet = .schematic }
+			)
+		}
 	}
 }

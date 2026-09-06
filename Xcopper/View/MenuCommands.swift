@@ -133,6 +133,16 @@ struct MenuCommands: Commands {
 				action: { op?.updateBoard() }
 			)
 		}
+		CommandMenu("Sheet") {
+			ActionButton(
+				name: "Size",
+				image: "doc",
+				shortcut: "B",
+				modifiers: .command,
+				disabled: op.schematicDisabled,
+				action: { op?.editor.sheet = .schematic }
+			)
+		}
 		CommandMenu("Board") {
 			ActionButton(
 				name: "Size and layers",

@@ -272,7 +272,7 @@ extension ModuleTests {
 			var design = try imported(["Part.xcb": source()])
 			design.modules[0].reference = "R2"
 			design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
-			let harness = ModuleEditorHarness(design: design)
+			let harness = EditorHarness(design: design)
 			harness.editor.mode = mode
 			harness.layout.selection = [.footprint(0), .module(design.modules[0].id)]
 			harness.schematic.selection = [.symbol(0), .module(design.modules[0].id)]
@@ -390,7 +390,7 @@ extension ModuleTests {
 	func testSizeOnlyResizeRemainsAvailableWithAnIncompatibleModule() throws {
 		var design = Design(board: Board(stack: .classic))
 		design.modules = [ModuleInstance(reference: "M1", filename: "Missing.xcb", layerCount: 4)]
-		let harness = ModuleEditorHarness(design: design)
+		let harness = EditorHarness(design: design)
 		let size = Size(width: .mm(120), height: .mm(80))
 		harness.perform { $0.resize(size: size, stack: .classic) }
 		XCTAssertEqual(harness.design.board.size, size)
@@ -469,7 +469,7 @@ extension ModuleTests {
 
 	@MainActor
 	func testCommandsLockInternalsCopyWholeInstancesAndUndoPairedEdits() throws {
-		let harness = ModuleEditorHarness(design: try imported(["Part.xcb": source()]))
+		let harness = EditorHarness(design: try imported(["Part.xcb": source()]))
 		let id = harness.design.modules[0].id
 		harness.layout.selection = [.module(id)]
 		harness.editor.mode = .layout
@@ -516,7 +516,7 @@ extension ModuleTests {
 		let parentURL = folder.appendingPathComponent("Parent.xcb")
 		var design = Design()
 		try design.importModule(filename: "Part.xcb", documentURL: parentURL)
-		let harness = ModuleEditorHarness(design: design)
+		let harness = EditorHarness(design: design)
 		harness.url = parentURL
 		var changed = source()
 		changed.schematic.labels[0].text = "#NEW"
@@ -532,36 +532,5 @@ extension ModuleTests {
 		harness.undo.redo()
 		XCTAssertEqual(harness.design, reloaded)
 		XCTAssertTrue(harness.design.moduleErrors.isEmpty)
-	}
-}
-
-@MainActor
-private final class ModuleEditorHarness {
-	var design: Design
-	var editor = EditorState()
-	var layout = LayoutState()
-	var schematic = SchematicState()
-	var preview = PreviewState()
-	var clipboard = Clipboard()
-	var url: URL?
-	let undo = UndoManager()
-	init(design: Design) { self.design = design; undo.groupsByEvent = false }
-	func replace(_ next: Design) {
-		let previous = design
-		guard next != previous else { return }
-		undo.registerUndo(withTarget: self) { $0.replace(previous) }
-		design = next
-	}
-	func binding<T>(_ path: ReferenceWritableKeyPath<ModuleEditorHarness, T>) -> Binding<T> {
-		Binding(get: { self[keyPath: path] }, set: { self[keyPath: path] = $0 })
-	}
-	var operations: Operations {
-		Operations(editor: binding(\.editor), layout: binding(\.layout), schematic: binding(\.schematic), preview: binding(\.preview),
-			design: Binding(get: { self.design }, set: { self.replace($0) }), clipboard: binding(\.clipboard), documentURL: url, documentName: "Parent")
-	}
-	func perform(_ action: (Operations) -> Void) {
-		undo.beginUndoGrouping()
-		action(operations)
-		undo.endUndoGrouping()
 	}
 }

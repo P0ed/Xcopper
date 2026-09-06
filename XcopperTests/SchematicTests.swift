@@ -387,6 +387,52 @@ final class SchematicTests: XCTestCase {
 		}
 	}
 
+	@MainActor
+	func testResizingTheSheetKeepsTheDrawingAndIsUndoable() {
+		var design = Design()
+		design.schematic.wires = [wire(10, 10, 40, 10)]
+		design.schematic.labels = [NetLabel(at: Point(x: .mm(10), y: .mm(10)), text: "IN")]
+		let harness = EditorHarness(design: design)
+		harness.editor.mode = .schematic
+		harness.schematic.selection = [.wire(0)]
+		let size = Size(width: .mm(420), height: .mm(297))
+
+		harness.perform { $0.resizeSheet(size: size) }
+
+		XCTAssertEqual(harness.design.schematic.size, size)
+		XCTAssertEqual(harness.design.schematic.bounds, Rect(origin: .zero, size: size))
+		XCTAssertEqual(harness.design.schematic.wires, design.schematic.wires)
+		XCTAssertEqual(harness.design.schematic.labels, design.schematic.labels)
+		XCTAssertEqual(harness.design.board, design.board)
+		XCTAssertTrue(harness.schematic.selection.isEmpty)
+
+		harness.undo.undo()
+		XCTAssertEqual(harness.design, design)
+	}
+
+	func testASheetSizeSurvivesTheDocument() throws {
+		var design = Design()
+		let size = Size(width: .inches(17), height: .inches(11))
+		design.schematic.resize(size: size)
+
+		let decoded = try Document.decode(Document(design: design).encoded())
+
+		XCTAssertEqual(decoded.schematic.size, size)
+		XCTAssertThrowsError(try Document.decode(
+			Document(design: modifying(design) { $0.schematic.resize(size: .zero) }).encoded()
+		))
+	}
+
+	func testPartsParkInsideWhateverSheetTheyAreGiven() {
+		var design = Design()
+		design.schematic.resize(size: Size(width: .mm(120), height: .mm(90)))
+		for index in 0 ..< 4 {
+			design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: .mm(20), y: .mm(20.0 + Double(index) * 20.0)))
+		}
+
+		assertNothingOverlaps(design.schematic.symbols.map(\.placedExtent), inside: design.schematic.bounds)
+	}
+
 	func testASymbolShowsItsFootprintAndAFootprintItsSymbol() {
 		var design = Design()
 		design.place(Symbol.Spec(kind: .resistor), at: Point(x: .mm(40), y: .mm(40)))

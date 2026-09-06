@@ -25,6 +25,12 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 | `L` | Label |
 | `F` | Place symbol |
 
+`⌘B` sets how big the sheet is, in millimetres or inches, the way the same key
+sets the board on the layout. A new one is 297 × 210 mm. The sheet is the
+rectangle the drawing stands on, what `Size to fit` fits and where a parked part
+looks for room; resizing it moves nothing already drawn, so a sheet made smaller
+than its drawing leaves it hanging over the edge.
+
 `G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
 `R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
 use horizontal and vertical segments, including when snapping to an offset pin
@@ -362,7 +368,7 @@ changed or disappeared; source files are never modified by parent edits.
 
 ## Roadmap
 
-- Fix gerber export until `jlcpcb.com` recognizes the board correctly.
 - Modules should be connected to shared power planes.
 - Changing value of resistor in schematic mode should change it in layout (it must be the same object `===`).
+- Option to remove the solder mask.
 - API. Enable automation/verification/testing directly from `claude`/`codex` CLI.

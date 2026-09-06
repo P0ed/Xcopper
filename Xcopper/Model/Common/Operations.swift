@@ -333,6 +333,11 @@ extension Operations {
 		layout.resetTransientInteractions()
 	}
 
+	func resizeSheet(size: Size) {
+		design.schematic.resize(size: size)
+		schematic.resetTransientInteractions()
+	}
+
 	func addNet(name: String) {
 		layout.net = design.addNet(name: name)
 	}
