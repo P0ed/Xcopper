@@ -195,6 +195,20 @@ struct TextRow: View {
 }
 
 @MainActor
+struct ToggleRow: View {
+	var title: String
+	var label: String
+	@Binding var value: Bool
+
+	var body: some View {
+		PropertyRow(title: title) {
+			Toggle(label, isOn: $value)
+				.toggleStyle(.checkbox)
+		}
+	}
+}
+
+@MainActor
 struct LengthRow: View {
 	var title: String
 	@Binding var value: Nm

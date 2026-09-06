@@ -21,6 +21,21 @@ final class FabricationTests: XCTestCase {
 		Pad(at: at, size: size, shape: .rect, drill: 0, layer: 0, name: name, net: nil)
 	}
 
+	private func part(
+		_ reference: String,
+		_ value: String,
+		_ spec: Footprint.Spec,
+		at: Point = .zero,
+		rotation: Rotation = .r0,
+		flipped: Bool = false
+	) -> Footprint {
+		modifying(Footprint(spec: spec, reference: reference, at: at)) { part in
+			part.value = value
+			part.rotation = rotation
+			part.flipped = flipped
+		}
+	}
+
 	private func footprint(_ reference: String, at: Point, pads: [Pad], flipped: Bool = false) -> Footprint {
 		Footprint(
 			reference: reference,
@@ -35,7 +50,7 @@ final class FabricationTests: XCTestCase {
 
 	func testTheOutlineFileIsWrittenWholeWithYCountingUpFromTheBottom() {
 		XCTAssertEqual(
-			file(design(), "Edge_Cuts.gbr"),
+			file(design(), ".GKO"),
 			"""
 			G04 Xcopper*
 			%TF.GenerationSoftware,Xcopper*%
@@ -70,7 +85,7 @@ final class FabricationTests: XCTestCase {
 				net: nil
 			),
 		]
-		let text = file(design, "F_Cu.gbr")
+		let text = file(design, ".GTL")
 
 		XCTAssertTrue(text.contains("%ADD10C,0.250000*%"))
 		XCTAssertTrue(text.contains("X10000000Y30000000D02*"))
@@ -88,7 +103,7 @@ final class FabricationTests: XCTestCase {
 				net: nil
 			)
 		}
-		let text = file(design, "F_Cu.gbr")
+		let text = file(design, ".GTL")
 
 		XCTAssertEqual(lines(text).count { $0.hasPrefix("%ADD") }, 1)
 		XCTAssertEqual(lines(text).count { $0 == "D10*" }, 1)
@@ -104,7 +119,7 @@ final class FabricationTests: XCTestCase {
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1.2), height: .mm(0.8)))]
 			),
 		]
-		let text = file(design, "F_Cu.gbr")
+		let text = file(design, ".GTL")
 
 		XCTAssertTrue(text.contains("%ADD10R,1.200000X0.800000*%"))
 		XCTAssertTrue(text.contains("X10000000Y30000000D03*"))
@@ -121,7 +136,7 @@ final class FabricationTests: XCTestCase {
 				)
 			) { $0.rotation = .r90 },
 		]
-		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%ADD10R,0.800000X1.200000*%"))
+		XCTAssertTrue(file(design, ".GTL").contains("%ADD10R,0.800000X1.200000*%"))
 	}
 
 	func testAPlanePoursTheBoardThenClearsItBackAroundForeignCopper() {
@@ -129,7 +144,7 @@ final class FabricationTests: XCTestCase {
 		design.board.vias = [
 			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
-		let steps = lines(file(design, "In1_Cu.gbr")).filter {
+		let steps = lines(file(design, ".G1")).filter {
 			$0 == "G36*" || $0 == "G37*" || $0 == "%LPC*%" || $0 == "%LPD*%"
 		}
 		XCTAssertEqual(steps, ["%LPD*%", "G36*", "G37*", "%LPC*%", "%LPD*%"])
@@ -138,7 +153,7 @@ final class FabricationTests: XCTestCase {
 	func testThePlaneRegionStopsOneClearanceShortOfTheBoardEdge() {
 		var design = design()
 		let inset = Int(design.board.rules.clearance)
-		let text = file(design, "In1_Cu.gbr")
+		let text = file(design, ".G1")
 
 		XCTAssertTrue(text.contains("X\(inset)Y\(Int.mm(40) - inset)D02*"))
 		XCTAssertTrue(text.contains("X\(Int.mm(50) - inset)Y\(inset)D01*"))
@@ -150,7 +165,7 @@ final class FabricationTests: XCTestCase {
 				design.board.vias = [
 				Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: net),
 			]
-			let all = lines(file(design, "In1_Cu.gbr"))
+			let all = lines(file(design, ".G1"))
 			guard
 				let start = all.firstIndex(of: "%LPC*%"),
 				let end = all.lastIndex(of: "%LPD*%"), start < end
@@ -167,7 +182,7 @@ final class FabricationTests: XCTestCase {
 		design.board.vias = [
 			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
-		XCTAssertTrue(file(design, "In1_Cu.gbr").contains("%ADD10C,1.560000*%"))
+		XCTAssertTrue(file(design, ".G1").contains("%ADD10C,1.560000*%"))
 	}
 
 	func testCopperCarriesTheNetItBelongsToAndDropsTheAttributeWhenItEnds() {
@@ -176,7 +191,7 @@ final class FabricationTests: XCTestCase {
 			Trace(start: Point(x: .mm(5), y: .mm(5)), end: Point(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 0),
 			Trace(start: Point(x: .mm(5), y: .mm(9)), end: Point(x: .mm(9), y: .mm(9)), width: .mm(0.25), layer: 0, net: nil),
 		]
-		let attributes = lines(file(design, "F_Cu.gbr")).filter {
+		let attributes = lines(file(design, ".GTL")).filter {
 			$0.hasPrefix("%TO") || $0 == "%TD*%"
 		}
 		XCTAssertEqual(attributes, ["%TO.N,GND*%", "%TD*%"])
@@ -188,7 +203,7 @@ final class FabricationTests: XCTestCase {
 		design.board.traces = [
 			Trace(start: Point(x: .mm(5), y: .mm(5)), end: Point(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 9),
 		]
-		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%TO.N,A_B_C*%"))
+		XCTAssertTrue(file(design, ".GTL").contains("%TO.N,A_B_C*%"))
 	}
 
 	func testTheMaskOpensOverEveryPadGrownByTheMaskExpansion() {
@@ -200,7 +215,7 @@ final class FabricationTests: XCTestCase {
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]
 			),
 		]
-		let text = file(design, "F_Mask.gbr")
+		let text = file(design, ".GTS")
 
 		XCTAssertTrue(text.contains("%TF.FilePolarity,Negative*%"))
 		XCTAssertTrue(text.contains("%ADD10R,1.100000X1.100000*%"))
@@ -225,10 +240,10 @@ final class FabricationTests: XCTestCase {
 				]
 			),
 		]
-		XCTAssertTrue(file(design, "F_Mask.gbr").contains("D03*"))
-		XCTAssertTrue(file(design, "B_Mask.gbr").contains("D03*"))
-		XCTAssertFalse(file(design, "F_Paste.gbr").contains("D03*"))
-		XCTAssertFalse(file(design, "B_Paste.gbr").contains("D03*"))
+		XCTAssertTrue(file(design, ".GTS").contains("D03*"))
+		XCTAssertTrue(file(design, ".GBS").contains("D03*"))
+		XCTAssertFalse(file(design, ".GTP").contains("D03*"))
+		XCTAssertFalse(file(design, ".GBP").contains("D03*"))
 	}
 
 	func testPasteOpensOverSurfaceMountPadsAtTheirBareSize() {
@@ -240,8 +255,8 @@ final class FabricationTests: XCTestCase {
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]
 			),
 		]
-		XCTAssertTrue(file(design, "F_Paste.gbr").contains("%ADD10R,1.000000X1.000000*%"))
-		XCTAssertFalse(file(design, "B_Paste.gbr").contains("D03*"))
+		XCTAssertTrue(file(design, ".GTP").contains("%ADD10R,1.000000X1.000000*%"))
+		XCTAssertFalse(file(design, ".GBP").contains("D03*"))
 	}
 
 	func testAFlippedPartTakesItsCopperMaskAndPasteToTheBottomFace() {
@@ -254,9 +269,9 @@ final class FabricationTests: XCTestCase {
 				flipped: true
 			),
 		]
-		for face in ["Cu", "Mask", "Paste"] {
-			XCTAssertFalse(file(design, "F_\(face).gbr").contains("D03*"), face)
-			XCTAssertTrue(file(design, "B_\(face).gbr").contains("D03*"), face)
+		for (top, bottom) in [(".GTL", ".GBL"), (".GTS", ".GBS"), (".GTP", ".GBP")] {
+			XCTAssertFalse(file(design, top).contains("D03*"), top)
+			XCTAssertTrue(file(design, bottom).contains("D03*"), bottom)
 		}
 	}
 
@@ -267,7 +282,7 @@ final class FabricationTests: XCTestCase {
 			Via(at: Point(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
 			Via(at: Point(x: .mm(30), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
 		]
-		let text = file(design, "PTH.drl")
+		let text = file(design, "-PTH.DRL")
 
 		XCTAssertTrue(text.contains("; #@! TF.FileFunction,Plated,1,4,PTH"))
 		XCTAssertTrue(text.contains("T1C0.500"))
@@ -306,10 +321,10 @@ final class FabricationTests: XCTestCase {
 				]
 			),
 		]
-		XCTAssertTrue(file(design, "PTH.drl").contains("T1C0.900"))
-		XCTAssertFalse(file(design, "PTH.drl").contains("3.200"))
+		XCTAssertTrue(file(design, "-PTH.DRL").contains("T1C0.900"))
+		XCTAssertFalse(file(design, "-PTH.DRL").contains("3.200"))
 
-		let bare = file(design, "NPTH.drl")
+		let bare = file(design, "-NPTH.DRL")
 		XCTAssertTrue(bare.contains("; #@! TF.FileFunction,NonPlated,1,4,NPTH"))
 		XCTAssertTrue(bare.contains("T1C3.200"))
 		XCTAssertEqual(lines(bare).count { $0.hasPrefix("X") }, 1)
@@ -317,13 +332,14 @@ final class FabricationTests: XCTestCase {
 
 	func testAnEmptyDrillProgramIsStillAValidOne() {
 		XCTAssertEqual(
-			file(design(), "NPTH.drl"),
+			file(design(), "-NPTH.DRL"),
 			"""
 			M48
 			;DRILL file {Xcopper}
 			;FORMAT={-:-/ absolute / metric / decimal}
 			; #@! TF.FileFunction,NonPlated,1,4,NPTH
 			; #@! TF.FilePolarity,Positive
+			;TYPE=NON_PLATED
 			FMAT,2
 			METRIC
 			%
@@ -340,25 +356,23 @@ final class FabricationTests: XCTestCase {
 		XCTAssertEqual(
 			design(.classic).fabrication(named: "Board").map(\.name),
 			[
-				"Board-F_Cu.gbr", "Board-B_Cu.gbr",
-				"Board-F_Mask.gbr", "Board-B_Mask.gbr",
-				"Board-F_Paste.gbr", "Board-B_Paste.gbr",
-				"Board-Edge_Cuts.gbr",
-				"Board-PTH.drl", "Board-NPTH.drl",
+				"Board.GTL", "Board.GBL",
+				"Board.GTS", "Board.GBS",
+				"Board.GTP", "Board.GBP",
+				"Board.GKO",
+				"Board-PTH.DRL", "Board-NPTH.DRL",
+				"Board-BOM.csv", "Board-CPL.csv",
 			]
 		)
 		XCTAssertEqual(
 			design(.analog).fabrication(named: "Board").map(\.name).prefix(6),
-			[
-				"Board-F_Cu.gbr", "Board-In1_Cu.gbr", "Board-In2_Cu.gbr",
-				"Board-In3_Cu.gbr", "Board-In4_Cu.gbr", "Board-B_Cu.gbr",
-			]
+			["Board.GTL", "Board.G1", "Board.G2", "Board.G3", "Board.G4", "Board.GBL"]
 		)
 	}
 
 	func testEveryCopperFileNamesItsPlaceInTheStack() {
 		let functions = design(.digital).fabrication(named: "Board")
-			.filter { $0.name.hasSuffix("_Cu.gbr") }
+			.filter { file in [".GTL", ".G1", ".G2", ".GBL"].contains(where: file.name.hasSuffix) }
 			.compactMap { file in
 				lines(file.text).first { $0.hasPrefix("%TF.FileFunction") }
 			}
@@ -374,11 +388,101 @@ final class FabricationTests: XCTestCase {
 	}
 
 	func testEveryFileOpensWithTheFormatItIsWrittenIn() {
-		for file in design(.analog).fabrication(named: "Board") where file.name.hasSuffix(".gbr") {
+		for file in design(.analog).fabrication(named: "Board")
+		where !file.name.hasSuffix(".DRL") && !file.name.hasSuffix(".csv") {
 			XCTAssertTrue(file.text.contains("%FSLAX46Y46*%"), file.name)
 			XCTAssertTrue(file.text.contains("%MOMM*%"), file.name)
 			XCTAssertTrue(file.text.hasSuffix("M02*\n"), file.name)
 		}
+	}
+
+	func testTheBillGathersThePartsThatShareAValueAndAPackage() {
+		var design = design()
+		design.board.footprints = [
+			part("R1", "10k", .init(chip: .c0805, device: .resistor)),
+			part("R10", "10k", .init(chip: .c0805, device: .resistor)),
+			part("R2", "10k", .init(chip: .c0805, device: .resistor)),
+			part("C1", "100n", .init(chip: .c0805, device: .capacitor)),
+			part("U1", "AD823", .init(kind: .soic, pins: 8)),
+		]
+		XCTAssertEqual(
+			lines(file(design, "-BOM.csv")),
+			[
+				"Comment,Designator,Footprint,Quantity",
+				"100n,C1,Chip 0805,1",
+				"10k,\"R1,R2,R10\",Chip 0805,3",
+				"AD823,U1,SOIC-8,1",
+			]
+		)
+	}
+
+	func testAPartWithNothingWrittenOnItFallsBackToWhatItIs() {
+		var design = design()
+		design.board.footprints = [
+			part("U1", "", .init(component: .ad823)),
+			part("R1", "  ", .init(chip: .c0603, device: .resistor)),
+		]
+		XCTAssertEqual(
+			lines(file(design, "-BOM.csv")).dropFirst(),
+			["Resistor,R1,Chip 0603,1", "AD823,U1,SOIC-8,1"]
+		)
+	}
+
+	func testAPartLeftOutOfTheBillIsNeitherBoughtNorPlaced() {
+		var design = design()
+		design.board.footprints = [
+			part("R1", "10k", .init(chip: .c0805, device: .resistor)),
+			modifying(part("J1", "Test point", .init(chip: .c0805, device: .resistor))) {
+				$0.inBOM = false
+			},
+		]
+		XCTAssertEqual(lines(file(design, "-BOM.csv")), ["Comment,Designator,Footprint,Quantity", "10k,R1,Chip 0805,1"])
+		XCTAssertFalse(file(design, "-CPL.csv").contains("J1"))
+	}
+
+	func testThePlacementIsMeasuredFromTheCornerTheGerbersCountFrom() {
+		var design = design()
+		design.board.footprints = [
+			part("R1", "10k", .init(chip: .c0805, device: .resistor), at: Point(x: .mm(10), y: .mm(10))),
+		]
+		XCTAssertEqual(
+			lines(file(design, "-CPL.csv")),
+			["Designator,Mid X,Mid Y,Layer,Rotation", "R1,10.0000mm,30.0000mm,top,0"]
+		)
+	}
+
+	func testPlacementTurnsCounterClockwiseAsSeenFromTheSideThePartStandsOn() {
+		func placed(_ rotation: Rotation, flipped: Bool = false) -> String {
+			var design = design()
+			design.board.footprints = [
+				part("U1", "AD823", .init(kind: .soic, pins: 8), rotation: rotation, flipped: flipped),
+			]
+			return lines(file(design, "-CPL.csv"))[1]
+		}
+		XCTAssertEqual(placed(.r0), "U1,0.0000mm,40.0000mm,top,0")
+		XCTAssertEqual(placed(.r90), "U1,0.0000mm,40.0000mm,top,270")
+		XCTAssertEqual(placed(.r180), "U1,0.0000mm,40.0000mm,top,180")
+		XCTAssertEqual(placed(.r270), "U1,0.0000mm,40.0000mm,top,90")
+		XCTAssertEqual(placed(.r0, flipped: true), "U1,0.0000mm,40.0000mm,bottom,0")
+		XCTAssertEqual(placed(.r90, flipped: true), "U1,0.0000mm,40.0000mm,bottom,90")
+		XCTAssertEqual(placed(.r270, flipped: true), "U1,0.0000mm,40.0000mm,bottom,270")
+	}
+
+	func testAPartFromADocumentWrittenBeforeTheBillIsBought() throws {
+		var design = design()
+		design.board.footprints = [part("R1", "10k", .init(chip: .c0805, device: .resistor))]
+		let json = try XCTUnwrap(String(data: Document(design: design).encoded(), encoding: .utf8))
+		XCTAssertTrue(json.contains("\"inBOM\""))
+
+		let older = json.split(separator: "\n", omittingEmptySubsequences: false)
+			.filter { !$0.contains("\"inBOM\"") }
+			.joined(separator: "\n")
+		XCTAssertTrue(try Document.decode(Data(older.utf8)).board.footprints[0].inBOM)
+	}
+
+	func testAnEmptyBoardStillWritesTheHeadingsTheUploaderLooksFor() {
+		XCTAssertEqual(file(design(), "-BOM.csv"), "Comment,Designator,Footprint,Quantity\n")
+		XCTAssertEqual(file(design(), "-CPL.csv"), "Designator,Mid X,Mid Y,Layer,Rotation\n")
 	}
 
 	func testTheFileStemIsCutDownToSomethingASystemWillTake() {

@@ -25,6 +25,7 @@ struct Excellon {
 			";FORMAT={-:-/ absolute / metric / decimal}",
 			"; #@! TF.FileFunction,\(function)",
 			"; #@! TF.FilePolarity,Positive",
+			";TYPE=\(plated ? "PLATED" : "NON_PLATED")",
 			"FMAT,2",
 			"METRIC",
 		]

@@ -54,6 +54,29 @@ struct Footprint: Hashable, Codable {
 	var device: Device = .unknown
 	var package: Package = .custom
 	var component: Component?
+	var inBOM: Bool = true
+}
+
+extension Footprint {
+
+	enum CodingKeys: String, CodingKey {
+		case reference, value, at, rotation, flipped, pads, body, device, package, component, inBOM
+	}
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		reference = try values.decode(String.self, forKey: .reference)
+		value = try values.decode(String.self, forKey: .value)
+		at = try values.decode(Point.self, forKey: .at)
+		rotation = try values.decode(Rotation.self, forKey: .rotation)
+		flipped = try values.decode(Bool.self, forKey: .flipped)
+		pads = try values.decode([Pad].self, forKey: .pads)
+		body = try values.decode(Rect.self, forKey: .body)
+		device = try values.decode(Device.self, forKey: .device)
+		package = try values.decode(Package.self, forKey: .package)
+		component = try values.decodeIfPresent(Component.self, forKey: .component)
+		inBOM = try values.decodeIfPresent(Bool.self, forKey: .inBOM) ?? true
+	}
 }
 
 struct Rules: Hashable, Codable {

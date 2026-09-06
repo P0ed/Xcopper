@@ -254,8 +254,8 @@ final class ModuleTests: XCTestCase {
 		let files = design.fabrication(named: "Parent")
 		func file(_ suffix: String) -> String { files.first { $0.name.hasSuffix(suffix) }?.text ?? "" }
 		let empty = Design(board: design.board).fabrication(named: "Parent")
-		XCTAssertEqual(file("Edge_Cuts.gbr"), empty.first { $0.name.hasSuffix("Edge_Cuts.gbr") }?.text)
-		for suffix in ["F_Cu.gbr", "B_Cu.gbr", "F_Mask.gbr", "B_Mask.gbr", "F_Paste.gbr", "B_Paste.gbr", "PTH.drl", "NPTH.drl"] {
+		XCTAssertEqual(file(".GKO"), empty.first { $0.name.hasSuffix(".GKO") }?.text)
+		for suffix in [".GTL", ".GBL", ".GTS", ".GBS", ".GTP", ".GBP", "-PTH.DRL", "-NPTH.DRL", "-BOM.csv", "-CPL.csv"] {
 			XCTAssertNotEqual(file(suffix), empty.first { $0.name.hasSuffix(suffix) }?.text, suffix)
 		}
 		XCTAssertGreaterThan(design.resolved.board.model(Finish().shape).pieces.count, design.board.model(Finish().shape).pieces.count)

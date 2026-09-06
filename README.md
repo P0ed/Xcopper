@@ -165,10 +165,10 @@ without assigning a device or library identity.
 The top of either sidebar describes what is selected and lets it be edited in
 place. A trace gives its width, layer, net and length; a via its drill, pad,
 the layers it spans and its net; a hole its drill; a footprint its reference,
-value, side, rotation and position. On the sheet a symbol gives its reference
-and value — the resistance, the capacitance, the part number — along with its
-rotation, whether it is mirrored and where it stands, and a label the net name
-it carries. A wire reports the net it lands in and how long it is, both read
+value, side, rotation, position and whether the bill of materials carries it.
+On the sheet a symbol gives its reference and value — the resistance, the
+capacitance, the part number — along with its rotation, whether it is mirrored
+and where it stands, and a label the net name it carries. A wire reports the net it lands in and how long it is, both read
 back out of the drawing rather than stored.
 
 ## Nets
@@ -262,10 +262,22 @@ pattern. Reference and value text do not select a 3D model.
 ## Fabrication
 
 `⌘⇧E` writes the manufacturing set into a folder: a Gerber for every copper
-layer, solder mask and paste for both faces, the board outline, and Excellon
-drill programs split into plated and non-plated. Files are named after the
-document — `Amp-F_Cu.gbr`, `Amp-In1_Cu.gbr`, `Amp-PTH.drl` — the way fab portals
-expect to find them. There is no silkscreen: the board carries no legend.
+layer, solder mask and paste for both faces, the board outline, Excellon drill
+programs split into plated and non-plated, and the two lists assembly needs.
+Files are named after the document and carry the extension their layer is known
+by, the way `jlcpcb.com` expects to find them. There is no silkscreen: the board
+carries no legend.
+
+| File | Holds |
+| --- | --- |
+| `Amp.GTL` `Amp.GBL` | the outer copper layers |
+| `Amp.G1` … `Amp.G4` | the planes between them |
+| `Amp.GTS` `Amp.GBS` | solder mask |
+| `Amp.GTP` `Amp.GBP` | solder paste |
+| `Amp.GKO` | the board outline |
+| `Amp-PTH.DRL` `Amp-NPTH.DRL` | plated and bare drills |
+| `Amp-BOM.csv` | what to buy |
+| `Amp-CPL.csv` | where it goes |
 
 Nothing is written before the board has been looked over. A set asked for while
 a rule is broken says how many are broken and what the first of them are, and
@@ -278,6 +290,18 @@ written as its own integer and nothing is rounded on the way out. Copper carries
 X2 net attributes, and each file states its own place in the stack. A plane goes
 out the way the layout draws it: poured over the board, cleared back around
 everything on another net, then the copper on that layer drawn over the top.
+
+The bill of materials carries one line per value and package, with everything
+that shares them gathered into a single designator field and counted. The
+placement list gives each part its middle, the face it stands on, and how far it
+is turned counter-clockwise seen from that face — measured from the same corner
+the Gerbers count from, so the two agree. A part's value is what the bill calls
+it, or failing that the library part it came from, or what sort of device it is.
+
+Not everything drawn is fitted. A part carries its own place in the bill, turned
+off in the sidebar for a panel jack, a test pad or anything else the board is
+drawn around rather than populated with, and a part left out is neither bought
+nor placed.
 
 ## File format
 
@@ -338,11 +362,7 @@ changed or disappeared; source files are never modified by parent edits.
 
 ## Roadmap
 
-- Export for fabrication:
-- - Include in BOM toggle for component.
-- - BOM export.
-- - Pick and place export.
-- - Fix gerber export until `jlcpcb.com` recognizes the board correctly.
+- Fix gerber export until `jlcpcb.com` recognizes the board correctly.
 - Modules should be connected to shared power planes.
 - Changing value of resistor in schematic mode should change it in layout (it must be the same object `===`).
 - API. Enable automation/verification/testing directly from `claude`/`codex` CLI.

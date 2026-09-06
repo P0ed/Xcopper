@@ -65,7 +65,7 @@ struct MenuCommands: Commands {
 			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !op.hasModuleSelection)
 			Divider()
 			ActionButton(
-				name: "Export Gerbers…",
+				name: "Export for fabrication…",
 				image: "square.and.arrow.up",
 				shortcut: "E",
 				modifiers: [.command, .shift],

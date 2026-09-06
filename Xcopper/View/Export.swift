@@ -12,11 +12,11 @@ extension Operations {
 		let stem = Fabrication.stem(documentName)
 
 		let panel = NSSavePanel()
-		panel.title = "Export Gerbers"
-		panel.message = "Choose where to write the Gerber and drill files"
+		panel.title = "Export for fabrication"
+		panel.message = "Choose where to write the Gerber, drill, BOM and placement files"
 		panel.prompt = "Export"
 		panel.nameFieldLabel = "Folder:"
-		panel.nameFieldStringValue = "\(stem) gerbers"
+		panel.nameFieldStringValue = "\(stem) fabrication"
 		panel.canCreateDirectories = true
 
 		guard panel.runModal() == .OK, let directory = panel.url else { return }

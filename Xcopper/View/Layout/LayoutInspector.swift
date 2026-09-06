@@ -145,6 +145,7 @@ struct FootprintInspector: View {
 		RotationChoice(rotation: $footprint.rotation)
 		PositionRows(at: $footprint.at, focus: $focus)
 		ValueRow(title: "Pads", value: "\(footprint.pads.count)")
+		ToggleRow(title: "BOM", label: "Include", value: $footprint.inBOM)
 	}
 }
 

@@ -44,6 +44,8 @@ extension Design {
 				profile(named: name),
 				drills(plated: true, named: name),
 				drills(plated: false, named: name),
+				bill(named: name),
+				placement(named: name),
 			]
 	}
 }
@@ -69,7 +71,7 @@ private extension Design {
 		for (figure, id) in board.figures(on: layer) {
 			gerber.fill(figure, net: net(id)?.name)
 		}
-		return file(gerber, name: name, suffix: board.stack.suffix(of: layer))
+		return file(gerber, name: name, extension: board.stack.copperFile(of: layer))
 	}
 
 	func mask(on layer: Int, named name: String) -> Fabrication.File {
@@ -81,7 +83,7 @@ private extension Design {
 		for pad in board.pads(on: layer) {
 			gerber.fill(pad.figure.outset(Int(Gerber.maskExpansion)))
 		}
-		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Mask")
+		return file(gerber, name: name, extension: board.stack.maskFile(of: layer))
 	}
 
 	func paste(on layer: Int, named name: String) -> Fabrication.File {
@@ -92,13 +94,13 @@ private extension Design {
 		for pad in board.pads(on: layer) where !pad.isThrough {
 			gerber.fill(pad.figure)
 		}
-		return file(gerber, name: name, suffix: "\(board.stack.side(of: layer))_Paste")
+		return file(gerber, name: name, extension: board.stack.pasteFile(of: layer))
 	}
 
 	func profile(named name: String) -> Fabrication.File {
 		var gerber = Gerber(height: height, function: "Profile,NP")
 		gerber.stroke(board.bounds, width: Gerber.outlineWidth)
-		return file(gerber, name: name, suffix: "Edge_Cuts")
+		return file(gerber, name: name, extension: "GKO")
 	}
 
 	func drills(plated: Bool, named name: String) -> Fabrication.File {
@@ -119,25 +121,29 @@ private extension Design {
 			}
 		}
 		return Fabrication.File(
-			name: "\(name)-\(plated ? "PTH" : "NPTH").drl",
+			name: "\(name)-\(plated ? "PTH" : "NPTH").DRL",
 			text: program.text
 		)
 	}
 
-	func file(_ gerber: Gerber, name: String, suffix: String) -> Fabrication.File {
-		Fabrication.File(name: "\(name)-\(suffix).gbr", text: gerber.text)
+	func file(_ gerber: Gerber, name: String, extension suffix: String) -> Fabrication.File {
+		Fabrication.File(name: "\(name).\(suffix)", text: gerber.text)
 	}
 }
 
 extension Stack {
 
-	func suffix(of layer: Int) -> String {
+	func copperFile(of layer: Int) -> String {
 		switch layer {
-		case top: "F_Cu"
-		case bottom: "B_Cu"
-		default: "In\(layer)_Cu"
+		case top: "GTL"
+		case bottom: "GBL"
+		default: "G\(layer)"
 		}
 	}
+
+	func maskFile(of layer: Int) -> String { layer == top ? "GTS" : "GBS" }
+
+	func pasteFile(of layer: Int) -> String { layer == top ? "GTP" : "GBP" }
 
 	func function(of layer: Int) -> String {
 		let side = switch layer {
@@ -147,8 +153,6 @@ extension Stack {
 		}
 		return "Copper,L\(layer + 1),\(side)"
 	}
-
-	func side(of layer: Int) -> String { layer == top ? "F" : "B" }
 
 	func sideName(of layer: Int) -> String { layer == top ? "Top" : "Bot" }
 }
