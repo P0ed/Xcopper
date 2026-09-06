@@ -12,7 +12,7 @@ final class ModuleTests: XCTestCase {
 		design.board.footprints[0].at = point(5, 5)
 		design.board.footprints[0].pads[0].net = 3
 		design.board.footprints[0].pads[1].net = 4
-		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "#IO.IN")]
+		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "#IN")]
 		design.board.traces = [Trace(start: point(5, 5), end: point(10, 5), width: .mm(0.4), layer: stack.bottom, net: 3)]
 		design.board.vias = [Via(at: point(10, 5), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: stack.bottom, net: 3),
 			Via(at: point(15, 15), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: stack.bottom, net: 0)]
@@ -72,7 +72,7 @@ final class ModuleTests: XCTestCase {
 	func testIOExtractionIsCaseSensitiveLexicalAndRejectsEmptyNames() throws {
 		var source = source()
 		let pin = source.schematic.symbols[0].placedPins[0].at
-		source.schematic.labels += ["#IO.Z", "#IO.a", "#IO.A", "#IO.", "#IO.  ", "#io.ignored"].map { NetLabel(at: pin, text: $0) }
+		source.schematic.labels += ["#Z", "#a", "#A", "#", "#  "].map { NetLabel(at: pin, text: $0) }
 		let design = try imported(["Part.xcb": source])
 		XCTAssertEqual(design.modules[0].interface, ["A", "IN", "Z", "a"])
 		XCTAssertEqual(design.modules[0].symbol.pins.map(\.number), ["A", "IN", "Z", "a"])
@@ -80,7 +80,7 @@ final class ModuleTests: XCTestCase {
 
 	func testAmbiguousRepeatedIOIsRejectedButRepeatedSameNetIsAllowed() throws {
 		var source = source()
-		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#IO.IN"))
+		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#IN"))
 		XCTAssertThrowsError(try imported(["Part.xcb": source])) { error in
 			XCTAssertTrue((error as? Err)?.description.contains("Ambiguous") ?? false)
 		}
@@ -111,7 +111,7 @@ final class ModuleTests: XCTestCase {
 	func testNestedPortsPropagateThroughEveryLevelAndKeepTopLevelOwnership() throws {
 		let leaf = source()
 		var middle = try imported(["Part.xcb": leaf], stack: .digital)
-		middle.schematic.labels = [NetLabel(at: middle.modules[0].symbol.placedPins[0].at, text: "#IO.NESTED")]
+		middle.schematic.labels = [NetLabel(at: middle.modules[0].symbol.placedPins[0].at, text: "#NESTED")]
 		var parent = try imported(["Middle.xcb": middle, "Part.xcb": leaf], filenames: ["Middle.xcb"])
 		parent.schematic.labels = [NetLabel(at: parent.modules[0].symbol.placedPins[0].at, text: "BUS")]
 		_ = parent.updateBoardFromSchematic()
@@ -158,7 +158,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.resolved.schematic.symbols.count, 1)
 		XCTAssertTrue(design.resolved.schematic.symbols[0].value.contains("Unresolved"))
 		XCTAssertFalse(design.moduleErrors.isEmpty)
-		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#IO.EXTRA"))
+		source.schematic.labels.append(NetLabel(at: source.schematic.symbols[0].placedPins[1].at, text: "#EXTRA"))
 		resolver.read = try reader(["Part.xcb": source])
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertTrue(design.moduleErrors.isEmpty)
@@ -401,7 +401,7 @@ extension ModuleTests {
 		var destination = try imported(["Part.xcb": source()])
 		let original = destination
 		var changed = source()
-		changed.schematic.labels[0].text = "#IO.CHANGED"
+		changed.schematic.labels[0].text = "#CHANGED"
 		let read = try reader(["Part.xcb": changed])
 		let pasted = try destination.pasteModules(original.modules, by: point(30, 0), documentURL: parentURL, read: read)
 		XCTAssertEqual(destination.modules[0], original.modules[0])
@@ -502,7 +502,7 @@ extension ModuleTests {
 		let harness = ModuleEditorHarness(design: design)
 		harness.url = parentURL
 		var changed = source()
-		changed.schematic.labels[0].text = "#IO.NEW"
+		changed.schematic.labels[0].text = "#NEW"
 		changed.board.traces[0].end = point(14, 5)
 		try Document(design: changed).encoded().write(to: sourceURL)
 		harness.perform { $0.reloadModules(automatic: true) }

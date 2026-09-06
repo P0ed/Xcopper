@@ -78,8 +78,8 @@ struct ModuleProjection {
 
 extension NetLabel {
 	var ioName: String? {
-		guard text.hasPrefix("#IO.") else { return nil }
-		let name = String(text.dropFirst(4))
+		guard text.hasPrefix("#") else { return nil }
+		let name = String(text.dropFirst())
 		return name.trimmingWhitespace.isEmpty ? nil : name
 	}
 }
@@ -226,7 +226,7 @@ extension Design {
 		for label in schematic.labels {
 			guard let name = label.ioName, let id = pointNets[label.at].map({ merge.find($0) }) else { continue }
 			if let existing = result.ports[name], existing != id {
-				result.interfaceError = "Ambiguous #IO.\(name): repeated labels resolve to different nets. Connect them to the same net and reload."
+				result.interfaceError = "Ambiguous #\(name): repeated labels resolve to different nets. Connect them to the same net and reload."
 			}
 			result.ports[name] = id
 		}

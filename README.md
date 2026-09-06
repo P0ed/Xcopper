@@ -272,7 +272,7 @@ Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and 
 
 Any `.xcb` design can be imported into another as a module. Save and edit it with
 the usual schematic and layout tools. Mark schematic connections with labels
-such as `#IO.IN`, `#IO.OUT` and `#IO.ENABLE`.
+such as `#IN`, `#OUT` and `#ENABLE`.
 IO names are case sensitive and must be nonempty. Repeated names must resolve to
 the same internal net. Ordinary net labels and power symbols can connect separate
 parts of an interface net.
