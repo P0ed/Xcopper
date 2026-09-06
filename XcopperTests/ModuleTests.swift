@@ -193,6 +193,23 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.resolved.board, moved)
 	}
 
+	func testMovingAModuleKeepsParentWiresAttachedToItsSchematicPins() throws {
+		var design = try imported(["Part.xcb": source()])
+		let id = design.modules[0].id
+		let pin = design.modules[0].symbol.placedPins[0].at
+		let anchor = pin + point(20, 0)
+		design.schematic.wires = [Wire(start: pin, end: anchor)]
+		design.schematic.labels = [NetLabel(at: anchor, text: "SIGNAL")]
+		let layout = design.resolved.board
+		let selection = try XCTUnwrap(design.moveSchematic([.module(id)], by: point(2, 3)))
+		let movedPin = design.modules[0].symbol.placedPins[0].at
+		XCTAssertEqual(movedPin, pin + point(2, 3))
+		XCTAssertEqual(selection, [.module(id)])
+		XCTAssertEqual(Netlist(design.resolved.schematic).name(at: movedPin), "SIGNAL")
+		XCTAssertEqual(design.resolved.board, layout)
+		XCTAssertTrue(design.schematic.wires.allSatisfy { $0.start.x == $0.end.x || $0.start.y == $0.end.y })
+	}
+
 	func testTranslationStretchesParentTracesAtImportedPadsAndVias() throws {
 		for terminal in [0, 1] {
 			var design = try imported(["Part.xcb": source()])

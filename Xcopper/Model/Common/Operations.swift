@@ -139,7 +139,10 @@ extension Operations {
 			guard let selection = moved.moveLayout(layout.selection, by: delta, grid: snap) else { return }
 			design = moved
 			layout.selection = selection
-		case .schematic: design.moveSchematic(schematic.selection, by: delta)
+		case .schematic:
+			if let selection = design.moveSchematic(schematic.selection, by: delta, grid: snap) {
+				schematic.selection = selection
+			}
 		case .preview: break
 		}
 	}

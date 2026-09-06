@@ -20,11 +20,22 @@ extension Schematic {
 		return nil
 	}
 
-	func refs(in rect: Rect) -> Set<Ref> {
+	func refs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<Ref> {
+		guard let hit = hitTest(at: point, tolerance: tolerance) else { return [] }
+		guard whole, case let .wire(index) = hit else { return [hit] }
+		return Set(routing().run(of: index).map(Ref.wire))
+	}
+
+	func isConnection(_ point: Point) -> Bool {
+		routing().isTerminal(point, layer: 0) || wires.contains { touches(point, $0) }
+	}
+
+	func refs(in rect: Rect, whole: Bool = false) -> Set<Ref> {
 		var result: Set<Ref> = []
 
-		for (index, wire) in wires.enumerated()
-		where rect.contains(wire.start) && rect.contains(wire.end) {
+		let covered = Set(wires.indices.filter { rect.contains(wires[$0].start) && rect.contains(wires[$0].end) })
+		let route = routing()
+		for index in covered where !whole || route.run(of: index).isSubset(of: covered) {
 			result.insert(.wire(index))
 		}
 		for (index, symbol) in symbols.enumerated() where rect.contains(symbol.at) {
@@ -71,6 +82,7 @@ extension Schematic {
 		for wire in wires {
 			consider(wire.start)
 			consider(wire.end)
+			consider(nearest([wire.start, wire.end], to: point))
 		}
 		for label in labels { consider(label.at) }
 		return best
@@ -79,20 +91,54 @@ extension Schematic {
 
 extension Schematic {
 
-	mutating func move(_ refs: Set<Ref>, by delta: Point) {
+	func routing(moving refs: Set<Ref> = []) -> RouteGeometry<Wire> {
+		var terminals: [RouteTerminal] = []
+		for (index, symbol) in symbols.enumerated() {
+			for pin in symbol.placedPins {
+				terminals.append(RouteTerminal(
+					figure: .round(pin.at, 0), layers: 0 ... 0, moving: refs.contains(.symbol(index))
+				))
+			}
+		}
+		for (index, label) in labels.enumerated() {
+			terminals.append(RouteTerminal(
+				figure: .round(label.at, 0), layers: 0 ... 0, moving: refs.contains(.label(index))
+			))
+		}
+		return RouteGeometry(segments: wires, terminals: terminals, angles: .orthogonal)
+	}
+
+	@discardableResult
+	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: Nm = .mil(100)) -> Set<Ref>? {
+		guard delta != .zero else { return refs }
+		var route = routing(moving: refs)
+		let points = Set(wires.flatMap { [$0.start, $0.end] }
+			+ symbols.flatMap { $0.placedPins.map(\.at) } + labels.map(\.at))
+		var pieces: [Wire] = []
+		var selected: Set<Int> = []
+		for (index, wire) in wires.enumerated() {
+			let cuts = points.filter { touches($0, wire) }.sorted {
+				wire.start.distanceSquared(to: $0) < wire.start.distanceSquared(to: $1)
+			}
+			for (start, end) in zip(cuts, cuts.dropFirst()) where start != end {
+				if refs.contains(.wire(index)) { selected.insert(pieces.count) }
+				pieces.append(Wire(start: start, end: end))
+			}
+		}
+		route.segments = pieces
+		guard let mapped = route.move(selected, by: delta, grid: grid) else { return nil }
+		wires = route.segments
 		for ref in refs {
 			switch ref {
-			case let .wire(index) where wires.indices.contains(index):
-				wires[index].start = wires[index].start + delta
-				wires[index].end = wires[index].end + delta
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols[index].at = symbols[index].at + delta
 			case let .label(index) where labels.indices.contains(index):
 				labels[index].at = labels[index].at + delta
-			default:
-				break
+			default: break
 			}
 		}
+		return Set(refs.filter { if case .wire = $0 { false } else { true } })
+			.union(selected.compactMap { mapped[$0].map(Ref.wire) })
 	}
 
 	mutating func remove(_ refs: Set<Ref>) {

@@ -51,8 +51,10 @@ extension SchematicView {
 					endSelection(from: start, to: current)
 				case .wire:
 					state.updateWire(to: wireEnd(current))
-					if let wire = state.endWire() {
-						undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(wire) }
+					if let wires = state.endWire(), let end = wires.last?.end {
+						let landed = design.resolved.schematic.isConnection(end)
+						undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(contentsOf: wires) }
+						if landed { state.tool = .select }
 					}
 				case .label:
 					undoGroup(SchematicTool.label.actionName) { placeLabel(at: current) }
@@ -76,6 +78,8 @@ private extension SchematicView {
 
 	var modifierFlags: NSEvent.ModifierFlags { NSEvent.modifierFlags }
 
+	var picksRun: Bool { modifierFlags.contains(.command) }
+
 	var selectionMode: SelectionMode {
 		SelectionMode(
 			shift: modifierFlags.contains(.shift),
@@ -97,9 +101,8 @@ private extension SchematicView {
 			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
-		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
-
-		let projected = snapped90(from: session.start, to: point)
+		let arriving = design.resolved.schematic.routing().heading(leaving: session.start, layer: 0) ?? .zero
+		let projected = snapped90(from: session.start, to: point, after: -arriving)
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
@@ -107,7 +110,7 @@ private extension SchematicView {
 		if state.moveSession != nil {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
-		if state.selectSession == nil {
+		if state.selectSession == nil, !picksRun {
 			let hit = design.schematicRef(at: start, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
 				state.beginMove(at: start.snapped(to: state.snap))
@@ -121,7 +124,13 @@ private extension SchematicView {
 	func endSelection(from start: Point, to current: Point) {
 		if let session = state.moveSession {
 			if session.didMove {
-				undoGroup("Move") { design.moveSchematic(state.selection, by: session.delta) }
+				var moved = design
+				if let selection = moved.moveSchematic(state.selection, by: session.delta, grid: state.snap) {
+					undoGroup("Move") {
+						design = moved
+						state.selection = selection
+					}
+				}
 			}
 			state.moveSession = nil
 			return
@@ -130,8 +139,8 @@ private extension SchematicView {
 		state.updateSelect(to: current)
 
 		let hit: Set<Schematic.Ref> = session.didDrag
-			? design.schematicRefs(in: session.rect)
-			: design.schematicRef(at: start, tolerance: hitTolerance).map { [$0] } ?? []
+			? design.schematicRefs(in: session.rect, whole: picksRun)
+			: design.schematicRefs(at: start, tolerance: hitTolerance, whole: picksRun)
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

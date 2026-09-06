@@ -34,7 +34,7 @@ extension Design {
 	mutating func positionModule(_ id: UUID, at point: Point, layout: Bool) {
 		guard let module = modules.first(where: { $0.id == id }) else { return }
 		if layout { _ = moveLayout([.module(id)], by: point - module.layoutAt, grid: .mm(0.5)) }
-		else { moveSchematic([.module(id)], by: point - module.schematicAt) }
+		else { _ = moveSchematic([.module(id)], by: point - module.schematicAt) }
 	}
 
 	mutating func turnModule(_ id: UUID, to rotation: Rotation, layout: Bool) {
@@ -64,9 +64,14 @@ extension Design {
 		return projection.design.schematic.hitTest(at: point, tolerance: tolerance).map { projection.owner($0) }
 	}
 
-	func schematicRefs(in rect: Rect) -> Set<Schematic.Ref> {
+	func schematicRefs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<Schematic.Ref> {
 		let projection = moduleProjection()
-		return Set(projection.design.schematic.refs(in: rect).map { projection.owner($0) })
+		return Set(projection.design.schematic.refs(at: point, tolerance: tolerance, whole: whole).map { projection.owner($0) })
+	}
+
+	func schematicRefs(in rect: Rect, whole: Bool = false) -> Set<Schematic.Ref> {
+		let projection = moduleProjection()
+		return Set(projection.design.schematic.refs(in: rect, whole: whole).map { projection.owner($0) })
 	}
 
 	func layoutBounds(_ refs: Set<Ref>) -> Rect? {
@@ -149,9 +154,24 @@ extension Design {
 		})
 	}
 
-	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) {
-		schematic.move(refs, by: delta)
-		for i in modules.indices where refs.contains(.module(modules[i].id)) { modules[i].schematicAt = modules[i].schematicAt + delta }
+	@discardableResult
+	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point, grid: Nm = .mil(100)) -> Set<Schematic.Ref>? {
+		var repair = schematic
+		var moving = refs
+		for module in modules {
+			if refs.contains(.module(module.id)) { moving.insert(.symbol(repair.symbols.count)) }
+			repair.symbols.append(module.symbol)
+		}
+		guard let repaired = repair.move(moving, by: delta, grid: grid) else { return nil }
+		repair.symbols = Array(repair.symbols.prefix(schematic.symbols.count))
+		schematic = repair
+		for i in modules.indices where refs.contains(.module(modules[i].id)) {
+			modules[i].schematicAt = modules[i].schematicAt + delta
+		}
+		return Set(repaired.filter {
+			if case let .symbol(index) = $0 { return index < schematic.symbols.count }
+			return true
+		})
 	}
 
 	mutating func rotateLayout(_ refs: Set<Ref>, clockwise: Bool) {

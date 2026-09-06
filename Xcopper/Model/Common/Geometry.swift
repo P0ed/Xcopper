@@ -192,6 +192,12 @@ func snapped90(from start: Point, to end: Point) -> Point {
 	return abs(dx) >= abs(dy) ? Point(x: end.x, y: start.y) : Point(x: start.x, y: end.y)
 }
 
+func snapped90(from start: Point, to end: Point, after heading: Point) -> Point {
+	let free = snapped90(from: start, to: end)
+	guard !RoutingAngles.orthogonal.bends(heading, to: free - start) else { return free }
+	return heading.x != 0 ? Point(x: start.x, y: end.y) : Point(x: end.x, y: start.y)
+}
+
 extension Board {
 
 	func pads(on layer: Int) -> [Pad] {
@@ -357,48 +363,12 @@ extension Board {
 		})
 	}
 
-	func run(of index: Int) -> Set<Int> {
-		guard traces.indices.contains(index) else { return [] }
+	func run(of index: Int) -> Set<Int> { routing().run(of: index) }
 
-		var run: Set<Int> = [index]
-		var pending = [index]
-
-		while let current = pending.popLast() {
-			for point in [traces[current].start, traces[current].end] {
-				guard let next = continuation(of: current, at: point), run.insert(next).inserted
-				else { continue }
-				pending.append(next)
-			}
-		}
-		return run
-	}
-
-	func continuation(of index: Int, at point: Point) -> Int? {
-		let layer = traces[index].layer
-		guard !isTerminal(point, layer: layer) else { return nil }
-
-		var corner: Int?
-		for (other, trace) in traces.enumerated()
-		where other != index && trace.layer == layer
-			&& (trace.start == point || trace.end == point) {
-			guard corner == nil else { return nil }
-			corner = other
-		}
-		return corner
-	}
+	func continuation(of index: Int, at point: Point) -> Int? { routing().continuation(of: index, at: point) }
 
 	func heading(leaving point: Point, layer: Int, ignoring skipped: Int? = nil) -> Point? {
-		guard !isTerminal(point, layer: layer) else { return nil }
-
-		var heading: Point?
-		for (index, trace) in traces.enumerated()
-		where index != skipped && trace.layer == layer
-			&& (trace.start == point || trace.end == point) {
-			let offset = (trace.start == point ? trace.end : trace.start) - point
-			guard heading == nil, offset.isOctilinear, offset != .zero else { return nil }
-			heading = offset.heading
-		}
-		return heading
+		routing().heading(leaving: point, layer: layer, ignoring: skipped)
 	}
 
 	func isTerminal(_ point: Point, layer: Int) -> Bool {

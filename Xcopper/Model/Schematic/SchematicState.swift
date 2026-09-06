@@ -90,7 +90,8 @@ extension SchematicState {
 			wireSession = WireSession(
 				start: session.start,
 				end: point,
-				phase: .gesture(committable: true)
+				phase: .gesture(committable: true),
+				heading: session.heading
 			)
 		} else if wireSession == nil {
 			wireSession = WireSession(start: point, end: point, phase: .gesture(committable: false))
@@ -100,6 +101,9 @@ extension SchematicState {
 	mutating func updateWire(to point: Point) {
 		guard var session = wireSession else { return }
 		session.end = point
+		if session.heading == .zero, session.didDraw {
+			session.heading = (snapped90(from: session.start, to: point) - session.start).heading
+		}
 		if case let .gesture(committable) = session.phase {
 			session.phase = .gesture(committable: committable || point != session.start)
 		}
@@ -111,15 +115,16 @@ extension SchematicState {
 		updateWire(to: point)
 	}
 
-	mutating func endWire() -> Wire? {
+	mutating func endWire() -> [Wire]? {
 		guard let session = wireSession, case let .gesture(committable) = session.phase else {
 			return nil
 		}
-		guard committable else {
+		guard committable, session.didDraw else {
 			wireSession = modifying(session) { session in session.phase = .pending }
 			return nil
 		}
+		let wires = session.wires
 		wireSession = WireSession(start: session.end, end: session.end, phase: .pending)
-		return Wire(start: session.start, end: session.end)
+		return wires
 	}
 }

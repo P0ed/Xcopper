@@ -2,19 +2,21 @@ import SwiftUI
 
 extension SchematicView {
 
-	private var drawn: ModuleProjection {
+	private var drawn: (projection: ModuleProjection, selection: Set<Schematic.Ref>) {
 		var moved = design
-		if let session = state.moveSession, session.didMove { moved.moveSchematic(state.selection, by: session.delta) }
-		return moved.moduleProjection()
+		var selection = state.selection
+		if let session = state.moveSession, session.didMove,
+			let next = moved.moveSchematic(selection, by: session.delta, grid: state.snap) { selection = next }
+		let projection = moved.moduleProjection()
+		return (projection, projection.expanded(selection))
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let projection = drawn
+		let (projection, selection) = drawn
 		let schematic = projection.design.schematic
 		let netlist = Netlist(schematic)
-		let selection = projection.expanded(state.selection)
 		let visible = state.viewport.visibleRect(in: size)
 
 		context.fill(
@@ -295,7 +297,7 @@ extension SchematicView {
 		if let session = state.wireSession, session.didDraw {
 			var path = Path()
 			path.move(to: session.start.cg(scale, origin: origin))
-			path.addLine(to: session.end.cg(scale, origin: origin))
+			for point in session.points.dropFirst() { path.addLine(to: point.cg(scale, origin: origin)) }
 			context.stroke(path, with: .color(Palette.preview), lineWidth: 1.5)
 		}
 		if let session = state.selectSession, session.didDrag {

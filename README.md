@@ -27,8 +27,16 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 
 `G` cycles the sheet snap spacing. Grid dots have a separate display spacing.
 `R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
-snap to 90° and chain the same way routing does, with the same `⇧`, `⌃` and `⎋`
-modifiers.
+use horizontal and vertical segments, including when snapping to an offset pin
+or wire. Click or drag to draw and continue from the last endpoint; landing on a
+pin, label or existing wire finishes the route and returns to Select. Hold `⌃`
+to ignore connection snapping, or press `⎋` to cancel. `⇧` keeps wires orthogonal.
+
+Dragging a symbol, module, label or wire segment keeps its existing connections.
+Neighbouring wires extend or contract, corners slide, and extra right-angle legs
+appear where needed to reach a fixed pin or junction. Collapsed segments disappear
+and straight segments fuse. `⌘` selects a whole wire run up to a pin, label or
+branch, using the same selection rules as layout traces.
 
 A selected symbol, wire or label lights up the way copper does on the layout,
 with the glow carrying the selection on a symbol already drawn near white.

@@ -51,6 +51,10 @@ struct WireSession: Equatable {
 	var start: Point
 	var end: Point
 	var phase: RoutePhase
+	var heading: Point = .zero
+
+	var points: [Point] { RoutingAngles.orthogonal.path(from: start, to: end, heading: heading) }
+	var wires: [Wire] { zip(points, points.dropFirst()).map { Wire(start: $0.0, end: $0.1) } }
 
 	var didDraw: Bool { start != end }
 }
