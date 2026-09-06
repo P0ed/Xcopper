@@ -9,6 +9,7 @@ struct Operations {
 	@Binding var design: Design
 	@Binding var clipboard: Clipboard
 
+	var documentURL: URL? = nil
 	var documentName: String
 }
 
@@ -20,13 +21,14 @@ struct Clipboard: Equatable, Codable {
 	var symbols: [Symbol] = []
 	var wires: [Wire] = []
 	var labels: [NetLabel] = []
+	var modules: [ModuleInstance] = []
 
 	var layoutIsEmpty: Bool {
-		traces.isEmpty && vias.isEmpty && holes.isEmpty && footprints.isEmpty
+		traces.isEmpty && vias.isEmpty && holes.isEmpty && footprints.isEmpty && modules.isEmpty
 	}
 
 	var schematicIsEmpty: Bool {
-		symbols.isEmpty && wires.isEmpty && labels.isEmpty
+		symbols.isEmpty && wires.isEmpty && labels.isEmpty && modules.isEmpty
 	}
 
 	func isEmpty(in mode: Mode) -> Bool {
@@ -62,7 +64,7 @@ extension Operations {
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
 
-	private var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
+	var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
 
 	func setScale(_ scale: CGFloat) {
 		switch mode {
@@ -76,32 +78,36 @@ extension Operations {
 		switch mode {
 		case .layout: layout.viewport.fit(design.board.size)
 		case .schematic: schematic.viewport.fit(design.schematic.size)
-		case .preview: preview.frame(design.board)
+		case .preview: preview.frame(design.resolved.board)
 		}
 	}
 
 	func delete() {
+		let ids = selectedModuleIDs
 		switch mode {
 		case .layout:
-			design.board.remove(layout.selection)
+			design.deleteLayout(layout.selection)
 			layout.resetTransientInteractions()
 		case .schematic:
-			design.schematic.remove(schematic.selection)
+			design.deleteSchematic(schematic.selection)
 			schematic.resetTransientInteractions()
 		case .preview:
 			break
 		}
+		layout.selection.subtract(ids.map(Ref.module))
+		schematic.selection.subtract(ids.map(Schematic.Ref.module))
 	}
 
 	func rotate(clockwise: Bool) {
 		switch mode {
-		case .layout: design.board.rotate(layout.selection, clockwise: clockwise)
-		case .schematic: design.schematic.rotate(schematic.selection, clockwise: clockwise)
+		case .layout: design.rotateLayout(layout.selection, clockwise: clockwise)
+		case .schematic: design.rotateSchematic(schematic.selection, clockwise: clockwise)
 		case .preview: break
 		}
 	}
 
 	func flip() {
+		guard !hasModuleSelection else { return }
 		switch mode {
 		case .layout: design.board.flip(layout.selection)
 		case .schematic: design.schematic.mirror(schematic.selection)
@@ -111,26 +117,16 @@ extension Operations {
 
 	func duplicate() {
 		switch mode {
-		case .layout:
-			layout.selection = design.board.duplicate(
-				layout.selection,
-				by: offset,
-				references: Set(design.schematic.symbols.map(\.reference))
-			)
-		case .schematic:
-			schematic.selection = design.schematic.duplicate(
-				schematic.selection,
-				by: offset,
-				references: Set(design.board.footprints.map(\.reference))
-			)
+		case .layout: layout.selection = design.duplicateLayout(layout.selection, by: offset)
+		case .schematic: schematic.selection = design.duplicateSchematic(schematic.selection, by: offset)
 		case .preview: break
 		}
 	}
 
 	func selectAll() {
 		switch mode {
-		case .layout: layout.selection = design.board.refs(in: design.board.bounds, layer: layout.layer)
-		case .schematic: schematic.selection = design.schematic.refs(in: design.schematic.bounds)
+		case .layout: layout.selection = design.layoutRefs(in: design.board.bounds, layer: layout.layer)
+		case .schematic: schematic.selection = design.schematicRefs(in: design.schematic.bounds)
 		case .preview: break
 		}
 	}
@@ -139,11 +135,11 @@ extension Operations {
 		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
 		case .layout:
-			var board = design.board
-			guard let selection = board.move(layout.selection, by: delta, grid: snap) else { return }
-			design.board = board
+			var moved = design
+			guard let selection = moved.moveLayout(layout.selection, by: delta, grid: snap) else { return }
+			design = moved
 			layout.selection = selection
-		case .schematic: design.schematic.move(schematic.selection, by: delta)
+		case .schematic: design.moveSchematic(schematic.selection, by: delta)
 		case .preview: break
 		}
 	}
@@ -157,6 +153,7 @@ extension Operations {
 	}
 
 	var counterpartName: String {
+		if hasModuleSelection { return mode == .layout ? "Show schematic" : "Show layout" }
 		let several = counterpartCount > 1
 		return switch mode {
 		case .layout: several ? "Show symbols" : "Show symbol"
@@ -175,14 +172,14 @@ extension Operations {
 			guard !refs.isEmpty else { return }
 			layout.cancelSessions()
 			layout.selection = refs
-			if let at = design.board.bounds(of: refs)?.center { layout.viewport.reveal(at) }
+			if let at = design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
 			editor.mode = .layout
 		case .layout:
 			let refs = design.symbols(for: layout.selection)
 			guard !refs.isEmpty else { return }
 			schematic.cancelSessions()
 			schematic.selection = refs
-			if let at = design.schematic.bounds(of: refs)?.center { schematic.viewport.reveal(at) }
+			if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
 			editor.mode = .schematic
 		case .preview:
 			break
@@ -211,7 +208,7 @@ extension Operations {
 	}
 
 	func assignNet(_ net: Net.ID?) {
-		guard mode == .layout else { return }
+		guard mode == .layout, !hasModuleSelection else { return }
 		for ref in layout.selection {
 			design.board[net: ref] = net
 		}
@@ -226,7 +223,9 @@ extension Operations {
 	}
 
 	func copy() {
+		let ids = selectedModuleIDs
 		var next = Clipboard()
+		next.modules = design.modules.filter { ids.contains($0.id) }
 		switch mode {
 		case .layout:
 			let refs = layout.selection
@@ -249,14 +248,15 @@ extension Operations {
 
 	func paste() {
 		guard canPaste else { return }
+		guard let moduleIDs = pasteModules() else { return }
 		switch mode {
-		case .layout: pasteLayout()
-		case .schematic: pasteSchematic()
+		case .layout: pasteLayout(moduleIDs: moduleIDs)
+		case .schematic: pasteSchematic(moduleIDs: moduleIDs)
 		case .preview: break
 		}
 	}
 
-	private func pasteLayout() {
+	private func pasteLayout(moduleIDs: Set<UUID>) {
 		let delta = offset
 		var created: Set<Ref> = []
 
@@ -286,10 +286,10 @@ extension Operations {
 			})
 			created.insert(.footprint(design.board.footprints.count - 1))
 		}
-		layout.selection = created
+		layout.selection = created.union(moduleIDs.map(Ref.module))
 	}
 
-	private func pasteSchematic() {
+	private func pasteSchematic(moduleIDs: Set<UUID>) {
 		let delta = offset
 		var created: Set<Schematic.Ref> = []
 
@@ -311,13 +311,17 @@ extension Operations {
 			})
 			created.insert(.symbol(design.schematic.symbols.count - 1))
 		}
-		schematic.selection = created
+		schematic.selection = created.union(moduleIDs.map(Schematic.Ref.module))
 	}
 }
 
 extension Operations {
 
 	func resize(size: Size, stack: Stack) {
+		guard stack == design.board.stack || design.canRestack(stack) else {
+			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
+			return
+		}
 		design.board.resize(size: size)
 		if stack != design.board.stack {
 			design.restack(stack)

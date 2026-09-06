@@ -25,12 +25,19 @@ struct Document: FileDocument {
 
 		guard !design.board.size.isEmpty else { throw Err("Board has no size") }
 		guard !design.schematic.size.isEmpty else { throw Err("Sheet has no size") }
+		guard Set(design.modules.map(\.id)).count == design.modules.count else { throw Err("Duplicate module identities") }
+		guard design.modules.allSatisfy({ design.moduleReferenceIsValid($0.reference, ignoring: $0.id) })
+		else { throw Err("Module references must be nonempty and unique") }
 		return design
 	}
 
 	func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+		FileWrapper(regularFileWithContents: try encoded())
+	}
+
+	func encoded() throws -> Data {
 		let encoder = JSONEncoder()
 		encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-		return FileWrapper(regularFileWithContents: try encoder.encode(design))
+		return try encoder.encode(design)
 	}
 }

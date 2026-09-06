@@ -163,6 +163,7 @@ final class FabricationTests: XCTestCase {
 
 	func testKnockoutsAreGrownByTheClearanceRule() {
 		var design = design()
+		design.board.rules.clearance = .mm(0.33)
 		design.board.vias = [
 			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]

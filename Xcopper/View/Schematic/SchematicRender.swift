@@ -2,17 +2,19 @@ import SwiftUI
 
 extension SchematicView {
 
-	private var drawn: Schematic {
-		guard let session = state.moveSession, session.didMove else { return schematic }
-		return modifying(schematic) { $0.move(state.selection, by: session.delta) }
+	private var drawn: ModuleProjection {
+		var moved = design
+		if let session = state.moveSession, session.didMove { moved.moveSchematic(state.selection, by: session.delta) }
+		return moved.moduleProjection()
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let schematic = drawn
+		let projection = drawn
+		let schematic = projection.design.schematic
 		let netlist = Netlist(schematic)
-		let selection = state.selection
+		let selection = projection.expanded(state.selection)
 		let visible = state.viewport.visibleRect(in: size)
 
 		context.fill(
@@ -31,7 +33,7 @@ extension SchematicView {
 		renderWires(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 		renderJunctions(schematic, in: context, scale: scale, origin: origin)
 		renderSymbols(schematic, selection, in: context, scale: scale, origin: origin)
-		renderPins(schematic, in: context, scale: scale, origin: origin, visible: visible)
+		renderPins(projection, in: context, scale: scale, origin: origin, visible: visible)
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
 		context.stroke(
@@ -164,7 +166,7 @@ extension SchematicView {
 	}
 
 	private func renderPins(
-		_ schematic: Schematic,
+		_ projection: ModuleProjection,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint,
@@ -177,11 +179,12 @@ extension SchematicView {
 		let gap = Double(PinText.gap).mm * scale
 		let inset = Double(PinText.inset).mm * scale
 
-		for symbol in schematic.symbols where !symbol.kind.isPower {
+		for (index, symbol) in projection.design.schematic.symbols.enumerated() where !symbol.kind.isPower {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
 
 			let inside = symbol.kind == .ic
-			let numbered = symbol.kind.showsPinNumbers
+			let isModule = projection.symbolOwners[.symbol(index)] != nil
+			let numbered = symbol.kind.showsPinNumbers && !isModule
 
 			for pin in symbol.placedPins {
 				let quarter = pin.direction.isQuarter
@@ -201,7 +204,7 @@ extension SchematicView {
 						in: context
 					)
 				}
-				guard pin.isNamed else { continue }
+				guard pin.isNamed || isModule else { continue }
 
 				let name = Text(pin.name)
 					.font(.system(size: nameSize))

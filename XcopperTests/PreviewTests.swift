@@ -515,11 +515,11 @@ final class PreviewTests: XCTestCase {
 		XCTAssertGreaterThan(soic.package.height, chip.package.height)
 	}
 
-	func testACapacitorChipStandsThreeTimesAResistorAndIsMadeOfSomethingElse() {
+	func testACapacitorChipStandsTwiceAsTallAsAResistorAndIsMadeOfSomethingElse() {
 		let resistor = Footprint(spec: .init(kind: .chip, chip: .c1206), reference: "R1", at: .zero)
 		let capacitor = Footprint(spec: .init(kind: .chip, chip: .c1206, part: .capacitor), reference: "C1", at: .zero)
 
-		XCTAssertEqual(capacitor.package.height, resistor.package.height * 3)
+		XCTAssertEqual(capacitor.package.height, resistor.package.height * 2)
 		XCTAssertEqual(capacitor.package.color, Palette.ceramic)
 		XCTAssertEqual(resistor.package.color, Palette.chip)
 		XCTAssertEqual(capacitor.package.shell, resistor.package.shell, "both are the same block")

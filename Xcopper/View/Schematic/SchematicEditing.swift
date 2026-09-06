@@ -13,7 +13,7 @@ extension SchematicView {
 
 	func snapped(_ point: Pt) -> Pt {
 		if !modifierFlags.contains(.control),
-			let target = schematic.snapTarget(near: point, radius: snapRadius) {
+			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
 		return point.snapped(to: state.snap)
@@ -88,7 +88,7 @@ private extension SchematicView {
 		guard let session = state.wireSession else { return snapped(point) }
 
 		if !modifierFlags.contains(.control),
-			let target = schematic.snapTarget(near: point, radius: snapRadius) {
+			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
 		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
@@ -102,7 +102,7 @@ private extension SchematicView {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
 		if state.selectSession == nil {
-			let hit = schematic.hitTest(at: start, tolerance: hitTolerance)
+			let hit = design.schematicRef(at: start, tolerance: hitTolerance)
 			if let hit, state.selection.contains(hit) {
 				state.beginMove(at: start.snapped(to: state.snap))
 				return state.updateMove(to: current.snapped(to: state.snap))
@@ -115,7 +115,7 @@ private extension SchematicView {
 	func endSelection(from start: Pt, to current: Pt) {
 		if let session = state.moveSession {
 			if session.didMove {
-				undoGroup("Move") { schematic.move(state.selection, by: session.delta) }
+				undoGroup("Move") { design.moveSchematic(state.selection, by: session.delta) }
 			}
 			state.moveSession = nil
 			return
@@ -124,8 +124,8 @@ private extension SchematicView {
 		state.updateSelect(to: current)
 
 		let hit: Set<Schematic.Ref> = session.didDrag
-			? schematic.refs(in: session.rect)
-			: schematic.hitTest(at: start, tolerance: hitTolerance).map { [$0] } ?? []
+			? design.schematicRefs(in: session.rect)
+			: design.schematicRef(at: start, tolerance: hitTolerance).map { [$0] } ?? []
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

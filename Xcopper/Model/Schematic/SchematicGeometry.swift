@@ -100,8 +100,8 @@ extension Schematic {
 		labels.remove(at: refs.compactMap { if case let .label(i) = $0 { i } else { nil } })
 	}
 
-	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool) {
-		guard let pivot = bounds(of: refs)?.center else { return }
+	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Pt? = nil) {
+		guard let pivot = center ?? bounds(of: refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 
 		func spin(_ point: Pt) -> Pt { (point - pivot).rotated(rotation) + pivot }

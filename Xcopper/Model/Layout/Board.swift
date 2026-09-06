@@ -160,12 +160,14 @@ extension Board {
 		vias.removeAll { $0.from == $0.to }
 	}
 
+	mutating func mapNets(_ map: (Net.ID?) -> Net.ID?) {
+		traces.modifyEach { $0.net = map($0.net) }
+		vias.modifyEach { $0.net = map($0.net) }
+		footprints.modifyEach { $0.pads.modifyEach { $0.net = map($0.net) } }
+	}
+
 	mutating func clearNet(_ id: Net.ID) {
-		traces.modifyEach { trace in if trace.net == id { trace.net = nil } }
-		vias.modifyEach { via in if via.net == id { via.net = nil } }
-		footprints.modifyEach { footprint in
-			footprint.pads.modifyEach { pad in if pad.net == id { pad.net = nil } }
-		}
+		mapNets { $0 == id ? nil : $0 }
 	}
 }
 
@@ -175,7 +177,7 @@ extension Board {
 		Xcopper.parking(footprint.placedExtent, in: bounds, clear: occupied)
 	}
 
-	private var occupied: [Rect] {
+	var occupied: [Rect] {
 		footprints.map(\.placedExtent)
 			+ traces.map { trace in Figure.segment(trace.start, trace.end, trace.width).bounds }
 			+ vias.map { via in Figure.round(via.at, via.pad).bounds }
@@ -190,7 +192,7 @@ extension Board {
 			switch ref {
 			case let .trace(index): traces.indices.contains(index) ? traces[index].net : nil
 			case let .via(index): vias.indices.contains(index) ? vias[index].net : nil
-			case .hole, .footprint: nil
+			case .hole, .footprint, .module: nil
 			}
 		}
 		set {
@@ -203,7 +205,7 @@ extension Board {
 				if footprints.indices.contains(index) {
 					footprints[index].pads.modifyEach { pad in pad.net = newValue }
 				}
-			case .hole:
+			case .hole, .module:
 				break
 			}
 		}
@@ -580,8 +582,8 @@ extension Board {
 		footprints.remove(at: refs.compactMap { if case let .footprint(i) = $0 { i } else { nil } })
 	}
 
-	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool) {
-		guard let pivot = bounds(of: refs)?.center else { return }
+	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Pt? = nil) {
+		guard let pivot = center ?? bounds(of: refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 
 		func spin(_ point: Pt) -> Pt { (point - pivot).rotated(rotation) + pivot }
@@ -661,6 +663,7 @@ extension Ref {
 
 	var index: Int {
 		switch self {
+		case .module: Int.max
 		case let .trace(index), let .via(index), let .hole(index), let .footprint(index): index
 		}
 	}

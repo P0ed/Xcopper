@@ -37,7 +37,7 @@ enum Palette {
 	}
 
 	static func color(of net: Net.ID) -> Color {
-		Color(hue: Double(net &* 47 % 360) / 360.0, saturation: 0.55, brightness: 0.95)
+		Color(hue: Double((net &* 47 % 360 + 360) % 360) / 360.0, saturation: 0.55, brightness: 0.95)
 	}
 
 	static func lit(_ color: Color) -> Color {

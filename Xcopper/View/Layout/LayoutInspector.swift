@@ -21,6 +21,8 @@ struct LayoutInspector: View {
 	@ViewBuilder
 	private func properties(of ref: Ref) -> some View {
 		switch ref {
+		case let .module(id):
+			ModuleInspector(design: $design, id: id, layout: true, focus: $focus)
 		case let .trace(index) where board.traces.indices.contains(index):
 			TraceInspector(
 				trace: $design.board.traces[index, or: board.traces[index]],
@@ -43,6 +45,7 @@ struct LayoutInspector: View {
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			FootprintInspector(
 				footprint: $design.board.footprints[index, or: board.footprints[index]],
+				reference: $design.reference(of: Ref.footprint(index)),
 				stack: board.stack,
 				focus: $focus
 			)
@@ -119,6 +122,7 @@ struct HoleInspector: View {
 @MainActor
 struct FootprintInspector: View {
 	@Binding var footprint: Footprint
+	@Binding var reference: String
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
@@ -126,7 +130,7 @@ struct FootprintInspector: View {
 		TextRow(
 			title: "Ref",
 			prompt: "R1",
-			text: $footprint.reference,
+			text: $reference,
 			property: .reference,
 			focus: $focus
 		)

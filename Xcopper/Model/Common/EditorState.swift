@@ -1,3 +1,5 @@
+import Foundation
+
 enum Mode: Hashable, CaseIterable {
 	case schematic, layout, preview
 

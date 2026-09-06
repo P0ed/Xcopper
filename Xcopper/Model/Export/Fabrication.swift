@@ -32,6 +32,8 @@ enum Fabrication {
 extension Design {
 
 	func fabrication(named name: String) -> [Fabrication.File] {
+		guard moduleErrors.isEmpty else { return [] }
+		if !modules.isEmpty { return resolved.fabrication(named: name) }
 		let stack = board.stack
 		return stack.copper.map { layer in copper(layer, named: name) }
 			+ [

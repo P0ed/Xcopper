@@ -12,6 +12,7 @@ struct EditorView: View {
 
 	@FocusState private(set) var focused: Bool
 	@Environment(\.documentConfiguration) private var configuration
+	@Environment(\.undoManager) private var undoManager
 
 	var body: some View {
 		NavigationSplitView(
@@ -24,6 +25,11 @@ struct EditorView: View {
 		.focusEffectDisabled()
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
+		.onChange(of: configuration?.fileURL, initial: true) { _, _ in
+			undoManager?.disableUndoRegistration()
+			defer { undoManager?.enableUndoRegistration() }
+			operations.reloadModules(automatic: true)
+		}
 		.onChange(of: editor.editing) { _, editing in if !editing { focused = true } }
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)
@@ -37,6 +43,7 @@ struct EditorView: View {
 			preview: $preview,
 			design: $design,
 			clipboard: $clipboard,
+			documentURL: configuration?.fileURL,
 			documentName: documentName
 		)
 	}
@@ -59,7 +66,7 @@ struct EditorView: View {
 		case .schematic:
 			SchematicSideBar(design: $design, state: $schematic, editor: $editor, operations: operations)
 		case .preview:
-			PreviewSideBar(board: design.board, state: $preview)
+			PreviewSideBar(board: design.resolved.board, state: $preview)
 		}
 	}
 
@@ -70,7 +77,7 @@ struct EditorView: View {
 			LayoutView(design: $design, state: $layout, claimKeyboard: claimKeyboard)
 		case .schematic:
 			SchematicView(design: $design, state: $schematic, claimKeyboard: claimKeyboard)
-		case .preview: PreviewView(board: design.board, state: $preview)
+		case .preview: PreviewView(board: design.resolved.board, state: $preview)
 		}
 	}
 
@@ -92,7 +99,7 @@ struct EditorView: View {
 				update: operations.updateBoard
 			)
 		case .preview:
-			PreviewToolBar(board: design.board, state: $preview)
+			PreviewToolBar(board: design.resolved.board, state: $preview)
 		}
 		ToolbarItemGroup { Spacer() }
 		ToolbarItemGroup { ModePicker(mode: $editor.mode) }

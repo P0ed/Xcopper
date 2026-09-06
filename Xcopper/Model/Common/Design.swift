@@ -1,7 +1,25 @@
 struct Design: Equatable, Codable {
-	var nets: [Net]
-	var board: Board
-	var schematic: Schematic
+	var nets: [Net] { didSet { projectionCache = ModuleProjectionCache() } }
+	var board: Board { didSet { projectionCache = ModuleProjectionCache() } }
+	var schematic: Schematic { didSet { projectionCache = ModuleProjectionCache() } }
+	var modules: [ModuleInstance] = [] { didSet { projectionCache = ModuleProjectionCache() } }
+	var moduleCache = ModuleCache() { didSet { projectionCache = ModuleProjectionCache() } }
+	private var projectionCache = ModuleProjectionCache()
+
+	func moduleProjection(syncNative: Bool = false) -> ModuleProjection {
+		if modules.isEmpty && !syncNative { return ModuleProjection(design: self) }
+		return projectionCache.value(syncNative: syncNative) { buildModuleProjection(syncNative: syncNative) }
+	}
+
+	enum CodingKeys: String, CodingKey { case nets, board, schematic, modules }
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		nets = try values.decode([Net].self, forKey: .nets)
+		board = try values.decode(Board.self, forKey: .board)
+		schematic = try values.decode(Schematic.self, forKey: .schematic)
+		modules = try values.decodeIfPresent([ModuleInstance].self, forKey: .modules) ?? []
+	}
 }
 
 extension Design {
@@ -31,6 +49,7 @@ extension Design {
 	}
 
 	mutating func restack(_ stack: Stack) {
+		guard canRestack(stack) else { return }
 		board.restack(stack)
 		for name in stack.planeNames { _ = net(named: name) }
 	}

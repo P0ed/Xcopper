@@ -1,3 +1,5 @@
+import Foundation
+
 func id<A>(_ x: A) -> A { x }
 func ø<each A>(_ x: repeat each A) {}
 
@@ -26,8 +28,9 @@ extension Optional {
 	}
 }
 
-struct Err: Error {
+struct Err: LocalizedError {
 	var description: String
+	var errorDescription: String? { description }
 
 	init(_ description: String) {
 		self.description = description
@@ -62,5 +65,26 @@ extension String {
 		while let first = text.first, first.isWhitespace { text = text.dropFirst() }
 		while let last = text.last, last.isWhitespace { text = text.dropLast() }
 		return String(text)
+	}
+}
+
+struct UnionFind<Element: Hashable> {
+	private var parent: [Element: Element] = [:]
+
+	mutating func find(_ element: Element) -> Element {
+		guard let up = parent[element] else {
+			parent[element] = element
+			return element
+		}
+		guard up != element else { return element }
+		let root = find(up)
+		parent[element] = root
+		return root
+	}
+
+	mutating func union(_ a: Element, _ b: Element) {
+		let (ra, rb) = (find(a), find(b))
+		guard ra != rb else { return }
+		parent[ra] = rb
 	}
 }
