@@ -2,8 +2,8 @@ import Foundation
 
 enum Figure: Hashable {
 	case rect(Rect)
-	case round(Pt, Nm)
-	case segment(Pt, Pt, Nm)
+	case round(Point, Nm)
+	case segment(Point, Point, Nm)
 }
 
 extension Figure {
@@ -27,7 +27,7 @@ extension Figure {
 		}
 	}
 
-	func contains(_ point: Pt, tolerance: Int = 0) -> Bool {
+	func contains(_ point: Point, tolerance: Int = 0) -> Bool {
 		switch self {
 		case let .rect(rect):
 			rect.outset(tolerance).contains(point)
@@ -39,13 +39,13 @@ extension Figure {
 	}
 }
 
-func length(from start: Pt, to end: Pt) -> Double {
+func length(from start: Point, to end: Point) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
 	return (dx * dx + dy * dy).squareRoot().mm
 }
 
-func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
+func distance(from point: Point, to start: Point, _ end: Point) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
 	let px = Double(point.x - start.x)
@@ -60,16 +60,16 @@ func distance(from point: Pt, to start: Pt, _ end: Pt) -> Double {
 
 private let parkingPitch = Int.mil(100)
 
-func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Pt {
-	var fallback: Pt?
+func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Point {
+	var fallback: Point?
 	var y = bounds.minY + parkingPitch
 
 	while y <= bounds.maxY {
 		var x = bounds.minX + parkingPitch
 		while x <= bounds.maxX {
-			let at = Pt(x: x, y: y)
+			let at = Point(x: x, y: y)
 			let placed = Rect(origin: extent.origin + at, size: extent.size)
-			if bounds.contains(placed.origin), bounds.contains(Pt(x: placed.maxX, y: placed.maxY)) {
+			if bounds.contains(placed.origin), bounds.contains(Point(x: placed.maxX, y: placed.maxY)) {
 				if fallback == nil { fallback = at }
 				let room = placed.outset(parkingPitch / 2)
 				if !taken.contains(where: room.intersects) { return at }
@@ -84,11 +84,11 @@ func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Pt {
 private let octantEdge = 414
 
 private let compass = [
-	Pt(x: 1, y: 0), Pt(x: 1, y: 1), Pt(x: 0, y: 1), Pt(x: -1, y: 1),
-	Pt(x: -1, y: 0), Pt(x: -1, y: -1), Pt(x: 0, y: -1), Pt(x: 1, y: -1),
+	Point(x: 1, y: 0), Point(x: 1, y: 1), Point(x: 0, y: 1), Point(x: -1, y: 1),
+	Point(x: -1, y: 0), Point(x: -1, y: -1), Point(x: 0, y: -1), Point(x: 1, y: -1),
 ]
 
-func snapped45(from start: Pt, to end: Pt) -> Pt {
+func snapped45(from start: Point, to end: Point) -> Point {
 	let dx = end.x - start.x
 	let dy = end.y - start.y
 	guard dx != 0 || dy != 0 else { return end }
@@ -96,16 +96,16 @@ func snapped45(from start: Pt, to end: Pt) -> Pt {
 	let ax = abs(dx)
 	let ay = abs(dy)
 
-	if ay * 1000 <= ax * octantEdge { return Pt(x: end.x, y: start.y) }
-	if ax * 1000 <= ay * octantEdge { return Pt(x: start.x, y: end.y) }
+	if ay * 1000 <= ax * octantEdge { return Point(x: end.x, y: start.y) }
+	if ax * 1000 <= ay * octantEdge { return Point(x: start.x, y: end.y) }
 
 	let sx = dx < 0 ? -1 : 1
 	let sy = dy < 0 ? -1 : 1
 	let length = (ax + ay) / 2
-	return Pt(x: start.x + sx * length, y: start.y + sy * length)
+	return Point(x: start.x + sx * length, y: start.y + sy * length)
 }
 
-func snapped45(from start: Pt, to end: Pt, after heading: Pt) -> Pt {
+func snapped45(from start: Point, to end: Point, after heading: Point) -> Point {
 	let free = snapped45(from: start, to: end)
 	guard let arriving = heading.octant, let wanted = (free - start).octant,
 		!heading.bends(to: free - start)
@@ -116,34 +116,34 @@ func snapped45(from start: Pt, to end: Pt, after heading: Pt) -> Pt {
 	return start + direction * projection(of: end - start, onto: direction)
 }
 
-private func projection(of offset: Pt, onto direction: Pt) -> Int {
+private func projection(of offset: Point, onto direction: Point) -> Int {
 	let along = offset.x * direction.x + offset.y * direction.y
 	let step = direction.x != 0 && direction.y != 0 ? 2 : 1
 	return max(0, along / step)
 }
 
-extension Pt {
+extension Point {
 
 	var isOctilinear: Bool { x == 0 || y == 0 || abs(x) == abs(y) }
 
-	var heading: Pt { Pt(x: x.signum(), y: y.signum()) }
+	var heading: Point { Point(x: x.signum(), y: y.signum()) }
 
-	var step: Pt {
+	var step: Point {
 		let divisor = gcd(x, y)
-		return divisor > 1 ? Pt(x: x / divisor, y: y / divisor) : self
+		return divisor > 1 ? Point(x: x / divisor, y: y / divisor) : self
 	}
 
-	func runsAlong(_ direction: Pt) -> Bool { x * direction.x + y * direction.y > 0 }
+	func runsAlong(_ direction: Point) -> Bool { x * direction.x + y * direction.y > 0 }
 
 	var octant: Int? { isOctilinear ? compass.firstIndex(of: heading) : nil }
 
-	func turn(to next: Pt) -> Int? {
+	func turn(to next: Point) -> Int? {
 		guard let from = octant, let to = next.octant else { return nil }
 		let eighths = abs(to - from)
 		return min(eighths, 8 - eighths)
 	}
 
-	func bends(to next: Pt) -> Bool { turn(to: next).map { $0 <= 1 } ?? true }
+	func bends(to next: Point) -> Bool { turn(to: next).map { $0 <= 1 } ?? true }
 }
 
 private func gcd(_ a: Int, _ b: Int) -> Int {
@@ -152,19 +152,19 @@ private func gcd(_ a: Int, _ b: Int) -> Int {
 	return a
 }
 
-func bend(from start: Pt, to end: Pt, heading: Pt, leaving: Pt) -> Pt {
+func bend(from start: Point, to end: Point, heading: Point, leaving: Point) -> Point {
 	let offset = end - start
 	let diagonal = offset.heading
 	let leg = diagonal * min(abs(offset.x), abs(offset.y))
 
 	let (kept, other) = heading == diagonal ? (end - leg, start + leg) : (start + leg, end - leg)
 
-	func turn(_ corner: Pt) -> Int { (-leaving).turn(to: corner - start) ?? 0 }
+	func turn(_ corner: Point) -> Int { (-leaving).turn(to: corner - start) ?? 0 }
 	let bend = turn(kept)
 	return bend <= 1 || bend <= turn(other) ? kept : other
 }
 
-func crossing(line a: Pt, _ da: Pt, line b: Pt, _ db: Pt) -> Pt? {
+func crossing(line a: Point, _ da: Point, line b: Point, _ db: Point) -> Point? {
 	let (da, db) = (da.step, db.step)
 	let determinant = db.x * da.y - da.x * db.y
 	guard determinant != 0 else { return nil }
@@ -179,17 +179,17 @@ func crossing(line a: Pt, _ da: Pt, line b: Pt, _ db: Pt) -> Pt? {
 	return a + da * steps
 }
 
-func crossing(_ a: Pt, _ da: Pt, _ b: Pt, _ db: Pt) -> Pt? {
+func crossing(_ a: Point, _ da: Point, _ b: Point, _ db: Point) -> Point? {
 	guard let at = crossing(line: a, da, line: b, db),
 		(at - a).runsAlong(da), (at - b).runsAlong(db)
 	else { return nil }
 	return at
 }
 
-func snapped90(from start: Pt, to end: Pt) -> Pt {
+func snapped90(from start: Point, to end: Point) -> Point {
 	let dx = end.x - start.x
 	let dy = end.y - start.y
-	return abs(dx) >= abs(dy) ? Pt(x: end.x, y: start.y) : Pt(x: start.x, y: end.y)
+	return abs(dx) >= abs(dy) ? Point(x: end.x, y: start.y) : Point(x: start.x, y: end.y)
 }
 
 extension Board {
@@ -269,14 +269,14 @@ extension Pad {
 			.round(at, Nm(clamping: size.width))
 		case .oval where size.width > size.height:
 			.segment(
-				Pt(x: at.x - (size.width - size.height) / 2, y: at.y),
-				Pt(x: at.x + (size.width - size.height) / 2, y: at.y),
+				Point(x: at.x - (size.width - size.height) / 2, y: at.y),
+				Point(x: at.x + (size.width - size.height) / 2, y: at.y),
 				Nm(clamping: size.height)
 			)
 		case .oval:
 			.segment(
-				Pt(x: at.x, y: at.y - (size.height - size.width) / 2),
-				Pt(x: at.x, y: at.y + (size.height - size.width) / 2),
+				Point(x: at.x, y: at.y - (size.height - size.width) / 2),
+				Point(x: at.x, y: at.y + (size.height - size.width) / 2),
 				Nm(clamping: size.width)
 			)
 		}
@@ -285,7 +285,7 @@ extension Pad {
 
 extension Board {
 
-	func hitTest(at point: Pt, layer: Int, tolerance: Int) -> Ref? {
+	func hitTest(at point: Point, layer: Int, tolerance: Int) -> Ref? {
 		for (index, footprint) in footprints.enumerated().reversed() {
 			let hit = footprint.placedPads.contains { pad in
 				(pad.isThrough || footprint.layer(of: pad, in: stack) == layer)
@@ -311,7 +311,7 @@ extension Board {
 		return nil
 	}
 
-	func refs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
+	func refs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
 		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
 		guard whole, case let .trace(index) = hit else { return [hit] }
 		return Set(run(of: index).map(Ref.trace))
@@ -373,7 +373,7 @@ extension Board {
 		return run
 	}
 
-	func continuation(of index: Int, at point: Pt) -> Int? {
+	func continuation(of index: Int, at point: Point) -> Int? {
 		let layer = traces[index].layer
 		guard !isTerminal(point, layer: layer) else { return nil }
 
@@ -387,10 +387,10 @@ extension Board {
 		return corner
 	}
 
-	func heading(leaving point: Pt, layer: Int, ignoring skipped: Int? = nil) -> Pt? {
+	func heading(leaving point: Point, layer: Int, ignoring skipped: Int? = nil) -> Point? {
 		guard !isTerminal(point, layer: layer) else { return nil }
 
-		var heading: Pt?
+		var heading: Point?
 		for (index, trace) in traces.enumerated()
 		where index != skipped && trace.layer == layer
 			&& (trace.start == point || trace.end == point) {
@@ -401,7 +401,7 @@ extension Board {
 		return heading
 	}
 
-	func isTerminal(_ point: Pt, layer: Int) -> Bool {
+	func isTerminal(_ point: Point, layer: Int) -> Bool {
 		for via in vias
 		where via.spans(layer) && Figure.round(via.at, via.pad).contains(point) {
 			return true
@@ -416,18 +416,18 @@ extension Board {
 		return false
 	}
 
-	func isConnection(_ point: Pt, layer: Int) -> Bool {
+	func isConnection(_ point: Point, layer: Int) -> Bool {
 		isTerminal(point, layer: layer)
 			|| traces.contains { trace in
 				trace.layer == layer && (trace.start == point || trace.end == point)
 			}
 	}
 
-	func snapTarget(near point: Pt, layer: Int, radius: Int) -> (Pt, Net.ID?)? {
-		var best: (Pt, Net.ID?)?
+	func snapTarget(near point: Point, layer: Int, radius: Int) -> (Point, Net.ID?)? {
+		var best: (Point, Net.ID?)?
 		var bestDistance = radius * radius + 1
 
-		func consider(_ candidate: Pt, _ net: Net.ID?) {
+		func consider(_ candidate: Point, _ net: Net.ID?) {
 			let distance = point.distanceSquared(to: candidate)
 			guard distance < bestDistance else { return }
 			bestDistance = distance
@@ -453,7 +453,7 @@ extension Board {
 
 extension Figure {
 
-	func polygon(arc: Int? = nil) -> [Pt] {
+	func polygon(arc: Int? = nil) -> [Point] {
 		switch self {
 		case let .rect(rect):
 			rect.corners
@@ -469,19 +469,19 @@ func fineness(across width: Int) -> Int {
 	min(8, max(3, Int((3.0 * Double(width).mm.squareRoot()).rounded())))
 }
 
-func circle(at center: Pt, diameter: Int, arc: Int? = nil) -> [Pt] {
+func circle(at center: Point, diameter: Int, arc: Int? = nil) -> [Point] {
 	let steps = max(3, (arc ?? fineness(across: diameter)) * 4)
 	let radius = Double(diameter) / 2.0
 	return (0 ..< steps).map { step in
 		let angle = Double(step) / Double(steps) * 2.0 * .pi
-		return Pt(
+		return Point(
 			x: center.x + Int((cos(angle) * radius).rounded()),
 			y: center.y + Int((sin(angle) * radius).rounded())
 		)
 	}
 }
 
-func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
+func stadium(from start: Point, to end: Point, width: Int, arc: Int? = nil) -> [Point] {
 	let radius = Double(width) / 2.0
 	let offset = end - start
 	guard offset.x != 0 || offset.y != 0 else {
@@ -490,12 +490,12 @@ func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 	let heading = atan2(Double(offset.y), Double(offset.x))
 	let steps = max(2, (arc ?? fineness(across: width)) * 2)
 
-	var loop: [Pt] = []
+	var loop: [Point] = []
 	loop.reserveCapacity((steps + 1) * 2)
 	for (center, base) in [(end, heading - .pi / 2.0), (start, heading + .pi / 2.0)] {
 		for step in 0 ... steps {
 			let angle = base + Double(step) / Double(steps) * .pi
-			loop.append(Pt(
+			loop.append(Point(
 				x: center.x + Int((cos(angle) * radius).rounded()),
 				y: center.y + Int((sin(angle) * radius).rounded())
 			))
@@ -506,7 +506,7 @@ func stadium(from start: Pt, to end: Pt, width: Int, arc: Int? = nil) -> [Pt] {
 
 extension Figure {
 
-	var core: [Pt] {
+	var core: [Point] {
 		switch self {
 		case let .rect(rect): rect.corners
 		case let .round(center, _): [center]
@@ -527,7 +527,7 @@ func gap(_ a: Figure, _ b: Figure) -> Double {
 	max(0.0, gap(a.core, b.core) - Double(a.radius + b.radius))
 }
 
-func gap(_ a: [Pt], _ b: [Pt]) -> Double {
+func gap(_ a: [Point], _ b: [Point]) -> Double {
 	guard let here = a.first, let there = b.first else { return .infinity }
 	guard !covers(a, there), !covers(b, here) else { return 0.0 }
 
@@ -540,7 +540,7 @@ func gap(_ a: [Pt], _ b: [Pt]) -> Double {
 	return least
 }
 
-func nearest(_ loop: [Pt], to point: Pt) -> Pt {
+func nearest(_ loop: [Point], to point: Point) -> Point {
 	guard !covers(loop, point) else { return point }
 
 	var best = point
@@ -555,14 +555,14 @@ func nearest(_ loop: [Pt], to point: Pt) -> Pt {
 	return best
 }
 
-func meeting(_ a: Figure, _ b: Figure) -> Pt {
+func meeting(_ a: Figure, _ b: Figure) -> Point {
 	let near = nearest(a.core, to: b.bounds.center)
 	let far = nearest(b.core, to: near)
 	let back = nearest(a.core, to: far)
-	return Pt(x: (back.x + far.x) / 2, y: (back.y + far.y) / 2)
+	return Point(x: (back.x + far.x) / 2, y: (back.y + far.y) / 2)
 }
 
-private func gap(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Double {
+private func gap(_ a: (Point, Point), _ b: (Point, Point)) -> Double {
 	guard !crosses(a, b) else { return 0.0 }
 	return min(
 		min(distance(from: a.0, to: b.0, b.1), distance(from: a.1, to: b.0, b.1)),
@@ -570,8 +570,8 @@ private func gap(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Double {
 	)
 }
 
-private func crosses(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Bool {
-	func straddles(_ from: Pt, _ to: Pt, _ first: Pt, _ second: Pt) -> Bool {
+private func crosses(_ a: (Point, Point), _ b: (Point, Point)) -> Bool {
+	func straddles(_ from: Point, _ to: Point, _ first: Point, _ second: Point) -> Bool {
 		let here = cross(from, to, first)
 		let there = cross(from, to, second)
 		return (here > 0 && there < 0) || (here < 0 && there > 0)
@@ -579,7 +579,7 @@ private func crosses(_ a: (Pt, Pt), _ b: (Pt, Pt)) -> Bool {
 	return straddles(a.0, a.1, b.0, b.1) && straddles(b.0, b.1, a.0, a.1)
 }
 
-private func covers(_ loop: [Pt], _ point: Pt) -> Bool {
+private func covers(_ loop: [Point], _ point: Point) -> Bool {
 	guard loop.count >= 3 else { return false }
 
 	var enclosed = false
@@ -591,7 +591,7 @@ private func covers(_ loop: [Pt], _ point: Pt) -> Bool {
 	return enclosed
 }
 
-private func edges(_ loop: [Pt]) -> [(Pt, Pt)] {
+private func edges(_ loop: [Point]) -> [(Point, Point)] {
 	switch loop.count {
 	case 0: []
 	case 1: [(loop[0], loop[0])]
@@ -600,7 +600,7 @@ private func edges(_ loop: [Pt]) -> [(Pt, Pt)] {
 	}
 }
 
-private func nearest(from start: Pt, to end: Pt, near point: Pt) -> Pt {
+private func nearest(from start: Point, to end: Point, near point: Point) -> Point {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
 	let lengthSquared = dx * dx + dy * dy
@@ -608,19 +608,19 @@ private func nearest(from start: Pt, to end: Pt, near point: Pt) -> Pt {
 
 	let along = Double(point.x - start.x) * dx + Double(point.y - start.y) * dy
 	let t = min(max(along / lengthSquared, 0.0), 1.0)
-	return Pt(
+	return Point(
 		x: start.x + Int((dx * t).rounded()),
 		y: start.y + Int((dy * t).rounded())
 	)
 }
 
-func punched(_ loop: [Pt], by drills: [[Pt]]) -> [[Pt]] {
+func punched(_ loop: [Point], by drills: [[Point]]) -> [[Point]] {
 	drills.reduce([loop]) { pieces, drill in
 		pieces.flatMap { piece in punched(piece, by: drill) }
 	}
 }
 
-func holds(_ outline: [Pt], _ loop: [Pt]) -> Bool {
+func holds(_ outline: [Point], _ loop: [Point]) -> Bool {
 	guard outline.count >= 3 else { return false }
 	return loop.allSatisfy { point in
 		outline.indices.allSatisfy { index in
@@ -629,7 +629,7 @@ func holds(_ outline: [Pt], _ loop: [Pt]) -> Bool {
 	}
 }
 
-private func punched(_ loop: [Pt], by drill: [Pt]) -> [[Pt]] {
+private func punched(_ loop: [Point], by drill: [Point]) -> [[Point]] {
 	guard drill.count >= 3, loop.count >= 3 else { return [loop] }
 
 	let (away, near) = cut(loop, to: reach(of: drill).corners)
@@ -638,8 +638,8 @@ private func punched(_ loop: [Pt], by drill: [Pt]) -> [[Pt]] {
 	return away + cut(near, to: drill).outside
 }
 
-private func cut(_ loop: [Pt], to convex: [Pt]) -> (outside: [[Pt]], inside: [Pt]) {
-	var outside: [[Pt]] = []
+private func cut(_ loop: [Point], to convex: [Point]) -> (outside: [[Point]], inside: [Point]) {
+	var outside: [[Point]] = []
 	var inside = loop
 
 	for index in convex.indices {
@@ -653,19 +653,19 @@ private func cut(_ loop: [Pt], to convex: [Pt]) -> (outside: [[Pt]], inside: [Pt
 	return (outside, inside)
 }
 
-private func reach(of loop: [Pt]) -> Rect {
+private func reach(of loop: [Point]) -> Rect {
 	var lower = loop[0]
 	var upper = loop[0]
 
 	for point in loop.dropFirst() {
-		lower = Pt(x: min(lower.x, point.x), y: min(lower.y, point.y))
-		upper = Pt(x: max(upper.x, point.x), y: max(upper.y, point.y))
+		lower = Point(x: min(lower.x, point.x), y: min(lower.y, point.y))
+		upper = Point(x: max(upper.x, point.x), y: max(upper.y, point.y))
 	}
 	return Rect(from: lower, to: upper)
 }
 
-private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [Pt] {
-	var kept: [Pt] = []
+private func clipped(_ loop: [Point], by a: Point, _ b: Point, keeping inside: Bool) -> [Point] {
+	var kept: [Point] = []
 	kept.reserveCapacity(loop.count + 2)
 
 	for index in loop.indices {
@@ -680,17 +680,17 @@ private func clipped(_ loop: [Pt], by a: Pt, _ b: Pt, keeping inside: Bool) -> [
 	return kept
 }
 
-private func meeting(_ from: Pt, _ to: Pt, crossing a: Pt, _ b: Pt) -> Pt {
+private func meeting(_ from: Point, _ to: Point, crossing a: Point, _ b: Point) -> Point {
 	let here = Double(cross(a, b, from))
 	let there = Double(cross(a, b, to))
 	let along = here / (here - there)
 
-	return Pt(
+	return Point(
 		x: from.x + Int((Double(to.x - from.x) * along).rounded()),
 		y: from.y + Int((Double(to.y - from.y) * along).rounded())
 	)
 }
 
-private func cross(_ a: Pt, _ b: Pt, _ c: Pt) -> Int {
+private func cross(_ a: Point, _ b: Point, _ c: Point) -> Int {
 	(b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }

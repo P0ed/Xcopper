@@ -4,7 +4,7 @@ struct Excellon {
 	private let height: Int
 	private let layers: Int
 	private let plated: Bool
-	private var tools: [Nm: [Pt]] = [:]
+	private var tools: [Nm: [Point]] = [:]
 
 	init(height: Int, layers: Int, plated: Bool) {
 		self.height = height
@@ -12,7 +12,7 @@ struct Excellon {
 		self.plated = plated
 	}
 
-	mutating func drill(_ diameter: Nm, at point: Pt) {
+	mutating func drill(_ diameter: Nm, at point: Point) {
 		guard diameter > 0 else { return }
 		tools[diameter, default: []].append(point)
 	}

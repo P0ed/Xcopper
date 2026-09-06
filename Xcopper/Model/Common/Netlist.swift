@@ -1,4 +1,4 @@
-func touches(_ point: Pt, _ wire: Wire) -> Bool {
+func touches(_ point: Point, _ wire: Wire) -> Bool {
 	distance(from: point, to: wire.start, wire.end) <= 1000.0
 }
 
@@ -12,17 +12,17 @@ struct Netlist {
 	struct Group: Equatable {
 		var name: String?
 		var nodes: Set<Node>
-		var points: Set<Pt>
+		var points: Set<Point>
 	}
 
 	var groups: [Group] = []
-	private var index: [Pt: Int] = [:]
+	private var index: [Point: Int] = [:]
 
-	func group(at point: Pt) -> Group? {
+	func group(at point: Point) -> Group? {
 		index[point].map { groups[$0] }
 	}
 
-	func name(at point: Pt) -> String? {
+	func name(at point: Point) -> String? {
 		group(at: point)?.name
 	}
 }
@@ -30,8 +30,8 @@ struct Netlist {
 extension Netlist {
 
 	init(_ schematic: Schematic) {
-		var merge = UnionFind<Pt>()
-		var terminals: Set<Pt> = []
+		var merge = UnionFind<Point>()
+		var terminals: Set<Point> = []
 
 		for wire in schematic.wires {
 			terminals.insert(wire.start)
@@ -51,10 +51,10 @@ extension Netlist {
 			}
 		}
 
-		var order: [Pt: Int] = [:]
+		var order: [Point: Int] = [:]
 		var groups: [Group] = []
 
-		func bucket(_ point: Pt) -> Int {
+		func bucket(_ point: Point) -> Int {
 			let root = merge.find(point)
 			if let existing = order[root] { return existing }
 			order[root] = groups.count
@@ -62,8 +62,8 @@ extension Netlist {
 			return groups.count - 1
 		}
 
-		var index: [Pt: Int] = [:]
-		for point in terminals.sorted(by: Pt.order) {
+		var index: [Point: Int] = [:]
+		for point in terminals.sorted(by: Point.order) {
 			let slot = bucket(point)
 			index[point] = slot
 			groups[slot].points.insert(point)
@@ -97,17 +97,17 @@ extension Netlist {
 	}
 }
 
-extension Pt {
+extension Point {
 
-	static func order(_ lhs: Pt, _ rhs: Pt) -> Bool {
+	static func order(_ lhs: Point, _ rhs: Point) -> Bool {
 		lhs.y != rhs.y ? lhs.y < rhs.y : lhs.x < rhs.x
 	}
 }
 
 extension Schematic {
 
-	var junctions: [Pt] {
-		var terminals: Set<Pt> = []
+	var junctions: [Point] {
+		var terminals: Set<Point> = []
 		for wire in wires {
 			terminals.insert(wire.start)
 			terminals.insert(wire.end)
@@ -130,6 +130,6 @@ extension Schematic {
 			}
 			return legs >= 3
 		}
-		.sorted(by: Pt.order)
+		.sorted(by: Point.order)
 	}
 }

@@ -11,8 +11,8 @@ enum Layout {
 		return CGSize(width: size.width + margin * 2.0, height: size.height + margin * 2.0)
 	}
 
-	static func point(_ location: CGPoint, scale: CGFloat) -> Pt {
-		Pt(
+	static func point(_ location: CGPoint, scale: CGFloat) -> Point {
+		Point(
 			x: Int(((location.x - margin) / scale * 1_000_000.0).rounded()),
 			y: Int(((location.y - margin) / scale * 1_000_000.0).rounded())
 		)
@@ -82,7 +82,7 @@ struct CanvasScroll<Content: View>: View {
 
 @MainActor
 struct Coordinates: View {
-	var cursor: Pt
+	var cursor: Point
 
 	var body: some View {
 		Text("\(Nm(clamping: cursor.x).coordinate), \(Nm(clamping: cursor.y).coordinate) mm")
@@ -194,7 +194,7 @@ enum Lit {
 	}
 }
 
-func renderCursor(_ cursor: Pt, in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+func renderCursor(_ cursor: Point, in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
 	let center = cursor.cg(scale, origin: origin)
 	let arm = 8.0
 	var path = Path()

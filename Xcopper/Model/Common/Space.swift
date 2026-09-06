@@ -56,7 +56,7 @@ extension V3 {
 	}
 }
 
-extension Pt {
+extension Point {
 
 	func v3(_ z: Double) -> V3 { V3(x: Double(x).mm, y: Double(y).mm, z: z) }
 }

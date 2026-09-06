@@ -13,7 +13,7 @@ struct Violation: Hashable {
 	}
 
 	var kind: Kind
-	var at: Pt
+	var at: Point
 	var layer: Int?
 	var refs: Set<Ref>
 	var text: String
@@ -22,7 +22,7 @@ struct Violation: Hashable {
 extension Violation {
 
 	static func order(_ lhs: Violation, _ rhs: Violation) -> Bool {
-		lhs.kind != rhs.kind ? lhs.kind < rhs.kind : Pt.order(lhs.at, rhs.at)
+		lhs.kind != rhs.kind ? lhs.kind < rhs.kind : Point.order(lhs.at, rhs.at)
 	}
 }
 
@@ -197,7 +197,7 @@ private extension Design {
 		board.ratsnest(planes: planes).map { rat in
 			Violation(
 				kind: .unrouted,
-				at: Pt(x: (rat.from.x + rat.to.x) / 2, y: (rat.from.y + rat.to.y) / 2),
+				at: Point(x: (rat.from.x + rat.to.x) / 2, y: (rat.from.y + rat.to.y) / 2),
 				layer: nil,
 				refs: [],
 				text: "\(label(rat.net)) not joined"

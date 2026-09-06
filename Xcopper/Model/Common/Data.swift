@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-typealias Nm = Int32
+typealias Nm = Int
 
 extension Nm {
 	static var mm: Nm { 1_000_000 }
@@ -17,78 +17,56 @@ extension Nm {
 	var inches: Double { Double(self) / 25_400_000.0 }
 }
 
-extension Int {
-	static func mm(_ value: Double) -> Int { Int((value * 1_000_000.0).rounded()) }
-	static func mil(_ value: Double) -> Int { Int((value * 25_400.0).rounded()) }
-	static func inches(_ value: Double) -> Int { Int((value * 25_400_000.0).rounded()) }
+struct Point: Hashable, Codable {
+	var x: Nm
+	var y: Nm
+
+	static var zero: Point { Point(x: 0, y: 0) }
+
+	static prefix func - (point: Point) -> Point { Point(x: -point.x, y: -point.y) }
+
+	static func + (lhs: Point, rhs: Point) -> Point { Point(x: lhs.x + rhs.x, y: lhs.y + rhs.y) }
+	static func - (lhs: Point, rhs: Point) -> Point { Point(x: lhs.x - rhs.x, y: lhs.y - rhs.y) }
+	static func * (lhs: Point, rhs: Int) -> Point { Point(x: lhs.x * rhs, y: lhs.y * rhs) }
 }
 
-struct Pt: Hashable, Codable {
-	private var _x: Nm
-	private var _y: Nm
+extension Point {
 
-	var x: Int { Int(_x) }
-	var y: Int { Int(_y) }
-
-	init(x: Int, y: Int) {
-		_x = Nm(clamping: x)
-		_y = Nm(clamping: y)
-	}
-
-	static var zero: Pt { Pt(x: 0, y: 0) }
-
-	static prefix func - (point: Pt) -> Pt { Pt(x: -point.x, y: -point.y) }
-
-	static func + (lhs: Pt, rhs: Pt) -> Pt { Pt(x: lhs.x + rhs.x, y: lhs.y + rhs.y) }
-	static func - (lhs: Pt, rhs: Pt) -> Pt { Pt(x: lhs.x - rhs.x, y: lhs.y - rhs.y) }
-	static func * (lhs: Pt, rhs: Int) -> Pt { Pt(x: lhs.x * rhs, y: lhs.y * rhs) }
-}
-
-extension Pt {
-
-	func snapped(to grid: Nm) -> Pt {
+	func snapped(to grid: Nm) -> Point {
 		let step = Int(grid)
 		guard step > 0 else { return self }
 		func round(_ value: Int) -> Int {
 			let offset = value < 0 ? -step / 2 : step / 2
 			return (value + offset) / step * step
 		}
-		return Pt(x: round(x), y: round(y))
+		return Point(x: round(x), y: round(y))
 	}
 
-	func distanceSquared(to other: Pt) -> Int {
+	func distanceSquared(to other: Point) -> Int {
 		let dx = x - other.x
 		let dy = y - other.y
 		return dx * dx + dy * dy
 	}
 
-	func isNear(_ other: Pt, within radius: Int) -> Bool {
+	func isNear(_ other: Point, within radius: Int) -> Bool {
 		distanceSquared(to: other) <= radius * radius
 	}
 
-	func rotated(_ rotation: Rotation) -> Pt {
+	func rotated(_ rotation: Rotation) -> Point {
 		switch rotation {
-		case .r0: Pt(x: x, y: y)
-		case .r90: Pt(x: -y, y: x)
-		case .r180: Pt(x: -x, y: -y)
-		case .r270: Pt(x: y, y: -x)
+		case .r0: Point(x: x, y: y)
+		case .r90: Point(x: -y, y: x)
+		case .r180: Point(x: -x, y: -y)
+		case .r270: Point(x: y, y: -x)
 		}
 	}
 
-	var mirroredX: Pt { Pt(x: -x, y: y) }
+	var mirroredX: Point { Point(x: -x, y: y) }
 }
 
 struct Size: Hashable, Codable {
-	private var _width: Nm
-	private var _height: Nm
-
-	var width: Int { Int(_width) }
-	var height: Int { Int(_height) }
-
-	init(width: Int, height: Int) {
-		_width = Nm(clamping: width)
-		_height = Nm(clamping: height)
-	}
+	var width: Nm
+	var height: Nm
 
 	static var zero: Size { Size(width: 0, height: 0) }
 
@@ -97,24 +75,24 @@ struct Size: Hashable, Codable {
 }
 
 struct Rect: Hashable, Codable {
-	var origin: Pt
+	var origin: Point
 	var size: Size
 
-	init(origin: Pt, size: Size) {
+	init(origin: Point, size: Size) {
 		self.origin = origin
 		self.size = size
 	}
 
-	init(center: Pt, size: Size) {
+	init(center: Point, size: Size) {
 		self.init(
-			origin: Pt(x: center.x - size.width / 2, y: center.y - size.height / 2),
+			origin: Point(x: center.x - size.width / 2, y: center.y - size.height / 2),
 			size: size
 		)
 	}
 
-	init(from: Pt, to: Pt) {
+	init(from: Point, to: Point) {
 		self.init(
-			origin: Pt(x: Swift.min(from.x, to.x), y: Swift.min(from.y, to.y)),
+			origin: Point(x: Swift.min(from.x, to.x), y: Swift.min(from.y, to.y)),
 			size: Size(width: abs(to.x - from.x), height: abs(to.y - from.y))
 		)
 	}
@@ -123,9 +101,9 @@ struct Rect: Hashable, Codable {
 	var minY: Int { origin.y }
 	var maxX: Int { origin.x + size.width }
 	var maxY: Int { origin.y + size.height }
-	var center: Pt { Pt(x: minX + size.width / 2, y: minY + size.height / 2) }
+	var center: Point { Point(x: minX + size.width / 2, y: minY + size.height / 2) }
 
-	func contains(_ point: Pt) -> Bool {
+	func contains(_ point: Point) -> Bool {
 		point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
 	}
 
@@ -135,17 +113,17 @@ struct Rect: Hashable, Codable {
 
 	func outset(_ amount: Int) -> Rect {
 		Rect(
-			origin: Pt(x: minX - amount, y: minY - amount),
+			origin: Point(x: minX - amount, y: minY - amount),
 			size: Size(width: size.width + amount * 2, height: size.height + amount * 2)
 		)
 	}
 
-	var corners: [Pt] {
+	var corners: [Point] {
 		[
-			Pt(x: minX, y: minY),
-			Pt(x: maxX, y: minY),
-			Pt(x: maxX, y: maxY),
-			Pt(x: minX, y: maxY),
+			Point(x: minX, y: minY),
+			Point(x: maxX, y: minY),
+			Point(x: maxX, y: maxY),
+			Point(x: minX, y: maxY),
 		]
 	}
 
@@ -153,7 +131,7 @@ struct Rect: Hashable, Codable {
 		var result: Rect?
 		for rect in rects {
 			guard let current = result else { result = rect; continue }
-			let origin = Pt(x: Swift.min(current.minX, rect.minX), y: Swift.min(current.minY, rect.minY))
+			let origin = Point(x: Swift.min(current.minX, rect.minX), y: Swift.min(current.minY, rect.minY))
 			result = Rect(
 				origin: origin,
 				size: Size(

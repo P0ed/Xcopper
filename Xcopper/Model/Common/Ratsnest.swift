@@ -1,11 +1,11 @@
 struct Rat: Hashable {
-	var from: Pt
-	var to: Pt
+	var from: Point
+	var to: Point
 	var net: Net.ID
 }
 
 private struct Terminal {
-	var at: Pt
+	var at: Point
 	var figure: Figure
 	var layers: ClosedRange<Int>
 	var net: Net.ID

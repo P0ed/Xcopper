@@ -20,9 +20,9 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var id = UUID()
 	var reference: String
 	var filename: String
-	var schematicAt: Pt = .zero
+	var schematicAt: Point = .zero
 	var schematicRotation: Rotation = .r0
-	var layoutAt: Pt = .zero
+	var layoutAt: Point = .zero
 	var layoutRotation: Rotation = .r0
 	var interface: [String] = []
 	var size = Size(width: .mm(20), height: .mm(20))
@@ -38,8 +38,8 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		return symbol
 	}
 
-	func place(_ point: Pt) -> Pt { point.rotated(layoutRotation) + layoutAt }
-	var bounds: Rect { Rect(from: place(.zero), to: place(Pt(x: size.width, y: size.height))) }
+	func place(_ point: Point) -> Point { point.rotated(layoutRotation) + layoutAt }
+	var bounds: Rect { Rect(from: place(.zero), to: place(Point(x: size.width, y: size.height))) }
 }
 
 struct ModuleContent: Equatable {
@@ -172,9 +172,9 @@ extension Design {
 		let netlist = Netlist(electrical)
 		var footprintsByReference: [String: [Int]] = [:]
 		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }
-		var ioNamesByPoint: [Pt: [String]] = [:]
+		var ioNamesByPoint: [Point: [String]] = [:]
 		for label in schematic.labels { if let name = label.ioName { ioNamesByPoint[label.at, default: []].append(name) } }
-		var pointNets: [Pt: Int] = [:]
+		var pointNets: [Point: Int] = [:]
 		var assignments: [(Int, Int, Int)] = []
 		var wired: Set<String> = []
 		for group in netlist.groups {
@@ -209,7 +209,7 @@ extension Design {
 			}
 			if !active && connected.isEmpty { continue }
 			let key = nodes.isEmpty ? group.points.flatMap { ioNamesByPoint[$0] ?? [] }.sorted().joined(separator: "/") : nodes.map { "\(electrical.symbols[$0.symbol].reference).\(electrical.symbols[$0.symbol].pins[$0.pin].number)" }.joined(separator: "/")
-			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Pt.order)) : key)")
+			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Point.order)) : key)")
 			let named = group.name.map { name in netIDsByName[name] ?? moduleNetID("named/\(name)") }
 			let power = connected.first { id in nets[id].map(supplyNames.contains) ?? false }
 			let id = named ?? power ?? connected.first ?? fallback

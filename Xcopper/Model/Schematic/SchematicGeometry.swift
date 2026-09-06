@@ -1,6 +1,6 @@
 extension Schematic {
 
-	func hitTest(at point: Pt, tolerance: Int) -> Ref? {
+	func hitTest(at point: Point, tolerance: Int) -> Ref? {
 		for (index, symbol) in symbols.enumerated().reversed() {
 			let hit = symbol.placedPins.contains { pin in
 				pin.figure.contains(point, tolerance: tolerance)
@@ -54,11 +54,11 @@ extension Schematic {
 		})
 	}
 
-	func snapTarget(near point: Pt, radius: Int) -> Pt? {
-		var best: Pt?
+	func snapTarget(near point: Point, radius: Int) -> Point? {
+		var best: Point?
 		var bestDistance = radius * radius + 1
 
-		func consider(_ candidate: Pt) {
+		func consider(_ candidate: Point) {
 			let distance = point.distanceSquared(to: candidate)
 			guard distance < bestDistance else { return }
 			bestDistance = distance
@@ -78,7 +78,7 @@ extension Schematic {
 
 extension Schematic {
 
-	mutating func move(_ refs: Set<Ref>, by delta: Pt) {
+	mutating func move(_ refs: Set<Ref>, by delta: Point) {
 		for ref in refs {
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
@@ -100,11 +100,11 @@ extension Schematic {
 		labels.remove(at: refs.compactMap { if case let .label(i) = $0 { i } else { nil } })
 	}
 
-	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Pt? = nil) {
+	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Point? = nil) {
 		guard let pivot = center ?? bounds(of: refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 
-		func spin(_ point: Pt) -> Pt { (point - pivot).rotated(rotation) + pivot }
+		func spin(_ point: Point) -> Point { (point - pivot).rotated(rotation) + pivot }
 
 		for ref in refs {
 			switch ref {
@@ -127,7 +127,7 @@ extension Schematic {
 	mutating func mirror(_ refs: Set<Ref>) {
 		guard let pivot = bounds(of: refs)?.center else { return }
 
-		func flip(_ point: Pt) -> Pt { Pt(x: 2 * pivot.x - point.x, y: point.y) }
+		func flip(_ point: Point) -> Point { Point(x: 2 * pivot.x - point.x, y: point.y) }
 
 		for ref in refs {
 			switch ref {
@@ -147,7 +147,7 @@ extension Schematic {
 
 	mutating func duplicate(
 		_ refs: Set<Ref>,
-		by delta: Pt,
+		by delta: Point,
 		references used: Set<String> = []
 	) -> Set<Ref> {
 		var created: Set<Ref> = []
@@ -182,7 +182,7 @@ extension Schematic {
 
 extension Schematic {
 
-	func parking(for symbol: Symbol) -> Pt {
+	func parking(for symbol: Symbol) -> Point {
 		Xcopper.parking(symbol.placedExtent, in: bounds, clear: occupied)
 	}
 

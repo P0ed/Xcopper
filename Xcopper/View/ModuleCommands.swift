@@ -178,7 +178,7 @@ struct ModuleInspector: View {
 		}
 	}
 
-	var position: Binding<Pt> {
+	var position: Binding<Point> {
 		Binding(get: { (layout ? module?.layoutAt : module?.schematicAt) ?? .zero },
 			set: { design.positionModule(id, at: $0, layout: layout) })
 	}

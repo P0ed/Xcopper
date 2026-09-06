@@ -4,7 +4,7 @@ import XCTest
 
 final class ModuleTests: XCTestCase {
 	private let parentURL = URL(fileURLWithPath: "/tmp/xcopper-module-tests/Parent.xcb")
-	private func point(_ x: Double, _ y: Double) -> Pt { Pt(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
 	private func source(_ stack: Stack = .classic) -> Design {
 		var design = Design(board: Board(size: Size(width: .mm(20), height: .mm(20)), stack: stack))
 		design.nets += [Net(id: 3, name: "INPUT"), Net(id: 4, name: "PRIVATE")]

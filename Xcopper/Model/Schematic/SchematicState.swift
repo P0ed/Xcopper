@@ -63,29 +63,29 @@ extension SchematicState {
 		cancelSessions()
 	}
 
-	mutating func beginSelect(at point: Pt, mode: SelectionMode) {
+	mutating func beginSelect(at point: Point, mode: SelectionMode) {
 		guard selectSession == nil else { return }
 		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
 	}
 
-	mutating func updateSelect(to point: Pt) {
+	mutating func updateSelect(to point: Point) {
 		guard var session = selectSession, session.end != point else { return }
 		session.end = point
 		selectSession = session
 	}
 
-	mutating func beginMove(at point: Pt) {
+	mutating func beginMove(at point: Point) {
 		guard moveSession == nil else { return }
 		moveSession = MoveSession(start: point, end: point)
 	}
 
-	mutating func updateMove(to point: Pt) {
+	mutating func updateMove(to point: Point) {
 		guard var session = moveSession, session.end != point else { return }
 		session.end = point
 		moveSession = session
 	}
 
-	mutating func beginWire(at point: Pt) {
+	mutating func beginWire(at point: Point) {
 		if let session = wireSession, session.phase == .pending {
 			wireSession = WireSession(
 				start: session.start,
@@ -97,7 +97,7 @@ extension SchematicState {
 		}
 	}
 
-	mutating func updateWire(to point: Pt) {
+	mutating func updateWire(to point: Point) {
 		guard var session = wireSession else { return }
 		session.end = point
 		if case let .gesture(committable) = session.phase {
@@ -106,7 +106,7 @@ extension SchematicState {
 		wireSession = session
 	}
 
-	mutating func hoverWire(to point: Pt) {
+	mutating func hoverWire(to point: Point) {
 		guard wireSession?.phase == .pending else { return }
 		updateWire(to: point)
 	}

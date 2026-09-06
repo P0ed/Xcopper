@@ -17,11 +17,11 @@ final class FabricationTests: XCTestCase {
 		text.split(separator: "\n").map(String.init)
 	}
 
-	private func smd(_ name: String, at: Pt, size: Size) -> Pad {
+	private func smd(_ name: String, at: Point, size: Size) -> Pad {
 		Pad(at: at, size: size, shape: .rect, drill: 0, layer: 0, name: name, net: nil)
 	}
 
-	private func footprint(_ reference: String, at: Pt, pads: [Pad], flipped: Bool = false) -> Footprint {
+	private func footprint(_ reference: String, at: Point, pads: [Pad], flipped: Bool = false) -> Footprint {
 		Footprint(
 			reference: reference,
 			value: "",
@@ -63,8 +63,8 @@ final class FabricationTests: XCTestCase {
 		var design = design()
 		design.board.traces = [
 			Trace(
-				start: Pt(x: .mm(10), y: .mm(10)),
-				end: Pt(x: .mm(20), y: .mm(10)),
+				start: Point(x: .mm(10), y: .mm(10)),
+				end: Point(x: .mm(20), y: .mm(10)),
 				width: .mm(0.25),
 				layer: 0,
 				net: nil
@@ -81,8 +81,8 @@ final class FabricationTests: XCTestCase {
 		var design = design()
 		design.board.traces = (0 ..< 3).map { index in
 			Trace(
-				start: Pt(x: .mm(5), y: index * .mm(2)),
-				end: Pt(x: .mm(15), y: index * .mm(2)),
+				start: Point(x: .mm(5), y: index * .mm(2)),
+				end: Point(x: .mm(15), y: index * .mm(2)),
 				width: .mm(0.25),
 				layer: 0,
 				net: nil
@@ -100,7 +100,7 @@ final class FabricationTests: XCTestCase {
 		design.board.footprints = [
 			footprint(
 				"R1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1.2), height: .mm(0.8)))]
 			),
 		]
@@ -116,7 +116,7 @@ final class FabricationTests: XCTestCase {
 			modifying(
 				footprint(
 					"R1",
-					at: Pt(x: .mm(10), y: .mm(10)),
+					at: Point(x: .mm(10), y: .mm(10)),
 					pads: [smd("1", at: .zero, size: Size(width: .mm(1.2), height: .mm(0.8)))]
 				)
 			) { $0.rotation = .r90 },
@@ -127,7 +127,7 @@ final class FabricationTests: XCTestCase {
 	func testAPlanePoursTheBoardThenClearsItBackAroundForeignCopper() {
 		var design = design()
 		design.board.vias = [
-			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
 		let steps = lines(file(design, "In1_Cu.gbr")).filter {
 			$0 == "G36*" || $0 == "G37*" || $0 == "%LPC*%" || $0 == "%LPD*%"
@@ -148,7 +148,7 @@ final class FabricationTests: XCTestCase {
 		func knockouts(net: Net.ID?) -> Int {
 			var design = design()
 				design.board.vias = [
-				Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: net),
+				Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: net),
 			]
 			let all = lines(file(design, "In1_Cu.gbr"))
 			guard
@@ -165,7 +165,7 @@ final class FabricationTests: XCTestCase {
 		var design = design()
 		design.board.rules.clearance = .mm(0.33)
 		design.board.vias = [
-			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
 		]
 		XCTAssertTrue(file(design, "In1_Cu.gbr").contains("%ADD10C,1.560000*%"))
 	}
@@ -173,8 +173,8 @@ final class FabricationTests: XCTestCase {
 	func testCopperCarriesTheNetItBelongsToAndDropsTheAttributeWhenItEnds() {
 		var design = design()
 		design.board.traces = [
-			Trace(start: Pt(x: .mm(5), y: .mm(5)), end: Pt(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 0),
-			Trace(start: Pt(x: .mm(5), y: .mm(9)), end: Pt(x: .mm(9), y: .mm(9)), width: .mm(0.25), layer: 0, net: nil),
+			Trace(start: Point(x: .mm(5), y: .mm(5)), end: Point(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 0),
+			Trace(start: Point(x: .mm(5), y: .mm(9)), end: Point(x: .mm(9), y: .mm(9)), width: .mm(0.25), layer: 0, net: nil),
 		]
 		let attributes = lines(file(design, "F_Cu.gbr")).filter {
 			$0.hasPrefix("%TO") || $0 == "%TD*%"
@@ -186,7 +186,7 @@ final class FabricationTests: XCTestCase {
 		var design = design()
 		design.nets.append(Net(id: 9, name: "A,B*C"))
 		design.board.traces = [
-			Trace(start: Pt(x: .mm(5), y: .mm(5)), end: Pt(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 9),
+			Trace(start: Point(x: .mm(5), y: .mm(5)), end: Point(x: .mm(9), y: .mm(5)), width: .mm(0.25), layer: 0, net: 9),
 		]
 		XCTAssertTrue(file(design, "F_Cu.gbr").contains("%TO.N,A_B_C*%"))
 	}
@@ -196,7 +196,7 @@ final class FabricationTests: XCTestCase {
 		design.board.footprints = [
 			footprint(
 				"R1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]
 			),
 		]
@@ -211,7 +211,7 @@ final class FabricationTests: XCTestCase {
 		design.board.footprints = [
 			footprint(
 				"J1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [
 					Pad(
 						at: .zero,
@@ -236,7 +236,7 @@ final class FabricationTests: XCTestCase {
 		design.board.footprints = [
 			footprint(
 				"R1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))]
 			),
 		]
@@ -249,7 +249,7 @@ final class FabricationTests: XCTestCase {
 		design.board.footprints = [
 			footprint(
 				"R1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [smd("1", at: .zero, size: Size(width: .mm(1), height: .mm(1)))],
 				flipped: true
 			),
@@ -263,9 +263,9 @@ final class FabricationTests: XCTestCase {
 	func testPlatedHolesAreGroupedIntoOneToolPerDiameterSmallestFirst() {
 		var design = design()
 		design.board.vias = [
-			Via(at: Pt(x: .mm(10), y: .mm(10)), drill: .mm(0.8), pad: .mm(1.2), from: 0, to: 3, net: nil),
-			Via(at: Pt(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
-			Via(at: Pt(x: .mm(30), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
+			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.8), pad: .mm(1.2), from: 0, to: 3, net: nil),
+			Via(at: Point(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
+			Via(at: Point(x: .mm(30), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
 		]
 		let text = file(design, "PTH.drl")
 
@@ -288,11 +288,11 @@ final class FabricationTests: XCTestCase {
 
 	func testThroughPadsDrillPlatedAndMountingHolesDrillBare() {
 		var design = design()
-		design.board.holes = [Hole(at: Pt(x: .mm(5), y: .mm(5)), diameter: .mm(3.2))]
+		design.board.holes = [Hole(at: Point(x: .mm(5), y: .mm(5)), diameter: .mm(3.2))]
 		design.board.footprints = [
 			footprint(
 				"J1",
-				at: Pt(x: .mm(10), y: .mm(10)),
+				at: Point(x: .mm(10), y: .mm(10)),
 				pads: [
 					Pad(
 						at: .zero,

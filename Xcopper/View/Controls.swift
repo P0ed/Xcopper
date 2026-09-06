@@ -237,17 +237,17 @@ struct LengthRow: View {
 
 @MainActor
 struct PositionRows: View {
-	@Binding var at: Pt
+	@Binding var at: Point
 	@FocusState.Binding var focus: Property?
 
 	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
 
 	private var x: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.x) }, set: { at = Pt(x: Int($0), y: at.y) })
+		Binding(get: { Nm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
 	}
 
 	private var y: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.y) }, set: { at = Pt(x: at.x, y: Int($0)) })
+		Binding(get: { Nm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) })
 	}
 
 	var body: some View {

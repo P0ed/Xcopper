@@ -119,29 +119,29 @@ extension LayoutState {
 
 extension LayoutState {
 
-	mutating func beginSelect(at point: Pt, mode: SelectionMode) {
+	mutating func beginSelect(at point: Point, mode: SelectionMode) {
 		guard selectSession == nil else { return }
 		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
 	}
 
-	mutating func updateSelect(to point: Pt) {
+	mutating func updateSelect(to point: Point) {
 		guard var session = selectSession, session.end != point else { return }
 		session.end = point
 		selectSession = session
 	}
 
-	mutating func beginMove(at point: Pt) {
+	mutating func beginMove(at point: Point) {
 		guard moveSession == nil else { return }
 		moveSession = MoveSession(start: point, end: point)
 	}
 
-	mutating func updateMove(to point: Pt) {
+	mutating func updateMove(to point: Point) {
 		guard var session = moveSession, session.end != point else { return }
 		session.end = point
 		moveSession = session
 	}
 
-	mutating func beginTrace(at point: Pt) {
+	mutating func beginTrace(at point: Point) {
 		if let session = traceSession, session.phase == .pending {
 			traceSession = TraceSession(
 				start: session.start,
@@ -161,7 +161,7 @@ extension LayoutState {
 		}
 	}
 
-	mutating func updateTrace(to point: Pt) {
+	mutating func updateTrace(to point: Point) {
 		guard var session = traceSession else { return }
 		session.end = point
 		if case let .gesture(committable) = session.phase {
@@ -170,7 +170,7 @@ extension LayoutState {
 		traceSession = session
 	}
 
-	mutating func hoverTrace(to point: Pt) {
+	mutating func hoverTrace(to point: Point) {
 		guard traceSession?.phase == .pending else { return }
 		updateTrace(to: point)
 	}

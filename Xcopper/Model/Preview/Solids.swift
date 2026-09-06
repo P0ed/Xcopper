@@ -71,7 +71,7 @@ extension Side {
 
 	func lift(_ height: Double) -> Double { up ? z + height : z - height }
 
-	func loop(_ outline: [Pt]) -> [V3] {
+	func loop(_ outline: [Point]) -> [V3] {
 		up ? outline.map { $0.v3(z) } : outline.reversed().map { $0.v3(z) }
 	}
 }
@@ -102,7 +102,7 @@ extension Model {
 	}
 
 	mutating func add(
-		prism outline: [Pt],
+		prism outline: [Point],
 		from: Double,
 		to: Double,
 		shade: Shade,
@@ -123,9 +123,9 @@ extension Model {
 	}
 
 	mutating func add(
-		band lower: [Pt],
+		band lower: [Point],
 		at lowerZ: Double,
-		to upper: [Pt],
+		to upper: [Point],
 		at upperZ: Double,
 		shade: Shade,
 		level: Int
@@ -262,7 +262,7 @@ extension Board {
 	private func lay(
 		_ figure: Figure,
 		arc: Int? = nil,
-		drills: [(bounds: Rect, loop: [Pt])],
+		drills: [(bounds: Rect, loop: [Point])],
 		shade: Shade,
 		level: Int,
 		side: Side,
@@ -378,7 +378,7 @@ extension Board {
 	}
 
 	private func dome(
-		at center: Pt,
+		at center: Point,
 		diameter: Int,
 		from base: Double,
 		height: Double,

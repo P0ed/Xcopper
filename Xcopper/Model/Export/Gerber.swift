@@ -93,13 +93,13 @@ private extension Gerber {
 
 	static var first: Int { 10 }
 
-	mutating func flash(_ aperture: Aperture, at point: Pt) {
+	mutating func flash(_ aperture: Aperture, at point: Point) {
 		guard aperture.isDrawable else { return }
 		select(aperture)
 		lines.append("\(coordinate(point))D03*")
 	}
 
-	mutating func draw(_ points: [Pt], width: Nm) {
+	mutating func draw(_ points: [Point], width: Nm) {
 		guard points.count > 1, width > 0 else { return }
 		select(.circle(width))
 		lines.append("\(coordinate(points[0]))D02*")
@@ -131,7 +131,7 @@ private extension Gerber {
 		attached = .some(net)
 	}
 
-	func coordinate(_ point: Pt) -> String {
+	func coordinate(_ point: Point) -> String {
 		"X\(point.x)Y\(height - point.y)"
 	}
 

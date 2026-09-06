@@ -7,11 +7,11 @@ final class CheckTests: XCTestCase {
 		Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: stack))
 	}
 
-	private func at(_ x: Double, _ y: Double) -> Pt { Pt(x: .mm(x), y: .mm(y)) }
+	private func at(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
 
 	private func trace(
-		_ from: Pt,
-		_ to: Pt,
+		_ from: Point,
+		_ to: Point,
 		net: Net.ID?,
 		layer: Int = 0,
 		width: Nm = .mm(0.3)
@@ -19,7 +19,7 @@ final class CheckTests: XCTestCase {
 		Trace(start: from, end: to, width: width, layer: layer, net: net)
 	}
 
-	private func part(_ reference: String, at: Pt, net: Net.ID?, pad: Nm = .mm(1.6)) -> Footprint {
+	private func part(_ reference: String, at: Point, net: Net.ID?, pad: Nm = .mm(1.6)) -> Footprint {
 		Footprint(
 			reference: reference,
 			value: "",

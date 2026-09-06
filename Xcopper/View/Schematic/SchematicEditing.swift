@@ -3,7 +3,7 @@ import SwiftUI
 
 extension SchematicView {
 
-	func point(at location: CGPoint) -> Pt {
+	func point(at location: CGPoint) -> Point {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
@@ -11,7 +11,7 @@ extension SchematicView {
 
 	var hitTolerance: Int { Int(Nm.mm(1.2) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
-	func snapped(_ point: Pt) -> Pt {
+	func snapped(_ point: Point) -> Point {
 		if !modifierFlags.contains(.control),
 			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
 			return target
@@ -84,7 +84,7 @@ private extension SchematicView {
 		undoManager?.endUndoGrouping()
 	}
 
-	func wireEnd(_ point: Pt) -> Pt {
+	func wireEnd(_ point: Point) -> Point {
 		guard let session = state.wireSession else { return snapped(point) }
 
 		if !modifierFlags.contains(.control),
@@ -97,7 +97,7 @@ private extension SchematicView {
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
-	func dragSelection(from start: Pt, to current: Pt) {
+	func dragSelection(from start: Point, to current: Point) {
 		if state.moveSession != nil {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
@@ -112,7 +112,7 @@ private extension SchematicView {
 		state.updateSelect(to: current)
 	}
 
-	func endSelection(from start: Pt, to current: Pt) {
+	func endSelection(from start: Point, to current: Point) {
 		if let session = state.moveSession {
 			if session.didMove {
 				undoGroup("Move") { design.moveSchematic(state.selection, by: session.delta) }
@@ -131,14 +131,14 @@ private extension SchematicView {
 		state.selectSession = nil
 	}
 
-	func placeLabel(at point: Pt) {
+	func placeLabel(at point: Point) {
 		let text = state.label.trimmingWhitespace
 		guard !text.isEmpty else { return }
 		schematic.labels.append(NetLabel(at: snapped(point), text: text))
 		state.selection = [.label(schematic.labels.count - 1)]
 	}
 
-	func placeSymbol(at point: Pt) {
+	func placeSymbol(at point: Point) {
 		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
 	}
 }

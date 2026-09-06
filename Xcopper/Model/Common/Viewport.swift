@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct Viewport: Equatable {
-	var cursor: Pt = .zero
+	var cursor: Point = .zero
 	var size: CGSize = .zero
 	var frame: CGRect = .zero
 	var scrollPosition: ScrollPosition = .init(point: .zero)
 	var magnification: CGFloat = 2.0
-	var pending: Pt?
+	var pending: Point?
 }
 
 extension Viewport {
@@ -49,7 +49,7 @@ extension Viewport {
 		setScale(size.zoomToFit(self.size, margin: Layout.margin))
 	}
 
-	mutating func reveal(_ point: Pt) {
+	mutating func reveal(_ point: Point) {
 		pending = point
 	}
 

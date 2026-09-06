@@ -4,8 +4,8 @@ struct Net: Hashable, Codable, Identifiable {
 }
 
 struct Trace: Hashable, Codable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 	var width: Nm
 	var layer: Int
 	var net: Net.ID?
@@ -23,12 +23,12 @@ struct TraceEnd: Hashable {
 }
 
 struct Junction: Hashable {
-	var point: Pt
+	var point: Point
 	var layer: Int
 }
 
 struct Via: Hashable, Codable {
-	var at: Pt
+	var at: Point
 	var drill: Nm
 	var pad: Nm
 	var from: Int
@@ -41,14 +41,14 @@ struct Via: Hashable, Codable {
 }
 
 struct Hole: Hashable, Codable {
-	var at: Pt
+	var at: Point
 	var diameter: Nm
 }
 
 struct Pad: Hashable, Codable {
 	enum Shape: Int, Codable { case rect, oval }
 
-	var at: Pt
+	var at: Point
 	var size: Size
 	var shape: Shape
 	var drill: Nm
@@ -62,7 +62,7 @@ struct Pad: Hashable, Codable {
 struct Footprint: Hashable, Codable {
 	var reference: String
 	var value: String
-	var at: Pt
+	var at: Point
 	var rotation: Rotation
 	var flipped: Bool
 	var pads: [Pad]
@@ -133,7 +133,7 @@ extension Footprint {
 		Rect.union([placedBody] + placedPads.map { pad in pad.figure.bounds }) ?? placedBody
 	}
 
-	func place(_ local: Pt) -> Pt {
+	func place(_ local: Point) -> Point {
 		(flipped ? local.mirroredX : local).rotated(rotation) + at
 	}
 
@@ -173,7 +173,7 @@ extension Board {
 
 extension Board {
 
-	func parking(for footprint: Footprint) -> Pt {
+	func parking(for footprint: Footprint) -> Point {
 		Xcopper.parking(footprint.placedExtent, in: bounds, clear: occupied)
 	}
 
@@ -213,7 +213,7 @@ extension Board {
 
 	func attachedEnds(to refs: Set<Ref>) -> Set<TraceEnd> {
 		var pads: [(figure: Figure, layers: ClosedRange<Int>)] = []
-		var joints: [Int: Set<Pt>] = [:]
+		var joints: [Int: Set<Point>] = [:]
 
 		for case let .footprint(index) in refs where footprints.indices.contains(index) {
 			let footprint = footprints[index]
@@ -246,7 +246,7 @@ extension Board {
 		return ends
 	}
 
-	private subscript(point end: TraceEnd) -> Pt {
+	private subscript(point end: TraceEnd) -> Point {
 		get { end.isStart ? traces[end.trace].start : traces[end.trace].end }
 		set {
 			if end.isStart {
@@ -258,7 +258,7 @@ extension Board {
 	}
 
 	@discardableResult
-	mutating func move(_ refs: Set<Ref>, by delta: Pt, grid: Nm) -> Set<Ref>? {
+	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: Nm) -> Set<Ref>? {
 		let stored = self
 		let held = heldPoints(movedBy: refs)
 		let attached = attachedEnds(to: refs)
@@ -312,8 +312,8 @@ extension Board {
 	private func stretchedJoints(
 		of refs: Set<Ref>,
 		following attached: Set<TraceEnd>,
-		by delta: Pt
-	) -> [TraceEnd: Pt] {
+		by delta: Point
+	) -> [TraceEnd: Point] {
 		var joints: [(moved: TraceEnd, stayed: TraceEnd)] = []
 
 		for case let .trace(index) in refs where traces.indices.contains(index) {
@@ -336,7 +336,7 @@ extension Board {
 		}
 		guard !joints.isEmpty else { return [:] }
 
-		var points: [TraceEnd: Pt] = [:]
+		var points: [TraceEnd: Point] = [:]
 		for (moved, stayed) in joints {
 			let point = self[point: moved]
 			let leg = point - self[point: moved.other]
@@ -348,7 +348,7 @@ extension Board {
 			points[stayed] = crossing
 		}
 
-		func settled(_ end: TraceEnd) -> Pt {
+		func settled(_ end: TraceEnd) -> Point {
 			if let point = points[end] { return point }
 			let follows = refs.contains(.trace(end.trace)) || attached.contains(end)
 			return self[point: end] + (follows ? delta : .zero)
@@ -415,7 +415,7 @@ extension Board {
 		return arriving.turn(to: self[point: second.other] - junction.point)
 	}
 
-	private func wasSharp(at junction: Junction, movedBy delta: Pt) -> Bool {
+	private func wasSharp(at junction: Junction, movedBy delta: Point) -> Bool {
 		isSharp(at: junction)
 			|| isSharp(at: Junction(point: junction.point - delta, layer: junction.layer))
 	}
@@ -521,8 +521,8 @@ extension Board {
 		return (first, second)
 	}
 
-	private func headings(of ends: Set<TraceEnd>) -> [TraceEnd: Pt] {
-		var headings: [TraceEnd: Pt] = [:]
+	private func headings(of ends: Set<TraceEnd>) -> [TraceEnd: Point] {
+		var headings: [TraceEnd: Point] = [:]
 		for end in ends {
 			let offset = self[point: end.other] - self[point: end]
 			guard offset.isOctilinear else { continue }
@@ -533,7 +533,7 @@ extension Board {
 
 	private mutating func realign(
 		_ end: TraceEnd,
-		heading: Pt,
+		heading: Point,
 		moving: Set<TraceEnd>,
 		with refs: Set<Ref>
 	) {
@@ -553,7 +553,7 @@ extension Board {
 
 	private mutating func slide(
 		_ end: TraceEnd,
-		heading: Pt,
+		heading: Point,
 		moving: Set<TraceEnd>,
 		with refs: Set<Ref>
 	) -> Bool {
@@ -582,11 +582,11 @@ extension Board {
 		footprints.remove(at: refs.compactMap { if case let .footprint(i) = $0 { i } else { nil } })
 	}
 
-	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Pt? = nil) {
+	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Point? = nil) {
 		guard let pivot = center ?? bounds(of: refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 
-		func spin(_ point: Pt) -> Pt { (point - pivot).rotated(rotation) + pivot }
+		func spin(_ point: Point) -> Point { (point - pivot).rotated(rotation) + pivot }
 
 		for ref in refs {
 			switch ref {
@@ -619,7 +619,7 @@ extension Board {
 
 	mutating func duplicate(
 		_ refs: Set<Ref>,
-		by delta: Pt,
+		by delta: Point,
 		references used: Set<String> = []
 	) -> Set<Ref> {
 		var created: Set<Ref> = []

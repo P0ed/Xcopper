@@ -99,7 +99,7 @@ extension Footprint {
 		return Part.allCases.first { $0.prefix == prefix }
 	}
 
-	init(spec: Footprint.Spec, reference: String, at: Pt) {
+	init(spec: Footprint.Spec, reference: String, at: Point) {
 		if let component = spec.component {
 			guard let built = component.makeFootprint() else {
 				preconditionFailure("\(component.name) has no PCB footprint")
@@ -139,7 +139,7 @@ extension Footprint {
 
 	private static func smd(_ name: Int, _ x: Int, _ y: Int, _ size: Size) -> Pad {
 		Pad(
-			at: Pt(x: x, y: y),
+			at: Point(x: x, y: y),
 			size: size,
 			shape: .rect,
 			drill: 0,
@@ -151,7 +151,7 @@ extension Footprint {
 
 	private static func through(_ name: Int, _ x: Int, _ y: Int, drill: Nm, pad: Nm) -> Pad {
 		Pad(
-			at: Pt(x: x, y: y),
+			at: Point(x: x, y: y),
 			size: Size(width: Int(pad), height: Int(pad)),
 			shape: name == 1 ? .rect : .oval,
 			drill: drill,
@@ -350,7 +350,7 @@ extension Footprint {
 					net: nil
 				),
 				Pad(
-					at: Pt(x: 0, y: .mm(5.0)),
+					at: Point(x: 0, y: .mm(5.0)),
 					size: Size(width: .mm(2.0), height: .mm(2.0)),
 					shape: .oval,
 					drill: .mm(1.0),

@@ -3,7 +3,7 @@ import SwiftUI
 
 extension LayoutView {
 
-	func point(at location: CGPoint) -> Pt {
+	func point(at location: CGPoint) -> Point {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
@@ -11,7 +11,7 @@ extension LayoutView {
 
 	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
-	func snapped(_ point: Pt, layer: Int) -> (Pt, Net.ID?) {
+	func snapped(_ point: Point, layer: Int) -> (Point, Net.ID?) {
 		if !modifierFlags.contains(.control),
 			let target = design.resolved.board.snapTarget(near: point, layer: layer, radius: snapRadius) {
 			return target
@@ -90,13 +90,13 @@ private extension LayoutView {
 		undoManager?.endUndoGrouping()
 	}
 
-	func routeStart(_ point: Pt) -> Pt {
+	func routeStart(_ point: Point) -> Point {
 		let (snapped, net) = snapped(point, layer: state.layer)
 		if let net, state.traceSession == nil { state.net = net }
 		return snapped
 	}
 
-	func routeEnd(_ point: Pt) -> Pt {
+	func routeEnd(_ point: Point) -> Point {
 		guard let session = state.traceSession else {
 			return snapped(point, layer: state.layer).0
 		}
@@ -111,7 +111,7 @@ private extension LayoutView {
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
 
-	func dragSelection(from start: Pt, to current: Pt) {
+	func dragSelection(from start: Point, to current: Point) {
 		if state.moveSession != nil {
 			return state.updateMove(to: current.snapped(to: state.snap))
 		}
@@ -126,7 +126,7 @@ private extension LayoutView {
 		state.updateSelect(to: current)
 	}
 
-	func endSelection(from start: Pt, to current: Pt) {
+	func endSelection(from start: Point, to current: Point) {
 		if let session = state.moveSession {
 			if session.didMove {
 				var moved = design
@@ -152,7 +152,7 @@ private extension LayoutView {
 		state.selectSession = nil
 	}
 
-	func placeVia(at point: Pt) {
+	func placeVia(at point: Point) {
 		let (at, net) = snapped(point, layer: state.layer)
 		board.vias.append(Via(
 			at: at,
@@ -164,14 +164,14 @@ private extension LayoutView {
 		))
 	}
 
-	func placeHole(at point: Pt) {
+	func placeHole(at point: Point) {
 		board.holes.append(Hole(
 			at: point.snapped(to: state.snap),
 			diameter: .mm(3.2)
 		))
 	}
 
-	func placeFootprint(at point: Pt) {
+	func placeFootprint(at point: Point) {
 		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
 	}
 }

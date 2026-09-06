@@ -31,7 +31,7 @@ extension Design {
 		}
 	}
 
-	mutating func positionModule(_ id: UUID, at point: Pt, layout: Bool) {
+	mutating func positionModule(_ id: UUID, at point: Point, layout: Bool) {
 		guard let module = modules.first(where: { $0.id == id }) else { return }
 		if layout { _ = moveLayout([.module(id)], by: point - module.layoutAt, grid: .mm(0.5)) }
 		else { moveSchematic([.module(id)], by: point - module.schematicAt) }
@@ -46,7 +46,7 @@ extension Design {
 		}
 	}
 
-	func layoutRefs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
+	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
 		let projection = moduleProjection()
 		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole)
 		if !hit.isEmpty { return Set(hit.map { projection.owner($0) }) }
@@ -59,7 +59,7 @@ extension Design {
 			.union(modules.filter { rect.intersects($0.bounds) }.map { .module($0.id) })
 	}
 
-	func schematicRef(at point: Pt, tolerance: Int) -> Schematic.Ref? {
+	func schematicRef(at point: Point, tolerance: Int) -> Schematic.Ref? {
 		let projection = moduleProjection()
 		return projection.design.schematic.hitTest(at: point, tolerance: tolerance).map { projection.owner($0) }
 	}
@@ -87,12 +87,12 @@ extension Design {
 		schematic.remove(refs)
 	}
 
-	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
+	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		return board.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Ref.module))
 	}
 
-	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Pt) -> Set<Schematic.Ref> {
+	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) -> Set<Schematic.Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		return schematic.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Schematic.Ref.module))
 	}
@@ -102,7 +102,7 @@ extension Design {
 		for id in ids { moduleCache.contents[id] = nil; moduleCache.errors[id] = nil }
 	}
 
-	mutating func duplicateModules(_ ids: Set<UUID>, by delta: Pt) -> Set<UUID> {
+	mutating func duplicateModules(_ ids: Set<UUID>, by delta: Point) -> Set<UUID> {
 		var created: Set<UUID> = []
 		for original in modules.filter({ ids.contains($0.id) }) {
 			var copy = original
@@ -119,7 +119,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func moveLayout(_ refs: Set<Ref>, by delta: Pt, grid: Nm) -> Set<Ref>? {
+	mutating func moveLayout(_ refs: Set<Ref>, by delta: Point, grid: Nm) -> Set<Ref>? {
 		guard !modules.isEmpty else { return board.move(refs, by: delta, grid: grid) }
 		let projection = moduleProjection()
 		let selection = Set(refs.map { projection.owner($0) })
@@ -149,7 +149,7 @@ extension Design {
 		})
 	}
 
-	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Pt) {
+	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) {
 		schematic.move(refs, by: delta)
 		for i in modules.indices where refs.contains(.module(modules[i].id)) { modules[i].schematicAt = modules[i].schematicAt + delta }
 	}
@@ -175,7 +175,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func pasteModules(_ copies: [ModuleInstance], by delta: Pt, documentURL: URL,
+	mutating func pasteModules(_ copies: [ModuleInstance], by delta: Point, documentURL: URL,
 		read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> Set<UUID> {
 		var candidate = self
 		var ids: Set<UUID> = []

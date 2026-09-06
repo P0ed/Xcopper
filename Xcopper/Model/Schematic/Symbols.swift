@@ -76,7 +76,7 @@ extension Symbol {
 
 extension Symbol {
 
-	init(spec: Spec, reference: String, at: Pt) {
+	init(spec: Spec, reference: String, at: Point) {
 		if let component = spec.component {
 			self = modifying(component.makeSymbol()) { symbol in
 				symbol.reference = reference
@@ -128,7 +128,7 @@ extension Symbol {
 		_ direction: Rotation,
 		_ length: Nm = .mm(2.54)
 	) -> Pin {
-		Pin(at: Pt(x: x, y: y), direction: direction, length: length, name: name, number: "\(number)")
+		Pin(at: Point(x: x, y: y), direction: direction, length: length, name: name, number: "\(number)")
 	}
 
 	static func resistor() -> Symbol {
@@ -152,8 +152,8 @@ extension Symbol {
 			],
 			body: centred(Size(width: gap * 2, height: plate * 2)),
 			glyph: [
-				.path([Pt(x: -gap, y: -plate), Pt(x: -gap, y: plate)], closed: false, filled: false),
-				.path([Pt(x: gap, y: -plate), Pt(x: gap, y: plate)], closed: false, filled: false),
+				.path([Point(x: -gap, y: -plate), Point(x: -gap, y: plate)], closed: false, filled: false),
+				.path([Point(x: gap, y: -plate), Point(x: gap, y: plate)], closed: false, filled: false),
 			]
 		)
 	}
@@ -161,13 +161,13 @@ extension Symbol {
 	static func inductor() -> Symbol {
 		let radius = Int.mm(0.635)
 		let humps = 4
-		var points: [Pt] = []
+		var points: [Point] = []
 
 		for hump in 0 ..< humps {
 			let center = -(humps - 1) * radius + hump * radius * 2
 			for step in 0 ... 8 {
 				let angle = Double.pi * Double(step) / 8.0
-				points.append(Pt(
+				points.append(Point(
 					x: center - Int(Double(radius) * cos(angle)),
 					y: -Int(Double(radius) * sin(angle))
 				))
@@ -190,11 +190,11 @@ extension Symbol {
 			body: centred(Size(width: half * 2, height: half * 2)),
 			glyph: [
 				.path(
-					[Pt(x: -half, y: -half), Pt(x: -half, y: half), Pt(x: half, y: 0)],
+					[Point(x: -half, y: -half), Point(x: -half, y: half), Point(x: half, y: 0)],
 					closed: true,
 					filled: true
 				),
-				.path([Pt(x: half, y: -half), Pt(x: half, y: half)], closed: false, filled: false),
+				.path([Point(x: half, y: -half), Point(x: half, y: half)], closed: false, filled: false),
 			]
 		)
 	}
@@ -213,17 +213,17 @@ extension Symbol {
 			glyph: [
 				.circle(.zero, .mm(5.08)),
 				.path(
-					[Pt(x: -base, y: -.mm(1.524)), Pt(x: -base, y: .mm(1.524))],
+					[Point(x: -base, y: -.mm(1.524)), Point(x: -base, y: .mm(1.524))],
 					closed: false,
 					filled: false
 				),
 				.path(
-					[Pt(x: -base, y: -.mm(0.762)), Pt(x: reach, y: -reach)],
+					[Point(x: -base, y: -.mm(0.762)), Point(x: reach, y: -reach)],
 					closed: false,
 					filled: false
 				),
 				.path(
-					[Pt(x: -base, y: .mm(0.762)), Pt(x: reach, y: reach)],
+					[Point(x: -base, y: .mm(0.762)), Point(x: reach, y: reach)],
 					closed: false,
 					filled: false
 				),
@@ -281,8 +281,8 @@ extension Symbol {
 		return make(
 			.power,
 			pins: [pin(1, "1", 0, 0, .r90, .mm(2.54))],
-			body: Rect(center: Pt(x: 0, y: -stem / 2), size: Size(width: bar * 2, height: stem)),
-			glyph: [.path([Pt(x: -bar, y: -stem), Pt(x: bar, y: -stem)], closed: false, filled: false)]
+			body: Rect(center: Point(x: 0, y: -stem / 2), size: Size(width: bar * 2, height: stem)),
+			glyph: [.path([Point(x: -bar, y: -stem), Point(x: bar, y: -stem)], closed: false, filled: false)]
 		)
 	}
 
@@ -293,13 +293,13 @@ extension Symbol {
 			.ground,
 			pins: [pin(1, "1", 0, 0, .r270, .mm(2.54))],
 			body: Rect(
-				center: Pt(x: 0, y: (stem + step * 2) / 2),
+				center: Point(x: 0, y: (stem + step * 2) / 2),
 				size: Size(width: .mm(3.81), height: stem + step * 2)
 			),
 			glyph: (0 ..< 3).map { row in
 				let half = Int.mm(1.905) - row * step
 				let y = stem + row * step
-				return .path([Pt(x: -half, y: y), Pt(x: half, y: y)], closed: false, filled: false)
+				return .path([Point(x: -half, y: y), Point(x: half, y: y)], closed: false, filled: false)
 			}
 		)
 	}

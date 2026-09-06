@@ -71,23 +71,23 @@ final class ComponentLibraryTests: XCTestCase {
 		XCTAssertEqual(pomona.pads.map(\.name), ["1", "1"])
 		XCTAssertEqual(pomona.pads[0].drill, .mm(6.35))
 		XCTAssertEqual(pomona.pads[0].size, Size(width: .mm(10.0), height: .mm(10.0)))
-		XCTAssertEqual(pomona.pads[1].at, Pt(x: 0, y: .mm(5.0)))
+		XCTAssertEqual(pomona.pads[1].at, Point(x: 0, y: .mm(5.0)))
 		XCTAssertEqual(pomona.pads[1].drill, .mm(1.0))
 		XCTAssertTrue(pomona.pads[0].figure.contains(pomona.pads[1].at))
 
 		for component in [Component.nkkMN12, .nkkMN15] {
 			let nkk = try XCTUnwrap(component.makeFootprint())
 			XCTAssertEqual(nkk.pads.map(\.at), [
-				Pt(x: 0, y: -.mm(4.7)), .zero, Pt(x: 0, y: .mm(4.7)),
+				Point(x: 0, y: -.mm(4.7)), .zero, Point(x: 0, y: .mm(4.7)),
 			])
 			XCTAssertTrue(nkk.pads.allSatisfy { $0.drill == .mm(1.6) })
 		}
 
 		let bourns = try XCTUnwrap(Component.bourns51.makeFootprint())
 		XCTAssertEqual(bourns.pads.map(\.at), [
-			Pt(x: -.mm(2.54), y: -.mm(7.5)),
-			Pt(x: 0, y: -.mm(7.5)),
-			Pt(x: .mm(2.54), y: -.mm(7.5)),
+			Point(x: -.mm(2.54), y: -.mm(7.5)),
+			Point(x: 0, y: -.mm(7.5)),
+			Point(x: .mm(2.54), y: -.mm(7.5)),
 		])
 		XCTAssertTrue(bourns.pads.allSatisfy { $0.drill == .mm(0.9) })
 	}
@@ -99,11 +99,11 @@ final class ComponentLibraryTests: XCTestCase {
 		]
 		let pin = design.schematic.symbols[0].placedPins[0].at
 		design.schematic.wires = [
-			Wire(start: pin, end: Pt(x: pin.x + .mm(2.54), y: pin.y)),
+			Wire(start: pin, end: Point(x: pin.x + .mm(2.54), y: pin.y)),
 		]
 		design.schematic.labels = [NetLabel(at: pin, text: "JACK")]
 		design.board.footprints = [
-			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Pt(x: .mm(15), y: .mm(15))),
+			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Point(x: .mm(15), y: .mm(15))),
 		]
 
 		let report = design.updateBoardFromSchematic()

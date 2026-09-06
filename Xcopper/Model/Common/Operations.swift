@@ -64,7 +64,7 @@ extension Operations {
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
 
-	var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
+	var offset: Point { Point(x: Int(snap) * 4, y: Int(snap) * 4) }
 
 	func setScale(_ scale: CGFloat) {
 		switch mode {
@@ -132,7 +132,7 @@ extension Operations {
 	}
 
 	func nudge(dx: Int = 0, dy: Int = 0) {
-		let delta = Pt(x: dx * Int(snap), y: dy * Int(snap))
+		let delta = Point(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
 		case .layout:
 			var moved = design

@@ -121,7 +121,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func place(_ spec: Symbol.Spec, at point: Pt) -> Schematic.Ref {
+	mutating func place(_ spec: Symbol.Spec, at point: Point) -> Schematic.Ref {
 		let reference = nextReference(like: spec.referencePrefix)
 		schematic.symbols.append(Symbol(spec: spec, reference: reference, at: point))
 
@@ -135,7 +135,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func place(_ spec: Footprint.Spec, at point: Pt) -> Ref {
+	mutating func place(_ spec: Footprint.Spec, at point: Point) -> Ref {
 		let reference = nextReference(like: spec.referencePrefix)
 		board.footprints.append(Footprint(spec: spec, reference: reference, at: point))
 

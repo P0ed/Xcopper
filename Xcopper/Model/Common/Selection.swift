@@ -15,8 +15,8 @@ enum SelectionMode: Equatable {
 }
 
 struct SelectSession<R: Hashable>: Equatable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 	var mode: SelectionMode
 	var initial: Set<R>
 
@@ -25,10 +25,10 @@ struct SelectSession<R: Hashable>: Equatable {
 }
 
 struct MoveSession: Equatable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 
-	var delta: Pt { end - start }
+	var delta: Point { end - start }
 	var didMove: Bool { start != end }
 }
 
@@ -38,8 +38,8 @@ enum RoutePhase: Equatable {
 }
 
 struct TraceSession: Equatable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 	var layer: Int
 	var net: Net.ID?
 	var phase: RoutePhase
@@ -48,8 +48,8 @@ struct TraceSession: Equatable {
 }
 
 struct WireSession: Equatable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 	var phase: RoutePhase
 
 	var didDraw: Bool { start != end }

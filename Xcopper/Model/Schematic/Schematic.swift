@@ -1,7 +1,7 @@
 import Foundation
 
 struct Pin: Hashable, Codable {
-	var at: Pt
+	var at: Point
 	var direction: Rotation
 	var length: Nm
 	var name: String
@@ -21,15 +21,15 @@ enum PinText {
 }
 
 enum Glyph: Hashable, Codable {
-	case path([Pt], closed: Bool, filled: Bool)
+	case path([Point], closed: Bool, filled: Bool)
 	case rect(Rect)
-	case circle(Pt, Nm)
+	case circle(Point, Nm)
 }
 
 struct Symbol: Hashable, Codable {
 	var reference: String
 	var value: String
-	var at: Pt
+	var at: Point
 	var rotation: Rotation
 	var mirrored: Bool
 	var kind: Kind
@@ -39,12 +39,12 @@ struct Symbol: Hashable, Codable {
 }
 
 struct Wire: Hashable, Codable {
-	var start: Pt
-	var end: Pt
+	var start: Point
+	var end: Point
 }
 
 struct NetLabel: Hashable, Codable {
-	var at: Pt
+	var at: Point
 	var text: String
 }
 
@@ -85,7 +85,7 @@ extension Schematic {
 
 extension Pin {
 
-	var root: Pt { at + Pt(x: -Int(length), y: 0).rotated(direction) }
+	var root: Point { at + Point(x: -Int(length), y: 0).rotated(direction) }
 
 	var figure: Figure { .segment(at, root, .mm(0.2)) }
 
@@ -102,7 +102,7 @@ extension NetLabel {
 
 	var bounds: Rect {
 		Rect(
-			origin: Pt(x: at.x, y: at.y - Self.height),
+			origin: Point(x: at.x, y: at.y - Self.height),
 			size: Size(width: max(1, text.count) * .mm(1.1) + .mm(0.8), height: Self.height)
 		)
 	}
@@ -110,7 +110,7 @@ extension NetLabel {
 
 extension Glyph {
 
-	func placed(_ transform: (Pt) -> Pt, quarter: Bool) -> Glyph {
+	func placed(_ transform: (Point) -> Point, quarter: Bool) -> Glyph {
 		switch self {
 		case let .path(points, closed, filled):
 			.path(points.map(transform), closed: closed, filled: filled)
@@ -155,7 +155,7 @@ extension Symbol {
 		glyph.map { shape in shape.placed(place, quarter: rotation.isQuarter) }
 	}
 
-	func place(_ local: Pt) -> Pt {
+	func place(_ local: Point) -> Point {
 		(mirrored ? local.mirroredX : local).rotated(rotation) + at
 	}
 
