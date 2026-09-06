@@ -86,12 +86,10 @@ extension Operations {
 		let ids = selectedModuleIDs
 		switch mode {
 		case .layout:
-			design.removeModules(layout.selection.moduleIDs)
-			design.board.remove(layout.selection)
+			design.deleteLayout(layout.selection)
 			layout.resetTransientInteractions()
 		case .schematic:
-			design.removeModules(schematic.selection.moduleIDs)
-			design.schematic.remove(schematic.selection)
+			design.deleteSchematic(schematic.selection)
 			schematic.resetTransientInteractions()
 		case .preview:
 			break
@@ -118,24 +116,11 @@ extension Operations {
 	}
 
 	func duplicate() {
-		let ids = design.duplicateModules(selectedModuleIDs, by: offset)
 		switch mode {
-		case .layout:
-			layout.selection = design.board.duplicate(
-				layout.selection,
-				by: offset,
-				references: Set(design.schematic.symbols.map(\.reference)).union(design.modules.map(\.reference))
-			)
-		case .schematic:
-			schematic.selection = design.schematic.duplicate(
-				schematic.selection,
-				by: offset,
-				references: Set(design.board.footprints.map(\.reference)).union(design.modules.map(\.reference))
-			)
+		case .layout: layout.selection = design.duplicateLayout(layout.selection, by: offset)
+		case .schematic: schematic.selection = design.duplicateSchematic(schematic.selection, by: offset)
 		case .preview: break
 		}
-		if mode == .layout { layout.selection.formUnion(ids.map(Ref.module)) }
-		if mode == .schematic { schematic.selection.formUnion(ids.map(Schematic.Ref.module)) }
 	}
 
 	func selectAll() {
@@ -238,8 +223,9 @@ extension Operations {
 	}
 
 	func copy() {
+		let ids = selectedModuleIDs
 		var next = Clipboard()
-		next.modules = design.modules.filter { selectedModuleIDs.contains($0.id) }
+		next.modules = design.modules.filter { ids.contains($0.id) }
 		switch mode {
 		case .layout:
 			let refs = layout.selection

@@ -1,7 +1,9 @@
 import Foundation
 import Synchronization
 
-final class ModuleProjectionCache: Sendable {
+final class ModuleProjectionCache: Sendable, Equatable {
+	static func == (_: ModuleProjectionCache, _: ModuleProjectionCache) -> Bool { true }
+
 	private let projections = Mutex<[Bool: ModuleProjection]>([:])
 
 	func value(syncNative: Bool, build: () -> ModuleProjection) -> ModuleProjection {
@@ -37,11 +39,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	}
 
 	func place(_ point: Pt) -> Pt { point.rotated(layoutRotation) + layoutAt }
-	var bounds: Rect {
-		Rect.union(Rect(origin: .zero, size: size).corners.map {
-			Rect(origin: place($0), size: .zero)
-		})!
-	}
+	var bounds: Rect { Rect(from: place(.zero), to: place(Pt(x: size.width, y: size.height))) }
 }
 
 struct ModuleContent: Equatable {
@@ -67,10 +65,14 @@ struct ModuleProjection {
 	func owner(_ ref: Ref) -> Ref { owners[ref].map(Ref.module) ?? ref }
 	func owner(_ ref: Schematic.Ref) -> Schematic.Ref { symbolOwners[ref].map(Schematic.Ref.module) ?? ref }
 	func expanded(_ refs: Set<Ref>) -> Set<Ref> {
-		refs.union(owners.compactMap { refs.contains(.module($0.value)) ? $0.key : nil })
+		let ids = refs.moduleIDs
+		guard !ids.isEmpty else { return refs }
+		return refs.union(owners.compactMap { ids.contains($0.value) ? $0.key : nil })
 	}
 	func expanded(_ refs: Set<Schematic.Ref>) -> Set<Schematic.Ref> {
-		refs.union(symbolOwners.compactMap { refs.contains(.module($0.value)) ? $0.key : nil })
+		let ids = refs.moduleIDs
+		guard !ids.isEmpty else { return refs }
+		return refs.union(symbolOwners.compactMap { ids.contains($0.value) ? $0.key : nil })
 	}
 }
 
@@ -82,20 +84,11 @@ extension NetLabel {
 	}
 }
 
+private let supplyNames: Set<String> = ["GND", "VCC", "VEE"]
+
 private func moduleNetID(_ key: String) -> Int {
 	let hash = key.utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
 	return -Int(hash & 0x3fff_ffff_ffff_ffff) - 1
-}
-
-private struct NetMerge {
-	var parents: [Int: Int] = [:]
-	mutating func root(_ id: Int) -> Int {
-		guard let parent = parents[id], parent != id else { return id }
-		let result = root(parent)
-		parents[id] = result
-		return result
-	}
-	mutating func join(_ a: Int, to b: Int) { let ra = root(a); let rb = root(b); if ra != rb { parents[ra] = rb } }
 }
 
 extension Design {
@@ -115,29 +108,30 @@ extension Design {
 		modules.allSatisfy { max($0.layerCount, moduleCache.contents[$0.id]?.board.stack.count ?? 0) <= stack.count }
 	}
 
-	var resolved: Design { modules.isEmpty ? self : moduleProjection().design }
+	var resolved: Design { moduleProjection().design }
 
 	func buildModuleProjection(syncNative: Bool) -> ModuleProjection {
 		var result = ModuleProjection(design: self)
-		if modules.isEmpty && !syncNative { return result }
 		result.design.modules = []
 		result.design.moduleCache = ModuleCache()
 		var nets = Dictionary(nets.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 		var portsBySymbol: [Int: [String: Int]] = [:]
-		var merge = NetMerge()
+		var merge = UnionFind<Int>()
+		let netIDsByName = Dictionary(self.nets.map { ($0.name, $0.id) }, uniquingKeysWith: { a, _ in a })
 		func global(_ name: String) -> Int? {
-			guard ["GND", "VCC", "VEE"].contains(name) else { return nil }
-			let id = self.nets.first { $0.name == name }?.id ?? moduleNetID("power/\(name)")
+			guard supplyNames.contains(name) else { return nil }
+			let id = netIDsByName[name] ?? moduleNetID("power/\(name)")
 			nets[id] = name
 			return id
 		}
 		for module in modules {
 			let symbolIndex = result.design.schematic.symbols.count
 			result.symbolOwners[.symbol(symbolIndex)] = module.id
+			let status = moduleStatus(module.id)
 			var symbol = module.symbol
-			if moduleStatus(module.id) != nil { symbol.value = "⚠ Unresolved: " + module.filename }
+			if status != nil { symbol.value = "⚠ Unresolved: " + module.filename }
 			result.design.schematic.symbols.append(symbol)
-			guard moduleStatus(module.id) == nil, let content = moduleCache.contents[module.id] else { continue }
+			guard status == nil, let content = moduleCache.contents[module.id] else { continue }
 			var mapping: [Int: Int] = [:]
 			for net in content.nets {
 				let id = global(net.name) ?? moduleNetID("\(module.id)/\(net.id)")
@@ -176,12 +170,16 @@ extension Design {
 		electrical.labels.removeAll { $0.ioName != nil }
 		electrical.labels += schematic.labels.filter { $0.ioName != nil }.map { NetLabel(at: $0.at, text: "") }
 		let netlist = Netlist(electrical)
+		var footprintsByReference: [String: [Int]] = [:]
+		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }
+		var ioNamesByPoint: [Pt: [String]] = [:]
+		for label in schematic.labels { if let name = label.ioName { ioNamesByPoint[label.at, default: []].append(name) } }
 		var pointNets: [Pt: Int] = [:]
 		var assignments: [(Int, Int, Int)] = []
 		var wired: Set<String> = []
 		for group in netlist.groups {
 			let nodes = group.nodes.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }
-			let active = nodes.count > 1 || group.name != nil || schematic.labels.contains { $0.ioName != nil && group.points.contains($0.at) }
+			let active = nodes.count > 1 || group.name != nil || group.points.contains { ioNamesByPoint[$0] != nil }
 			var connected: [Int] = []
 			var pads: [(Int, Int)] = []
 			for node in nodes {
@@ -193,15 +191,16 @@ extension Design {
 					continue
 				}
 				guard !symbol.kind.isPower, node.symbol < schematic.symbols.count else { continue }
+				let matches = footprintsByReference[symbol.reference] ?? []
 				if active {
 					wired.insert(symbol.reference)
-					if !board.footprints.contains(where: { $0.reference == symbol.reference }) {
+					if matches.isEmpty {
 						result.report.missingFootprints.append(symbol.reference)
-					} else if !board.footprints.contains(where: { $0.reference == symbol.reference && $0.pads.contains { $0.name == pin } }) {
+					} else if !matches.contains(where: { board.footprints[$0].pads.contains { $0.name == pin } }) {
 						result.report.missingPins.append("\(symbol.reference).\(pin)")
 					}
 				}
-				for i in board.footprints.indices where board.footprints[i].reference == symbol.reference {
+				for i in matches {
 					for j in board.footprints[i].pads.indices where board.footprints[i].pads[j].name == pin {
 						pads.append((i, j))
 						if let id = board.footprints[i].pads[j].net { connected.append(id) }
@@ -209,14 +208,13 @@ extension Design {
 				}
 			}
 			if !active && connected.isEmpty { continue }
-			let ioNames = schematic.labels.filter { group.points.contains($0.at) }.compactMap(\.ioName).sorted()
-			let key = nodes.isEmpty ? ioNames.joined(separator: "/") : nodes.map { "\(electrical.symbols[$0.symbol].reference).\(electrical.symbols[$0.symbol].pins[$0.pin].number)" }.joined(separator: "/")
+			let key = nodes.isEmpty ? group.points.flatMap { ioNamesByPoint[$0] ?? [] }.sorted().joined(separator: "/") : nodes.map { "\(electrical.symbols[$0.symbol].reference).\(electrical.symbols[$0.symbol].pins[$0.pin].number)" }.joined(separator: "/")
 			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Pt.order)) : key)")
-			let named = group.name.map { name in self.nets.first { $0.name == name }?.id ?? moduleNetID("named/\(name)") }
-			let power = connected.first { id in nets[id].map { ["GND", "VCC", "VEE"].contains($0) } ?? false }
+			let named = group.name.map { name in netIDsByName[name] ?? moduleNetID("named/\(name)") }
+			let power = connected.first { id in nets[id].map(supplyNames.contains) ?? false }
 			let id = named ?? power ?? connected.first ?? fallback
 			if nets[id] == nil { nets[id] = group.name ?? "N$\(key.isEmpty ? String(-fallback) : key)" }
-			for other in connected { merge.join(other, to: id) }
+			for other in connected { merge.union(other, id) }
 			for point in group.points { pointNets[point] = id }
 			if syncNative, active {
 				result.report.assigned += pads.count
@@ -224,29 +222,21 @@ extension Design {
 			}
 		}
 		for (i, j, id) in assignments { result.design.board.footprints[i].pads[j].net = id }
-		result.design.board.mapNets { $0.map { merge.root($0) } }
+		result.design.board.mapNets { $0.map { merge.find($0) } }
 		for label in schematic.labels {
-			guard let name = label.ioName, let id = pointNets[label.at].map({ merge.root($0) }) else { continue }
+			guard let name = label.ioName, let id = pointNets[label.at].map({ merge.find($0) }) else { continue }
 			if let existing = result.ports[name], existing != id {
 				result.interfaceError = "Ambiguous #IO.\(name): repeated labels resolve to different nets. Connect them to the same net and reload."
 			}
 			result.ports[name] = id
 		}
-		result.report.missingFootprints = Array(Set(result.report.missingFootprints)).sorted()
+		result.report.missingFootprints = Set(result.report.missingFootprints).sorted()
 		result.report.missingPins.sort()
 		result.report.extraFootprints = board.footprints.map(\.reference).filter { !wired.contains($0) }.sorted()
 		let nativeIDs = Set(self.nets.map(\.id))
-		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.root($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
-		result.report.created = result.design.nets.filter { net in !self.nets.contains { $0.id == net.id } }.map(\.name)
+		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.find($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
+		result.report.created = result.design.nets.filter { !nativeIDs.contains($0.id) }.map(\.name)
 		return result
-	}
-}
-
-extension Board {
-	mutating func mapNets(_ map: (Int?) -> Int?) {
-		traces.modifyEach { $0.net = map($0.net) }
-		vias.modifyEach { $0.net = map($0.net) }
-		footprints.modifyEach { $0.pads.modifyEach { $0.net = map($0.net) } }
 	}
 }
 
@@ -254,6 +244,7 @@ struct ModuleResolver {
 	var folder: URL
 	var read: (URL) throws -> Data = { try Data(contentsOf: $0) }
 	private var loaded: [URL: Design] = [:]
+	private var contents: [URL: ModuleContent] = [:]
 
 	init(folder: URL, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) {
 		self.folder = folder.resolvingSymlinksInPath().standardizedFileURL
@@ -278,6 +269,7 @@ struct ModuleResolver {
 
 	mutating func reload(_ design: inout Design, documentURL: URL?) {
 		loaded.removeAll()
+		contents.removeAll()
 		design.moduleCache = ModuleCache()
 		let ancestors = documentURL.map { [$0.resolvingSymlinksInPath().standardizedFileURL] } ?? []
 		for index in design.modules.indices {
@@ -293,7 +285,9 @@ struct ModuleResolver {
 				design.modules[index].layerCount = content.board.stack.count
 				design.moduleCache.contents[module.id] = content
 			} catch {
-				design.moduleCache.errors[module.id] = (error as? Err)?.description ?? error.localizedDescription + " Restore the source in the document folder and reload."
+				design.moduleCache.errors[module.id] = error is Err
+					? error.localizedDescription
+					: error.localizedDescription + " Restore the source in the document folder and reload."
 			}
 		}
 	}
@@ -308,6 +302,7 @@ struct ModuleResolver {
 			loaded[url] = source
 		}
 		guard source.board.stack.count <= stack.count else { throw Err("\(filename) needs \(source.board.stack.count) layers; its containing design has \(stack.count). Increase the containing stack and reload.") }
+		if let content = contents[url] { return content }
 		for i in source.modules.indices {
 			let child = source.modules[i]
 			let content = try resolve(child.filename, stack: source.board.stack, ancestors: ancestors + [url])
@@ -317,6 +312,8 @@ struct ModuleResolver {
 		}
 		let projection = source.moduleProjection(syncNative: true)
 		if let error = projection.interfaceError { throw Err("\(filename): \(error)") }
-		return ModuleContent(board: projection.design.board, nets: projection.design.nets, ports: projection.ports)
+		let content = ModuleContent(board: projection.design.board, nets: projection.design.nets, ports: projection.ports)
+		contents[url] = content
+		return content
 	}
 }

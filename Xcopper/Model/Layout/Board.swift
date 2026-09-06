@@ -160,12 +160,14 @@ extension Board {
 		vias.removeAll { $0.from == $0.to }
 	}
 
+	mutating func mapNets(_ map: (Net.ID?) -> Net.ID?) {
+		traces.modifyEach { $0.net = map($0.net) }
+		vias.modifyEach { $0.net = map($0.net) }
+		footprints.modifyEach { $0.pads.modifyEach { $0.net = map($0.net) } }
+	}
+
 	mutating func clearNet(_ id: Net.ID) {
-		traces.modifyEach { trace in if trace.net == id { trace.net = nil } }
-		vias.modifyEach { via in if via.net == id { via.net = nil } }
-		footprints.modifyEach { footprint in
-			footprint.pads.modifyEach { pad in if pad.net == id { pad.net = nil } }
-		}
+		mapNets { $0 == id ? nil : $0 }
 	}
 }
 

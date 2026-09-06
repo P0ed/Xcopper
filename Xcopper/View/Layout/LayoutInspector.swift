@@ -45,9 +45,7 @@ struct LayoutInspector: View {
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			FootprintInspector(
 				footprint: $design.board.footprints[index, or: board.footprints[index]],
-				reference: Binding(get: {
-					design.board.footprints.indices.contains(index) ? design.board.footprints[index].reference : ""
-				}, set: { design.renameReference(Ref.footprint(index), to: $0) }),
+				reference: $design.reference(of: Ref.footprint(index)),
 				stack: board.stack,
 				focus: $focus
 			)

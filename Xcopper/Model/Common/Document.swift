@@ -26,11 +26,8 @@ struct Document: FileDocument {
 		guard !design.board.size.isEmpty else { throw Err("Board has no size") }
 		guard !design.schematic.size.isEmpty else { throw Err("Sheet has no size") }
 		guard Set(design.modules.map(\.id)).count == design.modules.count else { throw Err("Duplicate module identities") }
-		guard Set(design.modules.map(\.reference)).count == design.modules.count,
-			!design.modules.contains(where: { module in
-				module.reference.trimmingWhitespace.isEmpty || design.board.footprints.contains { $0.reference == module.reference }
-					|| design.schematic.symbols.contains { $0.reference == module.reference }
-			}) else { throw Err("Module references must be nonempty and unique") }
+		guard design.modules.allSatisfy({ design.moduleReferenceIsValid($0.reference, ignoring: $0.id) })
+		else { throw Err("Module references must be nonempty and unique") }
 		return design
 	}
 

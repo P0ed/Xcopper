@@ -27,31 +27,10 @@ struct Netlist {
 	}
 }
 
-private struct Merge {
-	private var parent: [Pt: Pt] = [:]
-
-	mutating func find(_ point: Pt) -> Pt {
-		guard let up = parent[point] else {
-			parent[point] = point
-			return point
-		}
-		guard up != point else { return point }
-		let root = find(up)
-		parent[point] = root
-		return root
-	}
-
-	mutating func union(_ a: Pt, _ b: Pt) {
-		let (ra, rb) = (find(a), find(b))
-		guard ra != rb else { return }
-		parent[ra] = rb
-	}
-}
-
 extension Netlist {
 
 	init(_ schematic: Schematic) {
-		var merge = Merge()
+		var merge = UnionFind<Pt>()
 		var terminals: Set<Pt> = []
 
 		for wire in schematic.wires {

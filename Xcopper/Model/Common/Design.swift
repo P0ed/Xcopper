@@ -6,11 +6,6 @@ struct Design: Equatable, Codable {
 	var moduleCache = ModuleCache() { didSet { projectionCache = ModuleProjectionCache() } }
 	private var projectionCache = ModuleProjectionCache()
 
-	static func == (lhs: Design, rhs: Design) -> Bool {
-		lhs.nets == rhs.nets && lhs.board == rhs.board && lhs.schematic == rhs.schematic
-			&& lhs.modules == rhs.modules && lhs.moduleCache == rhs.moduleCache
-	}
-
 	func moduleProjection(syncNative: Bool = false) -> ModuleProjection {
 		if modules.isEmpty && !syncNative { return ModuleProjection(design: self) }
 		return projectionCache.value(syncNative: syncNative) { buildModuleProjection(syncNative: syncNative) }

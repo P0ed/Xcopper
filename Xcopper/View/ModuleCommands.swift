@@ -53,7 +53,13 @@ extension Operations {
 		case .preview: []
 		}
 	}
-	var hasModuleSelection: Bool { !selectedModuleIDs.isEmpty }
+	var hasModuleSelection: Bool {
+		switch mode {
+		case .layout: layout.selection.hasModules
+		case .schematic: schematic.selection.hasModules
+		case .preview: false
+		}
+	}
 
 	func moduleAlert(_ title: String, _ message: String) {
 		let alert = NSAlert()
@@ -85,7 +91,7 @@ extension Operations {
 			design = next
 			layout.selection = [.module(id)]
 			schematic.selection = [.module(id)]
-		} catch { moduleAlert("Could not import module", (error as? Err)?.description ?? error.localizedDescription) }
+		} catch { moduleAlert("Could not import module", error.localizedDescription) }
 	}
 
 	func reloadModules(automatic: Bool = false) {
@@ -102,7 +108,7 @@ extension Operations {
 			}
 		} catch {
 			next.moduleCache = ModuleCache()
-			for module in next.modules { next.moduleCache.errors[module.id] = (error as? Err)?.description ?? error.localizedDescription }
+			for module in next.modules { next.moduleCache.errors[module.id] = error.localizedDescription }
 		}
 		design = next
 		layout.cancelSessions()
@@ -129,7 +135,7 @@ extension Operations {
 				scoped?.stopAccessingSecurityScopedResource()
 				throw error
 			}
-		} catch { moduleAlert("Could not open module source", (error as? Err)?.description ?? error.localizedDescription) }
+		} catch { moduleAlert("Could not open module source", error.localizedDescription) }
 	}
 
 	func pasteModules() -> Set<UUID>? {
@@ -146,7 +152,7 @@ extension Operations {
 			design = next
 			return ids
 		} catch {
-			moduleAlert("Could not paste modules", (error as? Err)?.description ?? error.localizedDescription)
+			moduleAlert("Could not paste modules", error.localizedDescription)
 			return nil
 		}
 	}
@@ -163,16 +169,13 @@ struct ModuleInspector: View {
 	var body: some View {
 		if let module {
 			ValueRow(title: "Source", value: module.filename)
-			TextRow(title: "Ref", text: reference, property: .reference, focus: $focus)
+			TextRow(title: "Ref", text: $design.reference(of: Ref.module(id)), property: .reference, focus: $focus)
 			PositionRows(at: position, focus: $focus)
 			RotationChoice(rotation: rotation)
-			Text(design.moduleStatus(id) ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
-				.font(.caption).foregroundStyle(design.moduleStatus(id) == nil ? Color.secondary : Color.red)
+			let status = design.moduleStatus(id)
+			Text(status ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
+				.font(.caption).foregroundStyle(status == nil ? Color.secondary : Color.red)
 		}
-	}
-
-	var reference: Binding<String> {
-		Binding(get: { module?.reference ?? "" }, set: { design.renameReference(Ref.module(id), to: $0) })
 	}
 
 	var position: Binding<Pt> {

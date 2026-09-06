@@ -24,9 +24,7 @@ struct SchematicInspector: View {
 		case let .symbol(index) where schematic.symbols.indices.contains(index):
 			SymbolInspector(
 				symbol: $design.schematic.symbols[index, or: schematic.symbols[index]],
-				reference: Binding(get: {
-					design.schematic.symbols.indices.contains(index) ? design.schematic.symbols[index].reference : ""
-				}, set: { design.renameReference(Schematic.Ref.symbol(index), to: $0) }),
+				reference: $design.reference(of: Schematic.Ref.symbol(index)),
 				focus: $focus
 			)
 		case let .wire(index) where schematic.wires.indices.contains(index):

@@ -1,13 +1,19 @@
-import Foundation
+import SwiftUI
 
 extension Design {
+	func moduleReferenceIsValid(_ value: String, ignoring id: UUID? = nil) -> Bool {
+		!value.trimmingWhitespace.isEmpty
+			&& !modules.contains { $0.id != id && $0.reference == value }
+			&& !board.footprints.contains { $0.reference == value }
+			&& !schematic.symbols.contains { $0.reference == value }
+	}
+
 	mutating func renameReference(_ ref: Ref, to value: String) {
 		guard !modules.contains(where: { .module($0.id) != ref && $0.reference == value }) else { return }
 		switch ref {
 		case let .module(id):
-			guard let index = modules.firstIndex(where: { $0.id == id }), !value.trimmingWhitespace.isEmpty,
-				!board.footprints.contains(where: { $0.reference == value }),
-				!schematic.symbols.contains(where: { $0.reference == value }) else { return }
+			guard let index = modules.firstIndex(where: { $0.id == id }), moduleReferenceIsValid(value, ignoring: id)
+			else { return }
 			modules[index].reference = value
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			board.footprints[index].reference = value
@@ -33,11 +39,10 @@ extension Design {
 
 	mutating func turnModule(_ id: UUID, to rotation: Rotation, layout: Bool) {
 		guard let module = modules.first(where: { $0.id == id }) else { return }
-		var current = layout ? module.layoutRotation : module.schematicRotation
-		while current != rotation {
+		let current = layout ? module.layoutRotation : module.schematicRotation
+		for _ in 0 ..< ((rotation.rawValue - current.rawValue) & 0b11) {
 			if layout { rotateLayout([.module(id)], clockwise: true) }
 			else { rotateSchematic([.module(id)], clockwise: true) }
-			current = current.adding(.r90)
 		}
 	}
 
@@ -70,6 +75,26 @@ extension Design {
 
 	func schematicBounds(_ refs: Set<Schematic.Ref>) -> Rect? {
 		Rect.union([schematic.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map { $0.symbol.placedExtent })
+	}
+
+	mutating func deleteLayout(_ refs: Set<Ref>) {
+		removeModules(refs.moduleIDs)
+		board.remove(refs)
+	}
+
+	mutating func deleteSchematic(_ refs: Set<Schematic.Ref>) {
+		removeModules(refs.moduleIDs)
+		schematic.remove(refs)
+	}
+
+	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Pt) -> Set<Ref> {
+		let ids = duplicateModules(refs.moduleIDs, by: delta)
+		return board.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Ref.module))
+	}
+
+	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Pt) -> Set<Schematic.Ref> {
+		let ids = duplicateModules(refs.moduleIDs, by: delta)
+		return schematic.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Schematic.Ref.module))
 	}
 
 	mutating func removeModules(_ ids: Set<UUID>) {
@@ -192,9 +217,39 @@ extension Design {
 	}
 }
 
+extension Design {
+	func reference(of ref: Ref) -> String {
+		switch ref {
+		case let .module(id): modules.first { $0.id == id }?.reference ?? ""
+		case let .footprint(index): board.footprints.indices.contains(index) ? board.footprints[index].reference : ""
+		default: ""
+		}
+	}
+
+	func reference(of ref: Schematic.Ref) -> String {
+		switch ref {
+		case let .module(id): modules.first { $0.id == id }?.reference ?? ""
+		case let .symbol(index): schematic.symbols.indices.contains(index) ? schematic.symbols[index].reference : ""
+		default: ""
+		}
+	}
+}
+
+extension Binding where Value == Design {
+	func reference(of ref: Ref) -> Binding<String> {
+		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
+	}
+
+	func reference(of ref: Schematic.Ref) -> Binding<String> {
+		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
+	}
+}
+
 extension Set where Element == Ref {
 	var moduleIDs: Set<UUID> { Set<UUID>(compactMap { if case let .module(id) = $0 { id } else { nil } }) }
+	var hasModules: Bool { contains { if case .module = $0 { true } else { false } } }
 }
 extension Set where Element == Schematic.Ref {
 	var moduleIDs: Set<UUID> { Set<UUID>(compactMap { if case let .module(id) = $0 { id } else { nil } }) }
+	var hasModules: Bool { contains { if case .module = $0 { true } else { false } } }
 }

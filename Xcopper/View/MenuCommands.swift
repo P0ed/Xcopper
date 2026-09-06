@@ -13,6 +13,8 @@ extension Operations? {
 	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }
 	var schematicDisabled: Bool { actionsDisabled || self?.mode != .schematic }
 	var placementDisabled: Bool { actionsDisabled || self?.mode == .preview }
+	var hasModuleSelection: Bool { self?.hasModuleSelection ?? false }
+	var modulesDisabled: Bool { actionsDisabled || (self?.design.modules.isEmpty ?? true) }
 }
 
 @MainActor
@@ -59,8 +61,8 @@ struct MenuCommands: Commands {
 		}
 		CommandGroup(replacing: .importExport) {
 			Button("Import Module…") { op?.importModule() }.disabled(op.actionsDisabled)
-			Button("Reload Modules") { op?.reloadModules() }.disabled(op.actionsDisabled || (op?.design.modules.isEmpty ?? true))
-			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !(op?.hasModuleSelection ?? false))
+			Button("Reload Modules") { op?.reloadModules() }.disabled(op.modulesDisabled)
+			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !op.hasModuleSelection)
 			Divider()
 			ActionButton(
 				name: "Export Gerbers…",
@@ -195,7 +197,7 @@ struct MenuCommands: Commands {
 				image: "link",
 				shortcut: "L",
 				modifiers: .command,
-				disabled: op.layoutDisabled || op.selectionDisabled || (op?.hasModuleSelection ?? false),
+				disabled: op.layoutDisabled || op.selectionDisabled || op.hasModuleSelection,
 				action: { op.map { op in op.assignNet(op.layout.net) } }
 			)
 			Divider()
@@ -235,7 +237,7 @@ struct MenuCommands: Commands {
 				image: "arrow.left.and.right.righttriangle.left.righttriangle.right",
 				shortcut: "H",
 				modifiers: [.command, .shift],
-				disabled: op.selectionDisabled || (op?.hasModuleSelection ?? false),
+				disabled: op.selectionDisabled || op.hasModuleSelection,
 				action: { op?.flip() }
 			)
 			ActionButton(

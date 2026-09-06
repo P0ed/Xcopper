@@ -29,13 +29,7 @@ extension Violation {
 extension Design {
 
 	func check() -> [Violation] {
-		if !modules.isEmpty {
-			let projection = moduleProjection()
-			return projection.design.check().map { violation in
-				modifying(violation) { $0.refs = Set($0.refs.map { projection.owner($0) }) }
-			}
-		}
-		return (faults() + unrouted()).sorted(by: Violation.order)
+		(faults() + resolved.unrouted()).sorted(by: Violation.order)
 	}
 
 	func faults() -> [Violation] {

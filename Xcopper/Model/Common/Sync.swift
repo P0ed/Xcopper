@@ -110,13 +110,14 @@ extension Footprint.Spec {
 
 extension Design {
 
+	var usedReferences: Set<String> {
+		Set(schematic.symbols.map(\.reference))
+			.union(board.footprints.map(\.reference))
+			.union(modules.map(\.reference))
+	}
+
 	func nextReference(like reference: String) -> String {
-		Xcopper.nextReference(
-			like: reference,
-			used: Set(schematic.symbols.map(\.reference))
-				.union(board.footprints.map(\.reference))
-				.union(modules.map(\.reference))
-		)
+		Xcopper.nextReference(like: reference, used: usedReferences)
 	}
 
 	@discardableResult
@@ -154,8 +155,6 @@ extension Design {
 			else { return nil }
 			return schematic.symbols[index].reference
 		})
-
-
 		return Set(
 			board.footprints.indices
 				.filter { references.contains(board.footprints[$0].reference) }
@@ -169,8 +168,6 @@ extension Design {
 			else { return nil }
 			return board.footprints[index].reference
 		})
-
-
 		return Set(
 			schematic.symbols.indices
 				.filter { references.contains(schematic.symbols[$0].reference) }
