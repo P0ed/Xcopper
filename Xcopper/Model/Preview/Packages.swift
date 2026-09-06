@@ -47,7 +47,6 @@ extension PackageAppearance {
 		case .pomona1581:
 			self.init(shell: .none, height: 0)
 		case .custom:
-			// Custom land patterns keep a geometric approximation; device identity stays explicit.
 			let through = footprint.pads.contains(where: \.isThrough)
 			let shrouded = footprint.pads.allSatisfy { footprint.body.contains($0.at) }
 			switch (through, footprint.pads.count) {
