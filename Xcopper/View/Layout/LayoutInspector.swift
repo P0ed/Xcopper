@@ -45,6 +45,9 @@ struct LayoutInspector: View {
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			FootprintInspector(
 				footprint: $design.board.footprints[index, or: board.footprints[index]],
+				reference: Binding(get: {
+					design.board.footprints.indices.contains(index) ? design.board.footprints[index].reference : ""
+				}, set: { design.renameReference(Ref.footprint(index), to: $0) }),
 				stack: board.stack,
 				focus: $focus
 			)
@@ -121,6 +124,7 @@ struct HoleInspector: View {
 @MainActor
 struct FootprintInspector: View {
 	@Binding var footprint: Footprint
+	@Binding var reference: String
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
@@ -128,7 +132,7 @@ struct FootprintInspector: View {
 		TextRow(
 			title: "Ref",
 			prompt: "R1",
-			text: $footprint.reference,
+			text: $reference,
 			property: .reference,
 			focus: $focus
 		)

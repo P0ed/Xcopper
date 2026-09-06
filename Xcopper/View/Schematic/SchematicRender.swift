@@ -33,7 +33,7 @@ extension SchematicView {
 		renderWires(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 		renderJunctions(schematic, in: context, scale: scale, origin: origin)
 		renderSymbols(schematic, selection, in: context, scale: scale, origin: origin)
-		renderPins(schematic, in: context, scale: scale, origin: origin, visible: visible)
+		renderPins(projection, in: context, scale: scale, origin: origin, visible: visible)
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
 		context.stroke(
@@ -166,7 +166,7 @@ extension SchematicView {
 	}
 
 	private func renderPins(
-		_ schematic: Schematic,
+		_ projection: ModuleProjection,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint,
@@ -179,11 +179,11 @@ extension SchematicView {
 		let gap = Double(PinText.gap).mm * scale
 		let inset = Double(PinText.inset).mm * scale
 
-		for symbol in schematic.symbols where !symbol.kind.isPower {
+		for (index, symbol) in projection.design.schematic.symbols.enumerated() where !symbol.kind.isPower {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
 
 			let inside = symbol.kind == .ic
-			let isModule = design.modules.contains { $0.reference == symbol.reference }
+			let isModule = projection.symbolOwners[.symbol(index)] != nil
 			let numbered = symbol.kind.showsPinNumbers && !isModule
 
 			for pin in symbol.placedPins {

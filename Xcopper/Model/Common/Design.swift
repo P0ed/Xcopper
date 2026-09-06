@@ -1,10 +1,20 @@
 struct Design: Equatable, Codable {
-	var nets: [Net]
-	var board: Board
-	var schematic: Schematic
-	var modules: [ModuleInstance] = []
-	// Value snapshots participate in undo, but are never embedded in saved files.
-	var moduleCache = ModuleCache()
+	var nets: [Net] { didSet { projectionCache = ModuleProjectionCache() } }
+	var board: Board { didSet { projectionCache = ModuleProjectionCache() } }
+	var schematic: Schematic { didSet { projectionCache = ModuleProjectionCache() } }
+	var modules: [ModuleInstance] = [] { didSet { projectionCache = ModuleProjectionCache() } }
+	var moduleCache = ModuleCache() { didSet { projectionCache = ModuleProjectionCache() } }
+	private var projectionCache = ModuleProjectionCache()
+
+	static func == (lhs: Design, rhs: Design) -> Bool {
+		lhs.nets == rhs.nets && lhs.board == rhs.board && lhs.schematic == rhs.schematic
+			&& lhs.modules == rhs.modules && lhs.moduleCache == rhs.moduleCache
+	}
+
+	func moduleProjection(syncNative: Bool = false) -> ModuleProjection {
+		if modules.isEmpty && !syncNative { return ModuleProjection(design: self) }
+		return projectionCache.value(syncNative: syncNative) { buildModuleProjection(syncNative: syncNative) }
+	}
 
 	enum CodingKeys: String, CodingKey { case nets, board, schematic, modules }
 

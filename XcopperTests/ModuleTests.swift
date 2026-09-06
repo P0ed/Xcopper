@@ -249,6 +249,154 @@ final class ModuleTests: XCTestCase {
 }
 
 extension ModuleTests {
+	@MainActor
+	func testDuplicateNativePartsAvoidsModuleReferencesAndReopens() throws {
+		for mode in [Mode.layout, .schematic] {
+			var design = try imported(["Part.xcb": source()])
+			design.modules[0].reference = "R2"
+			design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+			let harness = ModuleEditorHarness(design: design)
+			harness.editor.mode = mode
+			harness.layout.selection = [.footprint(0), .module(design.modules[0].id)]
+			harness.schematic.selection = [.symbol(0), .module(design.modules[0].id)]
+			harness.perform { $0.duplicate() }
+			XCTAssertEqual(harness.design.modules.map(\.reference), ["R2", "R3"])
+			let reference = mode == .layout ? harness.design.board.footprints.last?.reference : harness.design.schematic.symbols.last?.reference
+			XCTAssertEqual(reference, "R4")
+			XCTAssertNoThrow(try Document.decode(Document(design: harness.design).encoded()))
+		}
+	}
+
+	func testInspectorReferenceEditsPreserveModuleUniquenessAndNativePairing() throws {
+		var design = try imported(["Part.xcb": source()])
+		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+		let before = design
+		design.renameReference(Ref.footprint(0), to: "M1")
+		design.renameReference(Schematic.Ref.symbol(0), to: "M1")
+		design.renameReference(Ref.module(design.modules[0].id), to: "R1")
+		design.renameReference(Ref.module(design.modules[0].id), to: "  ")
+		XCTAssertEqual(design, before)
+		design.renameReference(Ref.footprint(0), to: "R2")
+		design.renameReference(Schematic.Ref.symbol(0), to: "R2")
+		XCTAssertEqual(design.footprints(for: [.symbol(0)]), [.footprint(0)])
+		XCTAssertNoThrow(try Document.decode(Document(design: design).encoded()))
+	}
+
+	func testModuleEditsFollowIdentityAfterRemovalAndUseCurrentPosition() throws {
+		var design = try imported(["Part.xcb": source()], filenames: ["Part.xcb", "Part.xcb"])
+		let first = design.modules[0].id
+		let second = design.modules[1].id
+		design.removeModules([first])
+		design.renameReference(Ref.module(second), to: "M3")
+		design.positionModule(second, at: point(50, 50), layout: true)
+		design.positionModule(second, at: point(60, 60), layout: true)
+		XCTAssertEqual(design.modules[0].reference, "M3")
+		XCTAssertEqual(design.modules[0].layoutAt, point(60, 60))
+		let center = design.modules[0].bounds.center
+		design.turnModule(second, to: .r90, layout: true)
+		XCTAssertEqual(design.modules[0].bounds.center, center)
+		XCTAssertEqual(design.modules[0].layoutRotation, .r90)
+		let schematicCenter = design.modules[0].symbol.placedExtent.center
+		design.turnModule(second, to: .r270, layout: false)
+		XCTAssertEqual(design.modules[0].symbol.placedExtent.center, schematicCenter)
+		let before = design
+		design.renameReference(Ref.module(first), to: "Gone")
+		design.positionModule(first, at: .zero, layout: true)
+		design.turnModule(first, to: .r180, layout: true)
+		XCTAssertEqual(design, before)
+	}
+
+	func testLayoutMarqueeHonorsWholeRunsWithAndWithoutModules() throws {
+		for withModules in [false, true] {
+			var design = withModules ? try imported(["Part.xcb": source()]) : Design()
+			if withModules { design.modules[0].layoutAt = point(60, 60) }
+			design.board.traces = [
+				Trace(start: point(5, 5), end: point(10, 5), width: .mm(0.3), layer: 0, net: nil),
+				Trace(start: point(10, 5), end: point(20, 5), width: .mm(0.3), layer: 0, net: nil),
+			]
+			let partial = Rect(from: .zero, to: point(12, 10))
+			XCTAssertEqual(design.layoutRefs(in: partial, layer: 0), [.trace(0)])
+			XCTAssertEqual(design.layoutRefs(in: partial, layer: 0, whole: true), [])
+			XCTAssertEqual(design.layoutRefs(in: Rect(from: .zero, to: point(25, 10)), layer: 0, whole: true), [.trace(0), .trace(1)])
+		}
+	}
+
+	func testNamedParentNetOverridesModulePowerAndSyncPreservesExistingNets() throws {
+		var module = source()
+		module.board.footprints[0].pads[0].net = 0
+		module.board.traces[0].net = 0
+		var design = try imported(["Part.xcb": module])
+		let vbat = design.addNet(name: "VBAT")
+		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+		design.board.footprints[0].pads[0].net = vbat
+		let pin = design.schematic.symbols[0].placedPins[0].at
+		design.schematic.wires = [Wire(start: pin, end: design.modules[0].symbol.placedPins[0].at)]
+		design.schematic.labels = [NetLabel(at: pin, text: "VBAT")]
+		let existing = design.nets
+		_ = design.updateBoardFromSchematic()
+		XCTAssertTrue(existing.allSatisfy { design.nets.contains($0) })
+		XCTAssertEqual(design.board.footprints[0].pads[0].net, vbat)
+		XCTAssertEqual(design.resolved.board.footprints[1].pads[0].net, vbat)
+		XCTAssertEqual(design.resolved.board.traces[0].net, vbat)
+		XCTAssertEqual(design.plane(1), 0)
+		XCTAssertEqual(design.plane(2), 1)
+		let synced = design
+		_ = design.updateBoardFromSchematic()
+		XCTAssertEqual(design, synced)
+	}
+
+	func testProjectionInvalidatesForEditsAndKeepsCopiedSnapshotsIndependent() throws {
+		var design = try imported(["Part.xcb": source()])
+		let original = design
+		let before = design.resolved
+		let id = design.modules[0].id
+		design.modules[0].layoutAt = design.modules[0].layoutAt + point(10, 0)
+		XCTAssertEqual(design.resolved.board.footprints[0].at, before.board.footprints[0].at + point(10, 0))
+		design.board.holes.append(Hole(at: point(90, 90), diameter: .mm(3)))
+		XCTAssertEqual(design.resolved.board.holes.count, before.board.holes.count + 1)
+		design.schematic.labels = [NetLabel(at: design.modules[0].symbol.placedPins[0].at, text: "NEW")]
+		let named = try XCTUnwrap(design.resolved.nets.first { $0.name == "NEW" })
+		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, named.id)
+		let explicit = design.addNet(name: "NEW")
+		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, explicit)
+		design.moduleCache.contents[id]?.board.holes.append(Hole(at: point(8, 8), diameter: .mm(1)))
+		XCTAssertEqual(design.resolved.board.holes.count, before.board.holes.count + 2)
+		XCTAssertEqual(original.resolved, before)
+		XCTAssertEqual(try Document.decode(Document(design: original).encoded()).modules, original.modules)
+		design.moduleCache.errors[id] = "Missing"
+		XCTAssertTrue(design.resolved.board.footprints.isEmpty)
+		design = original
+		XCTAssertEqual(design.resolved, before)
+	}
+
+	@MainActor
+	func testSizeOnlyResizeRemainsAvailableWithAnIncompatibleModule() throws {
+		var design = Design(board: Board(stack: .classic))
+		design.modules = [ModuleInstance(reference: "M1", filename: "Missing.xcb", layerCount: 4)]
+		let harness = ModuleEditorHarness(design: design)
+		let size = Size(width: .mm(120), height: .mm(80))
+		harness.perform { $0.resize(size: size, stack: .classic) }
+		XCTAssertEqual(harness.design.board.size, size)
+		XCTAssertEqual(harness.design.board.stack, .classic)
+	}
+
+	@MainActor
+	func testOpeningModuleDocumentDoesNotMarkItEdited() async throws {
+		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: folder) }
+		try Document(design: source()).encoded().write(to: folder.appendingPathComponent("Part.xcb"))
+		let url = folder.appendingPathComponent("Parent.xcb")
+		var design = Design()
+		try design.importModule(filename: "Part.xcb", documentURL: url)
+		try Document(design: design).encoded().write(to: url)
+		let (document, _) = try await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)
+		defer { document.close() }
+		try await Task.sleep(for: .seconds(1))
+		XCTAssertFalse(document.isDocumentEdited)
+		XCTAssertFalse(document.undoManager?.canUndo ?? false)
+	}
+
 	func testClipboardValidatesDestinationAndPreservesExistingSnapshots() throws {
 		var destination = try imported(["Part.xcb": source()])
 		let original = destination

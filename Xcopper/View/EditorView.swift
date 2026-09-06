@@ -12,6 +12,7 @@ struct EditorView: View {
 
 	@FocusState private(set) var focused: Bool
 	@Environment(\.documentConfiguration) private var configuration
+	@Environment(\.undoManager) private var undoManager
 
 	var body: some View {
 		NavigationSplitView(
@@ -24,7 +25,11 @@ struct EditorView: View {
 		.focusEffectDisabled()
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
-		.onChange(of: configuration?.fileURL, initial: true) { _, _ in operations.reloadModules(automatic: true) }
+		.onChange(of: configuration?.fileURL, initial: true) { _, _ in
+			undoManager?.disableUndoRegistration()
+			defer { undoManager?.enableUndoRegistration() }
+			operations.reloadModules(automatic: true)
+		}
 		.onChange(of: editor.editing) { _, editing in if !editing { focused = true } }
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)

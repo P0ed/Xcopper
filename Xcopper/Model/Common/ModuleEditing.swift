@@ -1,6 +1,46 @@
 import Foundation
 
 extension Design {
+	mutating func renameReference(_ ref: Ref, to value: String) {
+		guard !modules.contains(where: { .module($0.id) != ref && $0.reference == value }) else { return }
+		switch ref {
+		case let .module(id):
+			guard let index = modules.firstIndex(where: { $0.id == id }), !value.trimmingWhitespace.isEmpty,
+				!board.footprints.contains(where: { $0.reference == value }),
+				!schematic.symbols.contains(where: { $0.reference == value }) else { return }
+			modules[index].reference = value
+		case let .footprint(index) where board.footprints.indices.contains(index):
+			board.footprints[index].reference = value
+		default: break
+		}
+	}
+
+	mutating func renameReference(_ ref: Schematic.Ref, to value: String) {
+		switch ref {
+		case let .module(id): renameReference(Ref.module(id), to: value)
+		case let .symbol(index) where schematic.symbols.indices.contains(index):
+			guard !modules.contains(where: { $0.reference == value }) else { return }
+			schematic.symbols[index].reference = value
+		default: break
+		}
+	}
+
+	mutating func positionModule(_ id: UUID, at point: Pt, layout: Bool) {
+		guard let module = modules.first(where: { $0.id == id }) else { return }
+		if layout { _ = moveLayout([.module(id)], by: point - module.layoutAt, grid: .mm(0.5)) }
+		else { moveSchematic([.module(id)], by: point - module.schematicAt) }
+	}
+
+	mutating func turnModule(_ id: UUID, to rotation: Rotation, layout: Bool) {
+		guard let module = modules.first(where: { $0.id == id }) else { return }
+		var current = layout ? module.layoutRotation : module.schematicRotation
+		while current != rotation {
+			if layout { rotateLayout([.module(id)], clockwise: true) }
+			else { rotateSchematic([.module(id)], clockwise: true) }
+			current = current.adding(.r90)
+		}
+	}
+
 	func layoutRefs(at point: Pt, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
 		let projection = moduleProjection()
 		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole)
@@ -8,9 +48,9 @@ extension Design {
 		return modules.last { $0.bounds.outset(tolerance).contains(point) }.map { [.module($0.id)] } ?? []
 	}
 
-	func layoutRefs(in rect: Rect, layer: Int) -> Set<Ref> {
+	func layoutRefs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
 		let projection = moduleProjection()
-		return Set(projection.design.board.refs(in: rect, layer: layer).map { projection.owner($0) })
+		return Set(projection.design.board.refs(in: rect, layer: layer, whole: whole).map { projection.owner($0) })
 			.union(modules.filter { rect.intersects($0.bounds) }.map { .module($0.id) })
 	}
 
@@ -60,8 +100,6 @@ extension Design {
 		let selection = Set(refs.map { projection.owner($0) })
 		var repair = board
 		var moving = selection
-		// Only parent traces enter the repair algorithm. Imported copper stays rigid.
-		// Imported terminals remain present so attached parent traces can stretch.
 		for (index, footprint) in projection.design.board.footprints.enumerated() {
 			guard let owner = projection.owners[.footprint(index)] else { continue }
 			if selection.contains(.module(owner)) { moving.insert(.footprint(repair.footprints.count)) }
@@ -148,7 +186,6 @@ extension Design {
 			candidate.modules[index].bounds, in: board.bounds,
 			clear: resolved.board.occupied + modules.map(\.bounds)
 		)
-		// Import only adds the new instance; existing snapshots remain unchanged.
 		modules.append(candidate.modules[index])
 		moduleCache.contents[instance.id] = candidate.moduleCache.contents[instance.id]
 		return instance.id

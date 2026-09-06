@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-// Folder grants belong to this installation, never to a portable design file.
 @MainActor
 private enum ModuleFolderAccess {
 	static func withAccess<T>(to folder: URL, _ body: () throws -> T) throws -> T {
@@ -54,7 +53,6 @@ extension Operations {
 		case .preview: []
 		}
 	}
-	var pastedModuleIDs: Set<UUID> { editor.pastedModuleIDs }
 	var hasModuleSelection: Bool { !selectedModuleIDs.isEmpty }
 
 	func moduleAlert(_ title: String, _ message: String) {
@@ -134,24 +132,22 @@ extension Operations {
 		} catch { moduleAlert("Could not open module source", (error as? Err)?.description ?? error.localizedDescription) }
 	}
 
-	func pasteModules() -> Bool {
-		editor.pastedModuleIDs = []
-		guard !clipboard.modules.isEmpty else { return true }
+	func pasteModules() -> Set<UUID>? {
+		guard !clipboard.modules.isEmpty else { return [] }
 		guard let documentURL else {
 			moduleAlert("Save this design before pasting modules", "Place the module sources in the destination document's folder, save the document, and paste again.")
-			return false
+			return nil
 		}
 		var next = design
 		do {
 			let ids = try ModuleFolderAccess.withAccess(to: documentURL.deletingLastPathComponent()) {
-				try next.pasteModules(clipboard.modules, by: Pt(x: Int(snap) * 4, y: Int(snap) * 4), documentURL: documentURL)
+				try next.pasteModules(clipboard.modules, by: offset, documentURL: documentURL)
 			}
 			design = next
-			editor.pastedModuleIDs = ids
-			return true
+			return ids
 		} catch {
 			moduleAlert("Could not paste modules", (error as? Err)?.description ?? error.localizedDescription)
-			return false
+			return nil
 		}
 	}
 }
@@ -163,32 +159,30 @@ struct ModuleInspector: View {
 	var layout: Bool
 	@FocusState.Binding var focus: Property?
 
-	private var index: Int? { design.modules.firstIndex { $0.id == id } }
+	private var module: ModuleInstance? { design.modules.first { $0.id == id } }
 	var body: some View {
-		if let index {
-			let module = design.modules[index]
+		if let module {
 			ValueRow(title: "Source", value: module.filename)
-			TextRow(title: "Ref", text: Binding(get: { module.reference }, set: { value in
-				guard !value.trimmingWhitespace.isEmpty,
-					!design.modules.contains(where: { $0.id != id && $0.reference == value }),
-					!design.board.footprints.contains(where: { $0.reference == value }),
-					!design.schematic.symbols.contains(where: { $0.reference == value }) else { return }
-				design.modules[index].reference = value
-			}), property: .reference, focus: $focus)
-			PositionRows(at: Binding(get: { layout ? module.layoutAt : module.schematicAt }, set: { point in
-				var next = design
-				if layout {
-					guard next.moveLayout([.module(id)], by: point - module.layoutAt, grid: .mm(0.5)) != nil else { return }
-				} else { next.moveSchematic([.module(id)], by: point - module.schematicAt) }
-				design = next
-			}), focus: $focus)
-			RotationChoice(rotation: Binding(get: { layout ? module.layoutRotation : module.schematicRotation }, set: { rotation in
-				if layout { design.modules[index].layoutRotation = rotation }
-				else { design.modules[index].schematicRotation = rotation }
-			}))
+			TextRow(title: "Ref", text: reference, property: .reference, focus: $focus)
+			PositionRows(at: position, focus: $focus)
+			RotationChoice(rotation: rotation)
 			Text(design.moduleStatus(id) ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
 				.font(.caption).foregroundStyle(design.moduleStatus(id) == nil ? Color.secondary : Color.red)
 		}
+	}
+
+	var reference: Binding<String> {
+		Binding(get: { module?.reference ?? "" }, set: { design.renameReference(Ref.module(id), to: $0) })
+	}
+
+	var position: Binding<Pt> {
+		Binding(get: { (layout ? module?.layoutAt : module?.schematicAt) ?? .zero },
+			set: { design.positionModule(id, at: $0, layout: layout) })
+	}
+
+	var rotation: Binding<Rotation> {
+		Binding(get: { (layout ? module?.layoutRotation : module?.schematicRotation) ?? .r0 },
+			set: { design.turnModule(id, to: $0, layout: layout) })
 	}
 }
 

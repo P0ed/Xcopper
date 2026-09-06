@@ -19,7 +19,7 @@ struct SchematicSideBar: View {
 						ModuleInspector(design: $design, id: id, layout: false, focus: $focus)
 					} else {
 						SchematicInspector(
-							schematic: $design.schematic,
+							design: $design,
 							netlist: netlist,
 							selection: state.selection,
 							focus: $focus

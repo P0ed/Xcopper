@@ -2,19 +2,20 @@ import SwiftUI
 
 extension LayoutView {
 
-	private var drawn: (board: Board, selection: Set<Ref>, modules: [ModuleInstance]) {
+	private var drawn: (design: Design, selection: Set<Ref>, modules: [ModuleInstance]) {
 		var moved = design
 		var selection = state.selection
 		if let session = state.moveSession, session.didMove,
 			let next = moved.moveLayout(selection, by: session.delta, grid: state.snap) { selection = next }
 		let projection = moved.moduleProjection()
-		return (projection.design.board, projection.expanded(selection), moved.modules)
+		return (projection.design, projection.expanded(selection), moved.modules)
 	}
 
 	func render(in context: GraphicsContext, size: CGSize) {
 		let scale = state.viewport.magnification
 		let origin = Layout.origin
-		let (board, selection, modules) = drawn
+		let (resolved, selection, modules) = drawn
+		let board = resolved.board
 
 		renderSubstrate(board, in: context, scale: scale, origin: origin)
 		renderGrid(
@@ -53,7 +54,7 @@ extension LayoutView {
 
 		renderModules(modules, in: context, scale: scale, origin: origin)
 		renderOutline(board, in: context, scale: scale, origin: origin)
-		renderViolations(board, in: context, scale: scale, origin: origin)
+		renderViolations(resolved, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
 		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
 	}
@@ -168,14 +169,14 @@ extension LayoutView {
 	}
 
 	private func renderViolations(
-		_ board: Board,
+		_ design: Design,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
 	) {
 		var rings = Path()
 		var dots = Path()
-		for violation in modifying(Design(board: board), { $0.nets = design.resolved.nets }).faults() {
+		for violation in design.faults() {
 			let at = violation.at.cg(scale, origin: origin)
 			rings.addEllipse(in: CGRect(center: at, radius: 6.0))
 			dots.addEllipse(in: CGRect(center: at, radius: 1.25))

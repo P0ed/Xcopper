@@ -64,7 +64,7 @@ extension Operations {
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
 
-	private var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
+	var offset: Pt { Pt(x: Int(snap) * 4, y: Int(snap) * 4) }
 
 	func setScale(_ scale: CGFloat) {
 		switch mode {
@@ -124,13 +124,13 @@ extension Operations {
 			layout.selection = design.board.duplicate(
 				layout.selection,
 				by: offset,
-				references: Set(design.schematic.symbols.map(\.reference))
+				references: Set(design.schematic.symbols.map(\.reference)).union(design.modules.map(\.reference))
 			)
 		case .schematic:
 			schematic.selection = design.schematic.duplicate(
 				schematic.selection,
 				by: offset,
-				references: Set(design.board.footprints.map(\.reference))
+				references: Set(design.board.footprints.map(\.reference)).union(design.modules.map(\.reference))
 			)
 		case .preview: break
 		}
@@ -261,15 +261,16 @@ extension Operations {
 	}
 
 	func paste() {
-		guard canPaste, pasteModules() else { return }
+		guard canPaste else { return }
+		guard let moduleIDs = pasteModules() else { return }
 		switch mode {
-		case .layout: pasteLayout()
-		case .schematic: pasteSchematic()
+		case .layout: pasteLayout(moduleIDs: moduleIDs)
+		case .schematic: pasteSchematic(moduleIDs: moduleIDs)
 		case .preview: break
 		}
 	}
 
-	private func pasteLayout() {
+	private func pasteLayout(moduleIDs: Set<UUID>) {
 		let delta = offset
 		var created: Set<Ref> = []
 
@@ -299,10 +300,10 @@ extension Operations {
 			})
 			created.insert(.footprint(design.board.footprints.count - 1))
 		}
-		layout.selection = created.union(pastedModuleIDs.map(Ref.module))
+		layout.selection = created.union(moduleIDs.map(Ref.module))
 	}
 
-	private func pasteSchematic() {
+	private func pasteSchematic(moduleIDs: Set<UUID>) {
 		let delta = offset
 		var created: Set<Schematic.Ref> = []
 
@@ -324,14 +325,14 @@ extension Operations {
 			})
 			created.insert(.symbol(design.schematic.symbols.count - 1))
 		}
-		schematic.selection = created.union(pastedModuleIDs.map(Schematic.Ref.module))
+		schematic.selection = created.union(moduleIDs.map(Schematic.Ref.module))
 	}
 }
 
 extension Operations {
 
 	func resize(size: Size, stack: Stack) {
-		guard design.canRestack(stack) else {
+		guard stack == design.board.stack || design.canRestack(stack) else {
 			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
 			return
 		}

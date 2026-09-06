@@ -45,7 +45,6 @@ struct EditorState: Equatable {
 	var sheet: Sheet?
 	var report: Design.Report?
 	var editing: Bool = false
-	var pastedModuleIDs: Set<UUID> = []
 }
 
 extension EditorState {

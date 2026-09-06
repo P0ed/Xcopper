@@ -1,4 +1,18 @@
 import Foundation
+import Synchronization
+
+final class ModuleProjectionCache: Sendable {
+	private let projections = Mutex<[Bool: ModuleProjection]>([:])
+
+	func value(syncNative: Bool, build: () -> ModuleProjection) -> ModuleProjection {
+		projections.withLock { values in
+			if let cached = values[syncNative] { return cached }
+			let projection = build()
+			values[syncNative] = projection
+			return projection
+		}
+	}
+}
 
 struct ModuleInstance: Equatable, Codable, Identifiable {
 	var id = UUID()
@@ -68,8 +82,6 @@ extension NetLabel {
 	}
 }
 
-// Stable across processes and reloads. Negative IDs keep generated nets separate
-// from the document's monotonically increasing native IDs.
 private func moduleNetID(_ key: String) -> Int {
 	let hash = key.utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
 	return -Int(hash & 0x3fff_ffff_ffff_ffff) - 1
@@ -105,7 +117,7 @@ extension Design {
 
 	var resolved: Design { modules.isEmpty ? self : moduleProjection().design }
 
-	func moduleProjection(syncNative: Bool = false) -> ModuleProjection {
+	func buildModuleProjection(syncNative: Bool) -> ModuleProjection {
 		var result = ModuleProjection(design: self)
 		if modules.isEmpty && !syncNative { return result }
 		result.design.modules = []
@@ -160,10 +172,8 @@ extension Design {
 			}
 		}
 
-		// IO annotations identify ports; ordinary labels and power symbols name nets.
 		var electrical = result.design.schematic
 		electrical.labels.removeAll { $0.ioName != nil }
-		// Keep IO points in the graph even if they sit on a wire interior.
 		electrical.labels += schematic.labels.filter { $0.ioName != nil }.map { NetLabel(at: $0.at, text: "") }
 		let netlist = Netlist(electrical)
 		var pointNets: [Pt: Int] = [:]
@@ -204,7 +214,7 @@ extension Design {
 			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Pt.order)) : key)")
 			let named = group.name.map { name in self.nets.first { $0.name == name }?.id ?? moduleNetID("named/\(name)") }
 			let power = connected.first { id in nets[id].map { ["GND", "VCC", "VEE"].contains($0) } ?? false }
-			let id = power ?? named ?? connected.first ?? fallback
+			let id = named ?? power ?? connected.first ?? fallback
 			if nets[id] == nil { nets[id] = group.name ?? "N$\(key.isEmpty ? String(-fallback) : key)" }
 			for other in connected { merge.join(other, to: id) }
 			for point in group.points { pointNets[point] = id }
@@ -225,7 +235,8 @@ extension Design {
 		result.report.missingFootprints = Array(Set(result.report.missingFootprints)).sorted()
 		result.report.missingPins.sort()
 		result.report.extraFootprints = board.footprints.map(\.reference).filter { !wired.contains($0) }.sorted()
-		result.design.nets = nets.keys.sorted().filter { merge.root($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
+		let nativeIDs = Set(self.nets.map(\.id))
+		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.root($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
 		result.report.created = result.design.nets.filter { net in !self.nets.contains { $0.id == net.id } }.map(\.name)
 		return result
 	}

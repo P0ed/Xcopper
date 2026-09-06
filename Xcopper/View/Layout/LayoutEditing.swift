@@ -145,7 +145,7 @@ private extension LayoutView {
 
 		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
-			? design.layoutRefs(in: session.rect, layer: state.layer)
+			? design.layoutRefs(in: session.rect, layer: state.layer, whole: whole)
 			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)
 
 		state.selection = session.mode.apply(session.initial, hit)

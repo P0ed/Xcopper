@@ -2,10 +2,11 @@ import SwiftUI
 
 @MainActor
 struct SchematicInspector: View {
-	@Binding var schematic: Schematic
+	@Binding var design: Design
 	var netlist: Netlist
 	var selection: Set<Schematic.Ref>
 	@FocusState.Binding var focus: Property?
+	private var schematic: Schematic { design.schematic }
 
 	var body: some View {
 		if selection.count == 1, let ref = selection.first {
@@ -22,14 +23,17 @@ struct SchematicInspector: View {
 		switch ref {
 		case let .symbol(index) where schematic.symbols.indices.contains(index):
 			SymbolInspector(
-				symbol: $schematic.symbols[index, or: schematic.symbols[index]],
+				symbol: $design.schematic.symbols[index, or: schematic.symbols[index]],
+				reference: Binding(get: {
+					design.schematic.symbols.indices.contains(index) ? design.schematic.symbols[index].reference : ""
+				}, set: { design.renameReference(Schematic.Ref.symbol(index), to: $0) }),
 				focus: $focus
 			)
 		case let .wire(index) where schematic.wires.indices.contains(index):
 			WireInspector(wire: schematic.wires[index], netlist: netlist)
 		case let .label(index) where schematic.labels.indices.contains(index):
 			LabelInspector(
-				label: $schematic.labels[index, or: schematic.labels[index]],
+				label: $design.schematic.labels[index, or: schematic.labels[index]],
 				focus: $focus
 			)
 		default:
@@ -41,6 +45,7 @@ struct SchematicInspector: View {
 @MainActor
 struct SymbolInspector: View {
 	@Binding var symbol: Symbol
+	@Binding var reference: String
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
@@ -48,7 +53,7 @@ struct SymbolInspector: View {
 		TextRow(
 			title: "Ref",
 			prompt: symbol.kind.prefix,
-			text: $symbol.reference,
+			text: $reference,
 			property: .reference,
 			focus: $focus
 		)
