@@ -47,6 +47,10 @@ extension Nm {
 		[.mm(0.4), .mm(1.2)]
 	}
 
+	static var clearances: [Nm] {
+		[.mm(0.3), .mm(0.6)]
+	}
+
 	static var sheetSnapGrids: [Nm] {
 		[.mil(50), .mil(100)]
 	}

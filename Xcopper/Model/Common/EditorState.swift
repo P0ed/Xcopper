@@ -35,7 +35,7 @@ enum Sheet: String, Identifiable {
 }
 
 enum Property: Hashable {
-	case reference, value, text, x, y, width, drill, pad, diameter, clearance
+	case reference, value, text, x, y, width, drill, pad, diameter
 }
 
 protocol ToolKind: Hashable, CaseIterable {

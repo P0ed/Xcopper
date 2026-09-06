@@ -62,12 +62,10 @@ struct LayoutSideBar: View {
 				}
 
 				Panel(title: "Design rules") {
-					LengthRow(
+					GridPicker(
 						title: "Gap",
 						value: $design.board.rules.clearance,
-						range: 0.01 ... 5.0,
-						property: .clearance,
-						focus: $focus
+						options: Nm.clearances
 					)
 					CheckList(
 						violations: design.check(),
