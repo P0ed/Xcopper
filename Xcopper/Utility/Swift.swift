@@ -37,6 +37,14 @@ struct Err: LocalizedError {
 	}
 }
 
+extension Array where Element: Equatable {
+
+	var shared: Element? {
+		guard let first, allSatisfy({ $0 == first }) else { return nil }
+		return first
+	}
+}
+
 extension Array {
 
 	mutating func modifyEach(_ transform: (inout Element) -> Void) {

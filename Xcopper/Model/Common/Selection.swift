@@ -58,3 +58,17 @@ struct WireSession: Equatable {
 
 	var didDraw: Bool { start != end }
 }
+
+extension Set where Element == Ref {
+	var group: (kind: Ref.Kind, indices: [Int])? {
+		guard let kind = first?.kind, kind != .module, allSatisfy({ $0.kind == kind }) else { return nil }
+		return (kind, map(\.index).sorted())
+	}
+}
+
+extension Set where Element == Schematic.Ref {
+	var group: (kind: Schematic.Ref.Kind, indices: [Int])? {
+		guard let kind = first?.kind, kind != .module, allSatisfy({ $0.kind == kind }) else { return nil }
+		return (kind, map(\.index).sorted())
+	}
+}

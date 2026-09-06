@@ -7,7 +7,8 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 - Netlist read straight back out of the drawing — nothing to keep in sync by hand
 - Ratsnest on the layout showing what the schematic wants and copper does not yet do
 - Design rule check against the clearance, every violation a place to go
-- Inspector in the sidebar with the properties of whatever is selected
+- Inspector in the sidebar with the properties of whatever is selected, one object or many of a kind
+- Find by reference or value, selecting every part that answers to it
 - Classic, Digital or Analog stackup, of 2, 4 or 6 copper layers
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
@@ -140,6 +141,24 @@ on the grid whatever the snap is set to and is ready to be dragged where it
 belongs. On the sheet that keeps a parked symbol off the wires as well as off the
 other parts — a pin tip landing on a wire would join its net.
 
+The value belongs to the part rather than to either drawing. Typing a resistance
+into the sidebar on the sheet writes it on the footprint as well, typing it on
+the layout writes it back on the symbol, and a part placed with a value carries
+it to the half that follows: the two are one part under the reference they
+share. Power and ground flags stand for no part and keep their value to
+themselves, it being a net name.
+
+The reference belongs to the part as well. Retyping it on either side renames
+both halves at once, so a rename never breaks the pair, and deleting either half
+deletes the part: the symbol goes with the footprint and the footprint with the
+symbol, in one undoable step. Wires and copper already drawn stay where they
+are — only the part goes.
+
+Copying carries the part whole. Either half copied puts both on the clipboard,
+and pasting or duplicating lays the half in front of you where the offset falls
+while the other is parked where there is room, the two sharing the one new
+reference. A flag stands for no part and pastes on the sheet alone.
+
 Either half shows the other. With a part picked, `⌘J` turns the document over,
 lights up what stands there for it — the footprint a symbol stands for, or the
 symbol a footprint does — and scrolls it into the middle of the view. The sidebar
@@ -166,6 +185,16 @@ a module preserves its identity and appearance. Library parts retain their
 package even with customized pads. Custom land patterns can be represented
 without assigning a device or library identity.
 
+## Find
+
+`⌘F` selects by name. The query is matched against the reference and the value
+of every part in the editor in front of you, ignoring case, and a part answers
+when either field begins with it: `R10` finds that resistor, `C` every
+capacitor, `1K5` everything of that value. A module answers to its reference and
+to the file it came from. What matched becomes the selection and is scrolled
+into view, ready for the sidebar to edit as one; a query nothing answers selects
+nothing. The part pickers, which `⌘F` used to open, are on `⌘⇧F` on both sides.
+
 ## Inspector
 
 The top of either sidebar describes what is selected and lets it be edited in
@@ -176,6 +205,15 @@ On the sheet a symbol gives its reference and value — the resistance, the
 capacitance, the part number — along with its rotation, whether it is mirrored
 and where it stands, and a label the net name it carries. A wire reports the net it lands in and how long it is, both read
 back out of the drawing rather than stored.
+
+Several objects of one kind are edited at once. A selection of traces, of
+footprints, of labels — anything of a single kind — puts the same rows in the
+sidebar standing for all of it: a field they agree on shows that value, one they
+differ over shows empty, and what is typed or picked there lands on every one of
+them. Properties that cannot be shared stay out of it, a reference and a
+position among them, and a selection of several kinds still reports nothing but
+its count. The rows that only report add up instead — how many are selected, and
+how much copper or wire the selection comes to.
 
 ## Nets
 
@@ -369,6 +407,5 @@ changed or disappeared; source files are never modified by parent edits.
 ## Roadmap
 
 - Modules should be connected to shared power planes.
-- Changing value of resistor in schematic mode should change it in layout (it must be the same object `===`).
 - Option to remove the solder mask.
 - API. Enable automation/verification/testing directly from `claude`/`codex` CLI.

@@ -16,7 +16,7 @@ extension Design {
 			else { return }
 			modules[index].reference = value
 		case let .footprint(index) where board.footprints.indices.contains(index):
-			board.footprints[index].reference = value
+			rename(board.footprints[index].reference, to: value)
 		default: break
 		}
 	}
@@ -26,8 +26,18 @@ extension Design {
 		case let .module(id): renameReference(Ref.module(id), to: value)
 		case let .symbol(index) where schematic.symbols.indices.contains(index):
 			guard !modules.contains(where: { $0.reference == value }) else { return }
-			schematic.symbols[index].reference = value
+			rename(schematic.symbols[index].reference, to: value)
 		default: break
+		}
+	}
+
+	private mutating func rename(_ reference: String, to value: String) {
+		guard value != reference else { return }
+		schematic.symbols.modifyEach { symbol in
+			if symbol.reference == reference { symbol.reference = value }
+		}
+		board.footprints.modifyEach { footprint in
+			if footprint.reference == reference { footprint.reference = value }
 		}
 	}
 
@@ -83,23 +93,31 @@ extension Design {
 	}
 
 	mutating func deleteLayout(_ refs: Set<Ref>) {
+		let counterparts = symbols(for: refs)
 		removeModules(refs.moduleIDs)
 		board.remove(refs)
+		schematic.remove(counterparts)
 	}
 
 	mutating func deleteSchematic(_ refs: Set<Schematic.Ref>) {
+		let counterparts = footprints(for: refs)
 		removeModules(refs.moduleIDs)
 		schematic.remove(refs)
+		board.remove(counterparts)
 	}
 
 	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
-		return board.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Ref.module))
+		let copies = board.duplicate(refs, by: delta, references: usedReferences)
+		for (from, to) in copies.renames { park(symbol(of: from), as: to) }
+		return copies.refs.union(ids.map(Ref.module))
 	}
 
 	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) -> Set<Schematic.Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
-		return schematic.duplicate(refs, by: delta, references: usedReferences).union(ids.map(Schematic.Ref.module))
+		let copies = schematic.duplicate(refs, by: delta, references: usedReferences)
+		for (from, to) in copies.renames { park(footprint(of: from), as: to) }
+		return copies.refs.union(ids.map(Schematic.Ref.module))
 	}
 
 	mutating func removeModules(_ ids: Set<UUID>) {

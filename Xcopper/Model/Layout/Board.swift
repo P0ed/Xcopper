@@ -319,8 +319,9 @@ extension Board {
 		_ refs: Set<Ref>,
 		by delta: Point,
 		references used: Set<String> = []
-	) -> Set<Ref> {
+	) -> (refs: Set<Ref>, renames: [(from: String, to: String)]) {
 		var created: Set<Ref> = []
+		var renames: [(from: String, to: String)] = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
 			case let .trace(index) where traces.indices.contains(index):
@@ -336,16 +337,18 @@ extension Board {
 				holes.append(modifying(holes[index]) { hole in hole.at = hole.at + delta })
 				created.insert(.hole(holes.count - 1))
 			case let .footprint(index) where footprints.indices.contains(index):
+				let reference = nextReference(like: footprints[index].reference, besides: used)
+				renames.append((footprints[index].reference, reference))
 				footprints.append(modifying(footprints[index]) { footprint in
 					footprint.at = footprint.at + delta
-					footprint.reference = nextReference(like: footprint.reference, besides: used)
+					footprint.reference = reference
 				})
 				created.insert(.footprint(footprints.count - 1))
 			default:
 				break
 			}
 		}
-		return created
+		return (created, renames)
 	}
 
 	func nextReference(like reference: String, besides used: Set<String> = []) -> String {

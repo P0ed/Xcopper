@@ -171,7 +171,7 @@ struct ModuleInspector: View {
 			ValueRow(title: "Source", value: module.filename)
 			TextRow(title: "Ref", text: $design.reference(of: Ref.module(id)), property: .reference, focus: $focus)
 			PositionRows(at: position, focus: $focus)
-			RotationChoice(rotation: rotation)
+			RotationChoice(rotation: rotation.optional)
 			let status = design.moduleStatus(id)
 			Text(status ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
 				.font(.caption).foregroundStyle(status == nil ? Color.secondary : Color.red)

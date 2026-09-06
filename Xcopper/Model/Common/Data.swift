@@ -230,4 +230,16 @@ enum Ref: Hashable, Codable {
 	case via(Int)
 	case hole(Int)
 	case footprint(Int)
+
+	enum Kind: Hashable { case module, trace, via, hole, footprint }
+
+	var kind: Kind {
+		switch self {
+		case .module: .module
+		case .trace: .trace
+		case .via: .via
+		case .hole: .hole
+		case .footprint: .footprint
+		}
+	}
 }

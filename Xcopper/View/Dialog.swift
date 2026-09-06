@@ -70,6 +70,30 @@ struct LabelDialog: View {
 	}
 }
 
+@MainActor
+struct FindDialog: View {
+	@Binding var text: String
+	var confirm: (String) -> Void
+
+	@State var draft: String = ""
+
+	var body: some View {
+		Dialog(
+			action: "Find",
+			isValid: !draft.trimmingWhitespace.isEmpty,
+			confirm: {
+				let query = draft.trimmingWhitespace
+				text = query
+				confirm(query)
+			}
+		) {
+			TextField("Reference or value", text: $draft)
+				.frame(width: 180.0)
+		}
+		.onAppear { draft = text }
+	}
+}
+
 enum LengthUnit: CaseIterable, Identifiable {
 	case millimeters, inches
 

@@ -29,7 +29,7 @@ enum Mode: Hashable, CaseIterable {
 }
 
 enum Sheet: String, Identifiable {
-	case board, schematic, footprint, net, symbol, label
+	case board, schematic, footprint, net, symbol, label, find
 
 	var id: String { rawValue }
 }
@@ -49,6 +49,7 @@ struct EditorState: Equatable {
 	var sheet: Sheet?
 	var report: Design.Report?
 	var editing: Property?
+	var query: String = ""
 }
 
 extension EditorState {

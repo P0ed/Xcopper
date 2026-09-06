@@ -78,3 +78,42 @@ extension Binding {
 		)
 	}
 }
+
+extension Binding {
+
+	var optional: Binding<Value?> {
+		Binding<Value?>(
+			get: { wrappedValue },
+			set: { value in if let value { wrappedValue = value } }
+		)
+	}
+
+	func shared<Element: Sendable, Field: Equatable & Sendable>(
+		_ indices: [Int],
+		_ field: WritableKeyPath<Element, Field>
+	) -> Binding<Field?> where Value == [Element] {
+		Binding<Field?>(
+			get: {
+				indices
+					.compactMap { index in
+						wrappedValue.indices.contains(index) ? wrappedValue[index][keyPath: field] : nil
+					}
+					.shared
+			},
+			set: { value in
+				guard let value else { return }
+				wrappedValue = modifying(wrappedValue) { elements in
+					for index in indices where elements.indices.contains(index) {
+						elements[index][keyPath: field] = value
+					}
+				}
+			}
+		)
+	}
+}
+
+extension Binding where Value == String? {
+	var orEmpty: Binding<String> {
+		Binding<String>(get: { wrappedValue ?? "" }, set: { wrappedValue = $0 })
+	}
+}

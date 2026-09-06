@@ -38,6 +38,14 @@ struct Clipboard: Equatable, Codable {
 		case .preview: true
 		}
 	}
+
+	func symbol(of reference: String) -> Symbol? {
+		symbols.first { $0.reference == reference }
+	}
+
+	func footprint(of reference: String) -> Footprint? {
+		footprints.first { $0.reference == reference }
+	}
 }
 
 extension Operations {
@@ -83,19 +91,13 @@ extension Operations {
 	}
 
 	func delete() {
-		let ids = selectedModuleIDs
 		switch mode {
-		case .layout:
-			design.deleteLayout(layout.selection)
-			layout.resetTransientInteractions()
-		case .schematic:
-			design.deleteSchematic(schematic.selection)
-			schematic.resetTransientInteractions()
-		case .preview:
-			break
+		case .layout: design.deleteLayout(layout.selection)
+		case .schematic: design.deleteSchematic(schematic.selection)
+		case .preview: return
 		}
-		layout.selection.subtract(ids.map(Ref.module))
-		schematic.selection.subtract(ids.map(Schematic.Ref.module))
+		layout.resetTransientInteractions()
+		schematic.resetTransientInteractions()
 	}
 
 	func rotate(clockwise: Bool) {
@@ -189,6 +191,23 @@ extension Operations {
 		}
 	}
 
+	func find(_ query: String) {
+		switch mode {
+		case .layout:
+			let refs = design.layoutRefs(matching: query)
+			layout.cancelSessions()
+			layout.selection = refs
+			if let at = design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
+		case .schematic:
+			let refs = design.schematicRefs(matching: query)
+			schematic.cancelSessions()
+			schematic.selection = refs
+			if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
+		case .preview:
+			break
+		}
+	}
+
 	func show(_ violation: Violation) {
 		layout.cancelSessions()
 		layout.selection = violation.refs
@@ -231,22 +250,34 @@ extension Operations {
 		next.modules = design.modules.filter { ids.contains($0.id) }
 		switch mode {
 		case .layout:
-			let refs = layout.selection
+			let refs = layout.selection.sorted(by: Ref.order)
 			let board = design.board
 			next.traces = refs.compactMap { if case let .trace(i) = $0, board.traces.indices.contains(i) { board.traces[i] } else { nil } }
 			next.vias = refs.compactMap { if case let .via(i) = $0, board.vias.indices.contains(i) { board.vias[i] } else { nil } }
 			next.holes = refs.compactMap { if case let .hole(i) = $0, board.holes.indices.contains(i) { board.holes[i] } else { nil } }
-			next.footprints = refs.compactMap { if case let .footprint(i) = $0, board.footprints.indices.contains(i) { board.footprints[i] } else { nil } }
+			next.footprints = footprints(refs)
+			next.symbols = symbols(design.symbols(for: layout.selection).sorted(by: Schematic.Ref.order))
 		case .schematic:
-			let refs = schematic.selection
+			let refs = schematic.selection.sorted(by: Schematic.Ref.order)
 			let sheet = design.schematic
-			next.symbols = refs.compactMap { if case let .symbol(i) = $0, sheet.symbols.indices.contains(i) { sheet.symbols[i] } else { nil } }
+			next.symbols = symbols(refs)
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
 			next.labels = refs.compactMap { if case let .label(i) = $0, sheet.labels.indices.contains(i) { sheet.labels[i] } else { nil } }
+			next.footprints = footprints(design.footprints(for: schematic.selection).sorted(by: Ref.order))
 		case .preview:
 			return
 		}
 		clipboard = next
+	}
+
+	private func symbols(_ refs: [Schematic.Ref]) -> [Symbol] {
+		let sheet = design.schematic
+		return refs.compactMap { if case let .symbol(i) = $0, sheet.symbols.indices.contains(i) { sheet.symbols[i] } else { nil } }
+	}
+
+	private func footprints(_ refs: [Ref]) -> [Footprint] {
+		let board = design.board
+		return refs.compactMap { if case let .footprint(i) = $0, board.footprints.indices.contains(i) { board.footprints[i] } else { nil } }
 	}
 
 	func paste() {
@@ -283,11 +314,13 @@ extension Operations {
 			created.insert(.hole(design.board.holes.count - 1))
 		}
 		for footprint in clipboard.footprints {
-			design.board.footprints.append(modifying(footprint) { footprint in
-				footprint.at = footprint.at + delta
-				footprint.reference = design.nextReference(like: footprint.reference)
+			let reference = design.nextReference(like: footprint.reference)
+			design.board.footprints.append(modifying(footprint) { copy in
+				copy.at = copy.at + delta
+				copy.reference = reference
 			})
 			created.insert(.footprint(design.board.footprints.count - 1))
+			design.park(clipboard.symbol(of: footprint.reference), as: reference)
 		}
 		layout.selection = created.union(moduleIDs.map(Ref.module))
 	}
@@ -308,11 +341,13 @@ extension Operations {
 			created.insert(.label(design.schematic.labels.count - 1))
 		}
 		for symbol in clipboard.symbols {
-			design.schematic.symbols.append(modifying(symbol) { symbol in
-				symbol.at = symbol.at + delta
-				symbol.reference = design.nextReference(like: symbol.reference)
+			let reference = design.nextReference(like: symbol.reference)
+			design.schematic.symbols.append(modifying(symbol) { copy in
+				copy.at = copy.at + delta
+				copy.reference = reference
 			})
 			created.insert(.symbol(design.schematic.symbols.count - 1))
+			design.park(clipboard.footprint(of: symbol.reference), as: reference)
 		}
 		schematic.selection = created.union(moduleIDs.map(Schematic.Ref.module))
 	}

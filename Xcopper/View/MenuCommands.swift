@@ -57,6 +57,14 @@ struct MenuCommands: Commands {
 					disabled: op.actionsDisabled,
 					action: { op?.selectAll() }
 				)
+				ActionButton(
+					name: "Find…",
+					image: "magnifyingglass",
+					shortcut: "F",
+					modifiers: .command,
+					disabled: op.placementDisabled,
+					action: { op?.editor.sheet = .find }
+				)
 			}
 		}
 		CommandGroup(replacing: .importExport) {
@@ -173,7 +181,7 @@ struct MenuCommands: Commands {
 				name: "Place footprint",
 				image: "square.grid.3x3.square",
 				shortcut: "F",
-				modifiers: .command,
+				modifiers: [.command, .shift],
 				disabled: op.layoutDisabled,
 				action: { op?.editor.sheet = .footprint }
 			)

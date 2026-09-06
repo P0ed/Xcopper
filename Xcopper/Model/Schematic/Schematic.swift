@@ -64,6 +64,17 @@ extension Schematic {
 		case wire(Int)
 		case label(Int)
 
+		enum Kind: Hashable { case module, symbol, wire, label }
+
+		var kind: Kind {
+			switch self {
+			case .module: .module
+			case .symbol: .symbol
+			case .wire: .wire
+			case .label: .label
+			}
+		}
+
 		var index: Int {
 			switch self {
 			case .module: Int.max

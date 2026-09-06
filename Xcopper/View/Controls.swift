@@ -211,15 +211,16 @@ struct ToggleRow: View {
 @MainActor
 struct LengthRow: View {
 	var title: String
-	@Binding var value: Nm
+	@Binding var value: Nm?
 	var range: ClosedRange<Double> = 0.0 ... 2_000.0
 	var property: Property
 	@FocusState.Binding var focus: Property?
 
-	private var millimeters: Binding<Double> {
+	private var millimeters: Binding<Double?> {
 		Binding(
-			get: { value.mm },
+			get: { value.map(\.mm) },
 			set: { typed in
+				guard let typed else { return }
 				let length = Nm.mm(min(max(typed, range.lowerBound), range.upperBound))
 				guard length != value else { return }
 				value = length
@@ -229,7 +230,7 @@ struct LengthRow: View {
 
 	var body: some View {
 		PropertyRow(title: title) {
-			TextField("", value: millimeters, format: .number.precision(.fractionLength(0 ... 3)))
+			TextField(value == nil ? "Mixed" : "", value: millimeters, format: MixedNumber())
 				.textFieldStyle(.roundedBorder)
 				.focused($focus, equals: property)
 				.overlay(alignment: .trailing) { unit }
@@ -252,12 +253,16 @@ struct PositionRows: View {
 
 	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
 
-	private var x: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
+	private var x: Binding<Nm?> {
+		Binding(get: { Nm(clamping: at.x) }, set: { value in
+			if let value { at = Point(x: Int(value), y: at.y) }
+		})
 	}
 
-	private var y: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) })
+	private var y: Binding<Nm?> {
+		Binding(get: { Nm(clamping: at.y) }, set: { value in
+			if let value { at = Point(x: at.x, y: Int(value)) }
+		})
 	}
 
 	var body: some View {
@@ -276,6 +281,22 @@ struct ChoiceRow<Value: Hashable, Content: View>: View {
 		PropertyRow(title: title) {
 			Picker("", selection: $value) { content() }
 				.labelsHidden()
+		}
+	}
+}
+
+struct MixedNumber: ParseableFormatStyle {
+	var number: FloatingPointFormatStyle<Double> = .number.precision(.fractionLength(0 ... 3))
+
+	var parseStrategy: Strategy { Strategy(number: number.parseStrategy) }
+
+	func format(_ value: Double?) -> String { value.map(number.format) ?? "" }
+
+	struct Strategy: ParseStrategy {
+		var number: FloatingPointParseStrategy<FloatingPointFormatStyle<Double>>
+
+		func parse(_ value: String) throws -> Double? {
+			value.trimmingWhitespace.isEmpty ? nil : try number.parse(value)
 		}
 	}
 }

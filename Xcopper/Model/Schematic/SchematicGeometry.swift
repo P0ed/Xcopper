@@ -196,8 +196,9 @@ extension Schematic {
 		_ refs: Set<Ref>,
 		by delta: Point,
 		references used: Set<String> = []
-	) -> Set<Ref> {
+	) -> (refs: Set<Ref>, renames: [(from: String, to: String)]) {
 		var created: Set<Ref> = []
+		var renames: [(from: String, to: String)] = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
@@ -210,16 +211,18 @@ extension Schematic {
 				labels.append(modifying(labels[index]) { label in label.at = label.at + delta })
 				created.insert(.label(labels.count - 1))
 			case let .symbol(index) where symbols.indices.contains(index):
+				let reference = nextReference(like: symbols[index].reference, besides: used)
+				renames.append((symbols[index].reference, reference))
 				symbols.append(modifying(symbols[index]) { symbol in
 					symbol.at = symbol.at + delta
-					symbol.reference = nextReference(like: symbol.reference, besides: used)
+					symbol.reference = reference
 				})
 				created.insert(.symbol(symbols.count - 1))
 			default:
 				break
 			}
 		}
-		return created
+		return (created, renames)
 	}
 
 	func nextReference(like reference: String, besides used: Set<String> = []) -> String {
