@@ -338,9 +338,11 @@ changed or disappeared; source files are never modified by parent edits.
 
 ## Roadmap
 
-- BOM:
+- Export for fabrication:
 - - Include in BOM toggle for component.
 - - BOM export.
 - - Pick and place export.
-- API.
-- Tool to check component value against part number and availability on `jlcpcb.com/parts`.
+- - Fix gerber export until `jlcpcb.com` recognizes the board correctly.
+- Modules should be connected to shared power planes.
+- Changing value of resistor in schematic mode should change it in layout (it must be the same object `===`).
+- API. Enable automation/verification/testing directly from `claude`/`codex` CLI.
