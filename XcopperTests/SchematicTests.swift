@@ -52,23 +52,19 @@ final class SchematicTests: XCTestCase {
 		schematic.labels = [NetLabel(at: Point(x: .mm(4), y: 0), text: "SDA")]
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "SDA")
 
-		schematic.symbols = [
-			Symbol(spec: .init(kind: .power), reference: "#PWR1", at: Point(x: 0, y: 0)),
-		]
-		XCTAssertEqual(schematic.symbols[0].value, "VCC")
+		schematic.flags = [Flag(spec: .init(kind: .power), at: .zero)]
+		XCTAssertEqual(schematic.flags[0].net, "VCC")
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "SDA")
 
 		schematic.labels = []
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "VCC")
 	}
 
-	func testAGroundSymbolNamesTheNetItTouches() {
+	func testAGroundFlagNamesTheNetItTouches() {
 		var schematic = Schematic()
 		schematic.wires = [wire(0, 0, 10, 0)]
-		schematic.symbols = [
-			Symbol(spec: .init(kind: .ground), reference: "#PWR1", at: Point(x: .mm(10), y: 0)),
-		]
-		XCTAssertEqual(schematic.symbols[0].value, "GND")
+		schematic.flags = [Flag(spec: .init(kind: .ground), at: Point(x: .mm(10), y: 0))]
+		XCTAssertEqual(schematic.flags[0].net, "GND")
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: 0, y: 0)), "GND")
 	}
 
@@ -277,16 +273,17 @@ final class SchematicTests: XCTestCase {
 	func testACapacitorAskedForFromTheSheetComesBackToAChipOfItsOwnKind() {
 		let package = Symbol.Spec(kind: .capacitor).footprint
 		XCTAssertEqual(package, Footprint.Spec(kind: .chip, chip: .c1206, device: .capacitor))
-		XCTAssertEqual(package?.symbol.kind, .capacitor)
-		XCTAssertEqual(package?.referencePrefix, "C")
+		XCTAssertEqual(package.symbol.kind, .capacitor)
+		XCTAssertEqual(package.referencePrefix, "C")
 	}
 
 	func testAPowerFlagStandsOnTheSheetAlone() {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .ground), at: .zero)
-		design.place(Symbol.Spec(kind: .power), at: Point(x: .mm(10), y: 0))
+		design.schematic.flags.append(Flag(spec: .init(kind: .ground), at: .zero))
+		design.schematic.flags.append(Flag(spec: .init(kind: .power), at: Point(x: .mm(10), y: 0)))
 
-		XCTAssertEqual(design.schematic.symbols.count, 2)
+		XCTAssertEqual(design.schematic.flags.count, 2)
+		XCTAssertTrue(design.schematic.symbols.isEmpty)
 		XCTAssertTrue(design.board.footprints.isEmpty)
 	}
 
@@ -347,10 +344,7 @@ final class SchematicTests: XCTestCase {
 	func testEveryPackagePairsWithASymbolThatHasAPadForEveryPin() {
 		for kind in Symbol.Kind.allCases {
 			let spec = Symbol.Spec(kind: kind, pins: 9)
-			guard let package = spec.footprint else {
-				XCTAssertTrue(kind.isPower, kind.name)
-				continue
-			}
+			let package = spec.footprint
 			let symbol = Symbol(spec: spec, reference: "X1", at: .zero)
 			let footprint = Footprint(spec: package, reference: "X1", at: .zero)
 			XCTAssertTrue(
@@ -371,7 +365,7 @@ final class SchematicTests: XCTestCase {
 		}
 
 		for component in Component.allCases {
-			XCTAssertEqual(Symbol.Spec(component: component).footprint?.component, component, component.name)
+			XCTAssertEqual(Symbol.Spec(component: component).footprint.component, component, component.name)
 			XCTAssertEqual(Footprint.Spec(component: component).symbol.component, component, component.name)
 		}
 	}
@@ -446,14 +440,14 @@ final class SchematicTests: XCTestCase {
 
 	func testOnlyAPartHasAnotherHalfToShow() {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .ground), at: .zero)
+		design.schematic.flags.append(Flag(spec: .init(kind: .ground), at: .zero))
 		design.schematic.wires = [wire(0, 0, 10, 0)]
 		design.board.traces = [
 			Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.4), layer: 0, net: nil),
 		]
 
 		XCTAssertTrue(design.board.footprints.isEmpty)
-		XCTAssertTrue(design.footprints(for: [.symbol(0)]).isEmpty)
+		XCTAssertTrue(design.footprints(for: [.flag(0)]).isEmpty)
 		XCTAssertTrue(design.footprints(for: [.wire(0)]).isEmpty)
 		XCTAssertTrue(design.symbols(for: [.trace(0)]).isEmpty)
 		XCTAssertTrue(design.footprints(for: []).isEmpty)
@@ -688,9 +682,11 @@ final class SchematicTests: XCTestCase {
 			Symbol(spec: .init(kind: .inductor), reference: "L1", at: Point(x: .mm(40), y: .mm(30))),
 			Symbol(spec: .init(kind: .diode), reference: "D1", at: Point(x: .mm(60), y: .mm(30))),
 			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: .mm(80), y: .mm(30))),
-			Symbol(spec: .init(kind: .ground), reference: "#PWR1", at: Point(x: .mm(20), y: .mm(50))),
-			Symbol(spec: .init(kind: .power), reference: "#PWR2", at: Point(x: .mm(40), y: .mm(50))),
 		])
+		design.schematic.flags = [
+			Flag(spec: .init(kind: .ground), at: Point(x: .mm(20), y: .mm(50))),
+			Flag(spec: .init(kind: .power), at: Point(x: .mm(40), y: .mm(50))),
+		]
 		design.schematic.wires.append(Wire(start: Point(x: .mm(20), y: .mm(50)), end: Point(x: .mm(40), y: .mm(50))))
 
 		let view = SchematicView(design: .constant(design), state: .constant(SchematicState()))

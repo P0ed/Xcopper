@@ -21,6 +21,11 @@ struct SchematicToolBar: ToolbarContent {
 				action: { sheet = .symbol }
 			)
 			ActionButton(
+				name: "Flag",
+				image: "flag",
+				action: { sheet = .flag }
+			)
+			ActionButton(
 				name: "Label",
 				image: "tag",
 				action: { sheet = .label }

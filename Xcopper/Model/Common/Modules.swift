@@ -190,7 +190,7 @@ extension Design {
 					if active { result.report.assigned += 1 }
 					continue
 				}
-				guard !symbol.kind.isPower, node.symbol < schematic.symbols.count else { continue }
+				guard node.symbol < schematic.symbols.count else { continue }
 				let matches = footprintsByReference[symbol.reference] ?? []
 				if active {
 					wired.insert(symbol.reference)

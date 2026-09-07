@@ -163,6 +163,14 @@ enum Rotation: Int, Codable, CaseIterable {
 		case .r90, .r270: self
 		}
 	}
+
+	var mirroredY: Rotation {
+		switch self {
+		case .r90: .r270
+		case .r270: .r90
+		case .r0, .r180: self
+		}
+	}
 }
 
 enum Stack: Int, Codable, CaseIterable {

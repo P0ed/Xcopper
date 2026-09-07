@@ -34,7 +34,6 @@ extension Design {
 
 		for group in netlist.groups {
 			let nodes = group.nodes
-				.filter { node in !schematic.symbols[node.symbol].kind.isPower }
 				.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }
 
 			guard nodes.count > 1 || group.name != nil, !nodes.isEmpty else { continue }
@@ -71,14 +70,13 @@ extension Design {
 
 extension Symbol.Spec {
 
-	var footprint: Footprint.Spec? {
+	var footprint: Footprint.Spec {
 		if let component { return Footprint.Spec(component: component) }
 
 		return switch kind {
 		case .resistor, .capacitor, .inductor, .diode: Footprint.Spec(kind: .chip, device: kind.device)
 		case .transistor: Footprint.Spec(kind: .sot23)
 		case .ic: Footprint.Spec(kind: .soic, pins: pins + pins % 2)
-		case .power, .ground: nil
 		}
 	}
 }
@@ -164,11 +162,9 @@ extension Design {
 		let symbol = Symbol(spec: spec, reference: reference, at: point)
 		schematic.symbols.append(symbol)
 
-		if let package = spec.footprint {
-			park(modifying(Footprint(spec: package, reference: reference, at: .zero)) { footprint in
-				footprint.value = symbol.value
-			}, as: reference)
-		}
+		park(modifying(Footprint(spec: spec.footprint, reference: reference, at: .zero)) { footprint in
+			footprint.value = symbol.value
+		}, as: reference)
 		return .symbol(schematic.symbols.count - 1)
 	}
 

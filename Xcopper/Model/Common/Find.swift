@@ -14,6 +14,7 @@ extension Design {
 				}
 				.map(Schematic.Ref.symbol)
 		)
+		.union(schematic.flags.indices.filter { matches(query, schematic.flags[$0].net) }.map(Schematic.Ref.flag))
 		.union(modules.filter { matches(query, $0.reference, $0.filename) }.map { Schematic.Ref.module($0.id) })
 	}
 

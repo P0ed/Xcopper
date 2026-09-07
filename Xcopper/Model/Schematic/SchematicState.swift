@@ -1,5 +1,5 @@
 enum SchematicTool: Hashable, CaseIterable, ToolKind {
-	case select, wire, label, symbol
+	case select, wire, label, symbol, flag
 }
 
 extension SchematicTool {
@@ -10,6 +10,7 @@ extension SchematicTool {
 		case .wire: "Wire"
 		case .label: "Label"
 		case .symbol: "Place"
+		case .flag: "Flag"
 		}
 	}
 
@@ -19,6 +20,7 @@ extension SchematicTool {
 		case .wire: "line.diagonal"
 		case .label: "tag"
 		case .symbol: "square.on.circle"
+		case .flag: "flag"
 		}
 	}
 
@@ -28,6 +30,7 @@ extension SchematicTool {
 		case .wire: "W"
 		case .label: "L"
 		case .symbol: "F"
+		case .flag: "P"
 		}
 	}
 }
@@ -42,6 +45,7 @@ struct SchematicState: Equatable {
 	var snap: Nm = .sheetSnapGrids.last!
 	var grid: Nm = .displayGrids.first!
 	var spec: Symbol.Spec = .default
+	var flag: Flag.Spec = .init()
 	var label: String = "NET"
 	var selection: Set<Schematic.Ref> = []
 	var wireSession: WireSession?

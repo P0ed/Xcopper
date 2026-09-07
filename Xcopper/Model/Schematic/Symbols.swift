@@ -3,7 +3,7 @@ import Foundation
 extension Symbol {
 
 	enum Kind: String, Codable, CaseIterable, Identifiable {
-		case resistor, capacitor, inductor, diode, transistor, ic, power, ground
+		case resistor, capacitor, inductor, diode, transistor, ic
 
 		var id: String { rawValue }
 
@@ -15,8 +15,6 @@ extension Symbol {
 			case .diode: "Diode"
 			case .transistor: "Transistor"
 			case .ic: "IC"
-			case .power: "Power"
-			case .ground: "Ground"
 			}
 		}
 
@@ -28,7 +26,6 @@ extension Symbol {
 			case .diode: "D"
 			case .transistor: "Q"
 			case .ic: "U"
-			case .power, .ground: "#PWR"
 			}
 		}
 
@@ -38,16 +35,6 @@ extension Symbol {
 			switch self {
 			case .capacitor, .resistor: false
 			default: true
-			}
-		}
-
-		var isPower: Bool { self == .power || self == .ground }
-
-		var defaultValue: String {
-			switch self {
-			case .power: "VCC"
-			case .ground: "GND"
-			default: ""
 			}
 		}
 	}
@@ -67,7 +54,6 @@ extension Symbol {
 
 			return switch kind {
 			case .ic: "IC-\(pins)"
-			case .power, .ground: "\(kind.name) \(value.isEmpty ? kind.defaultValue : value)"
 			default: kind.name
 			}
 		}
@@ -93,14 +79,12 @@ extension Symbol {
 		case .diode: Symbol.diode()
 		case .transistor: Symbol.transistor()
 		case .ic: Symbol.ic(pins: max(2, spec.pins))
-		case .power: Symbol.power()
-		case .ground: Symbol.ground()
 		}
 
 		self = modifying(built) { symbol in
 			symbol.reference = reference
 			symbol.at = at
-			symbol.value = spec.value.isEmpty ? spec.kind.defaultValue : spec.value
+			symbol.value = spec.value
 		}
 	}
 
@@ -273,34 +257,5 @@ extension Symbol {
 			+ PinText.inset * 2
 			+ pitch
 		return max(Int.mm(12.7), (needed + pitch - 1) / pitch * pitch)
-	}
-
-	static func power() -> Symbol {
-		let bar = Int.mm(1.27)
-		let stem = Int.mm(2.54)
-		return make(
-			.power,
-			pins: [pin(1, "1", 0, 0, .r90, .mm(2.54))],
-			body: Rect(center: Point(x: 0, y: -stem / 2), size: Size(width: bar * 2, height: stem)),
-			glyph: [.path([Point(x: -bar, y: -stem), Point(x: bar, y: -stem)], closed: false, filled: false)]
-		)
-	}
-
-	static func ground() -> Symbol {
-		let stem = Int.mm(2.54)
-		let step = Int.mm(0.635)
-		return make(
-			.ground,
-			pins: [pin(1, "1", 0, 0, .r270, .mm(2.54))],
-			body: Rect(
-				center: Point(x: 0, y: (stem + step * 2) / 2),
-				size: Size(width: .mm(3.81), height: stem + step * 2)
-			),
-			glyph: (0 ..< 3).map { row in
-				let half = Int.mm(1.905) - row * step
-				let y = stem + row * step
-				return .path([Point(x: -half, y: y), Point(x: half, y: y)], closed: false, filled: false)
-			}
-		)
 	}
 }

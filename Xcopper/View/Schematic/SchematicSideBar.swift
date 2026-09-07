@@ -41,6 +41,12 @@ struct SchematicSideBar: View {
 					Text(state.spec.summary)
 						.font(.caption)
 						.foregroundStyle(.secondary)
+					Button("Flag…", systemImage: "flag") { editor.sheet = .flag }
+						.buttonStyle(.borderless)
+						.padding(.top, 2.0)
+					Text(state.flag.summary)
+						.font(.caption)
+						.foregroundStyle(.secondary)
 					Button("Label…", systemImage: "tag") { editor.sheet = .label }
 						.buttonStyle(.borderless)
 						.padding(.top, 2.0)

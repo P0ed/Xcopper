@@ -38,7 +38,7 @@ extension SchematicView {
 				case .wire:
 					state.beginWire(at: snapped(start))
 					state.updateWire(to: wireEnd(current))
-				case .label, .symbol:
+				case .label, .symbol, .flag:
 					break
 				}
 			}
@@ -60,6 +60,8 @@ extension SchematicView {
 					undoGroup(SchematicTool.label.actionName) { placeLabel(at: current) }
 				case .symbol:
 					undoGroup(SchematicTool.symbol.actionName) { placeSymbol(at: current) }
+				case .flag:
+					undoGroup(SchematicTool.flag.actionName) { placeFlag(at: current) }
 				}
 			}
 	}
@@ -148,10 +150,13 @@ private extension SchematicView {
 
 	func editLabel(at point: Point) {
 		guard state.tool == .select,
-			let ref = design.schematicRef(at: point, tolerance: hitTolerance),
-			case let .label(index) = ref,
-			schematic.labels.indices.contains(index)
+			let ref = design.schematicRef(at: point, tolerance: hitTolerance)
 		else { return }
+		switch ref {
+		case let .label(index) where schematic.labels.indices.contains(index): break
+		case let .flag(index) where schematic.flags.indices.contains(index): break
+		default: return
+		}
 		state.selection = [ref]
 		beginEditing(.text)
 	}
@@ -165,5 +170,11 @@ private extension SchematicView {
 
 	func placeSymbol(at point: Point) {
 		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
+	}
+
+	func placeFlag(at point: Point) {
+		let spec = modifying(state.flag) { $0.net = $0.net.trimmingWhitespace }
+		schematic.flags.append(Flag(spec: spec, at: snapped(point)))
+		state.selection = [.flag(schematic.flags.count - 1)]
 	}
 }

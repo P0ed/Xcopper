@@ -61,7 +61,6 @@ extension Symbol.Kind {
 		case .diode: .diode
 		case .transistor: .transistor
 		case .ic: .ic
-		case .power, .ground: .unknown
 		}
 	}
 }

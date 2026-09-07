@@ -116,6 +116,21 @@ final class WireRoutingTests: XCTestCase {
 		assertOrthogonal(schematic)
 	}
 
+	func testDraggingAFlagKeepsTheWireOnIt() {
+		for anchor in [point(0, 0), point(5, 0), point(10, 0)] {
+			var schematic = Schematic()
+			schematic.wires = [wire(0, 0, 10, 0)]
+			schematic.flags = [Flag(spec: .init(kind: .ground), at: anchor)]
+			XCTAssertNotNil(schematic.move([.flag(0)], by: point(0, 3)))
+			XCTAssertEqual(schematic.flags[0].at, anchor + point(0, 3))
+			let fixed = anchor == .zero ? point(10, 0) : .zero
+			assertConnected(schematic, fixed, schematic.flags[0].at)
+			if anchor == point(5, 0) { assertConnected(schematic, .zero, point(10, 0)) }
+			XCTAssertEqual(Netlist(schematic).name(at: fixed), "GND")
+			assertOrthogonal(schematic)
+		}
+	}
+
 	func testCollapsedNeighbourIsRemovedAndSelectionIsRemapped() throws {
 		var schematic = Schematic()
 		schematic.wires = [wire(0, 0, 10, 0), wire(10, 0, 10, 10)]

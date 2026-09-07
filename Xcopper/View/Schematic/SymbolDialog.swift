@@ -29,18 +29,6 @@ struct SymbolDialog: View {
 		)
 	}
 
-	private var kind: Binding<Symbol.Kind> {
-		Binding(
-			get: { current.kind },
-			set: { kind in
-				draft = modifying(current) { spec in
-					if spec.kind.isPower != kind.isPower { spec.value = kind.defaultValue }
-					spec.kind = kind
-				}
-			}
-		)
-	}
-
 	var body: some View {
 		Dialog(
 			action: "Place",
@@ -52,7 +40,7 @@ struct SymbolDialog: View {
 			VStack(alignment: .leading, spacing: 10.0) {
 				PartPicker(component: component)
 				if current.component == nil {
-					Picker("Kind", selection: kind) {
+					Picker("Kind", selection: binding.kind) {
 						ForEach(Symbol.Kind.allCases) { kind in
 							Text(kind.name).tag(kind)
 						}
@@ -64,13 +52,13 @@ struct SymbolDialog: View {
 				HStack {
 					Text("Package")
 						.foregroundStyle(.secondary)
-					Text(current.footprint?.summary ?? "None")
+					Text(current.footprint.summary)
 				}
 				HStack {
-					Text(current.kind.isPower ? "Net" : "Value")
+					Text("Value")
 						.foregroundStyle(.secondary)
 						.frame(width: 44.0, alignment: .leading)
-					TextField(current.kind.defaultValue, text: binding.value)
+					TextField("", text: binding.value)
 				}
 			}
 			.frame(width: 240.0)

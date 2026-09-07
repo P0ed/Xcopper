@@ -29,7 +29,7 @@ enum Mode: Hashable, CaseIterable {
 }
 
 enum Sheet: String, Identifiable {
-	case board, schematic, footprint, net, symbol, label, find
+	case board, schematic, footprint, net, symbol, flag, label, find
 
 	var id: String { rawValue }
 }

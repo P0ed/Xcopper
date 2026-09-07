@@ -52,6 +52,7 @@ struct NetLabel: Hashable, Codable {
 struct Schematic: Equatable, Codable {
 	var size: Size
 	var symbols: [Symbol]
+	var flags: [Flag]
 	var wires: [Wire]
 	var labels: [NetLabel]
 }
@@ -61,15 +62,17 @@ extension Schematic {
 	enum Ref: Hashable, Codable {
 		case module(UUID)
 		case symbol(Int)
+		case flag(Int)
 		case wire(Int)
 		case label(Int)
 
-		enum Kind: Hashable { case module, symbol, wire, label }
+		enum Kind: Hashable { case module, symbol, flag, wire, label }
 
 		var kind: Kind {
 			switch self {
 			case .module: .module
 			case .symbol: .symbol
+			case .flag: .flag
 			case .wire: .wire
 			case .label: .label
 			}
@@ -78,7 +81,7 @@ extension Schematic {
 		var index: Int {
 			switch self {
 			case .module: Int.max
-			case let .symbol(index), let .wire(index), let .label(index): index
+			case let .symbol(index), let .flag(index), let .wire(index), let .label(index): index
 			}
 		}
 
@@ -88,8 +91,44 @@ extension Schematic {
 	init(size: Size = .init(width: .mm(297), height: .mm(210))) {
 		self.size = size
 		symbols = []
+		flags = []
 		wires = []
 		labels = []
+	}
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		size = try values.decode(Size.self, forKey: .size)
+		symbols = []
+		flags = try values.decodeIfPresent([Flag].self, forKey: .flags) ?? []
+		for element in try values.decode([SymbolOrFlag].self, forKey: .symbols) {
+			switch element {
+			case let .symbol(symbol): symbols.append(symbol)
+			case let .flag(flag): flags.append(flag)
+			}
+		}
+		wires = try values.decode([Wire].self, forKey: .wires)
+		labels = try values.decode([NetLabel].self, forKey: .labels)
+	}
+
+	private enum SymbolOrFlag: Decodable {
+		case symbol(Symbol), flag(Flag)
+
+		private enum CodingKeys: String, CodingKey { case kind, at, rotation, value }
+
+		init(from decoder: Decoder) throws {
+			let values = try decoder.container(keyedBy: CodingKeys.self)
+			if let kind = Flag.Kind(rawValue: try values.decode(String.self, forKey: .kind)) {
+				self = .flag(Flag(
+					at: try values.decode(Point.self, forKey: .at),
+					rotation: try values.decode(Rotation.self, forKey: .rotation),
+					net: try values.decode(String.self, forKey: .value),
+					kind: kind
+				))
+			} else {
+				self = .symbol(try Symbol(from: decoder))
+			}
+		}
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
@@ -186,9 +225,5 @@ extension Symbol {
 				+ placedGlyph.map(\.bounds)
 				+ placedPins.map { pin in pin.figure.bounds }
 		) ?? placedBody
-	}
-
-	var suppliedNet: String? {
-		kind.isPower && !value.isEmpty ? value : nil
 	}
 }
