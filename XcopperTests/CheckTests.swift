@@ -19,7 +19,13 @@ final class CheckTests: XCTestCase {
 		Trace(start: from, end: to, width: width, layer: layer, net: net)
 	}
 
-	private func part(_ reference: String, at: Point, net: Net.ID?, pad: Nm = .mm(1.6)) -> Footprint {
+	private func part(
+		_ reference: String,
+		at: Point,
+		net: Net.ID?,
+		pad: Nm = .mm(1.6),
+		drill: Nm = .mm(0.8)
+	) -> Footprint {
 		Footprint(
 			reference: reference,
 			value: "",
@@ -31,7 +37,7 @@ final class CheckTests: XCTestCase {
 					at: .zero,
 					size: Size(width: Int(pad), height: Int(pad)),
 					shape: .oval,
-					drill: .mm(0.8),
+					drill: drill,
 					layer: 0,
 					name: "1",
 					net: net
@@ -266,6 +272,45 @@ final class CheckTests: XCTestCase {
 
 		XCTAssertEqual(design.faults(), [])
 		XCTAssertEqual(design.check().count, 1)
+	}
+
+	func testPadsJoinedOnlyToEachOtherStillMissTheSupplyPlaneTheyBelongTo() {
+		var design = design(.digital)
+		design.board.footprints = [
+			part("C1", at: at(10.0, 10.0), net: 1, drill: 0),
+			part("U1", at: at(30.0, 10.0), net: 1, drill: 0),
+		]
+		design.board.traces = [trace(at(10.0, 10.0), at(30.0, 10.0), net: 1)]
+
+		let violations = design.check()
+		XCTAssertEqual(violations.map(\.kind), [.unrouted])
+		XCTAssertEqual(violations[0].text, "VCC not joined to its plane")
+		XCTAssertEqual(violations[0].at, at(10.0, 10.0))
+	}
+
+	func testAViaDownToThePlaneSettlesTheSupply() {
+		var design = design(.digital)
+		design.board.footprints = [
+			part("C1", at: at(10.0, 10.0), net: 1, drill: 0),
+			part("U1", at: at(30.0, 10.0), net: 1, drill: 0),
+		]
+		design.board.traces = [trace(at(10.0, 10.0), at(30.0, 10.0), net: 1)]
+		design.board.vias = [
+			Via(at: at(30.0, 10.0), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+		]
+
+		XCTAssertEqual(design.check(), [])
+	}
+
+	func testANetWithNoPlaneOfItsOwnIsAskedOnlyToReachItsOwnPads() {
+		var design = design(.digital)
+		design.board.footprints = [
+			part("C1", at: at(10.0, 10.0), net: 2, drill: 0),
+			part("U1", at: at(30.0, 10.0), net: 2, drill: 0),
+		]
+		design.board.traces = [trace(at(10.0, 10.0), at(30.0, 10.0), net: 2)]
+
+		XCTAssertEqual(design.check(), [])
 	}
 
 	func testTheWorstIsListedFirstAndTheOrderIsTheSameEveryTime() {

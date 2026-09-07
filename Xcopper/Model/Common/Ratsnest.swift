@@ -4,6 +4,11 @@ struct Rat: Hashable {
 	var net: Net.ID
 }
 
+struct Strand: Hashable {
+	var at: Point
+	var net: Net.ID
+}
+
 private struct Terminal {
 	var at: Point
 	var figure: Figure
@@ -59,10 +64,7 @@ extension Board {
 		return result
 	}
 
-	func ratsnest(planes: [Net.ID?] = []) -> [Rat] {
-		let terminals = terminals
-		guard terminals.count > 1 else { return [] }
-
+	private func merged(_ terminals: [Terminal], planes: [Net.ID?]) -> Merge {
 		var merge = Merge(count: terminals.count + traces.count + planes.count)
 
 		for (layer, plane) in planes.enumerated() {
@@ -103,6 +105,13 @@ extension Board {
 				}
 			}
 		}
+		return merge
+	}
+
+	func ratsnest(planes: [Net.ID?] = []) -> [Rat] {
+		let terminals = terminals
+		guard terminals.count > 1 else { return [] }
+		var merge = merged(terminals, planes: planes)
 
 		var byNet: [Net.ID: [Int]] = [:]
 		for (index, terminal) in terminals.enumerated() {
@@ -142,5 +151,28 @@ extension Board {
 			}
 		}
 		return rats
+	}
+
+	func stranded(planes: [Net.ID?]) -> [Strand] {
+		let terminals = terminals
+		guard !terminals.isEmpty else { return [] }
+		var merge = merged(terminals, planes: planes)
+
+		var roots: [Net.ID: Set<Int>] = [:]
+		for (layer, plane) in planes.enumerated() {
+			guard let plane else { continue }
+			roots[plane, default: []].insert(merge.find(terminals.count + traces.count + layer))
+		}
+		guard !roots.isEmpty else { return [] }
+
+		var seen: Set<Int> = []
+		var found: [Strand] = []
+		for (index, terminal) in terminals.enumerated() {
+			guard let joined = roots[terminal.net] else { continue }
+			let root = merge.find(index)
+			guard !joined.contains(root), seen.insert(root).inserted else { continue }
+			found.append(Strand(at: terminal.at, net: terminal.net))
+		}
+		return found
 	}
 }

@@ -202,6 +202,14 @@ private extension Design {
 				refs: [],
 				text: "\(label(rat.net)) not joined"
 			)
+		} + board.stranded(planes: planes).map { strand in
+			Violation(
+				kind: .unrouted,
+				at: strand.at,
+				layer: nil,
+				refs: [],
+				text: "\(label(strand.net)) not joined to its plane"
+			)
 		}
 	}
 
