@@ -12,14 +12,6 @@ struct PreviewToolBar: ToolbarContent {
 			StandButton(stand: .front, shortcut: "F", board: board, state: $state)
 			StandButton(stand: .angled, shortcut: "A", board: board, state: $state)
 		}
-		ToolbarItemGroup { Spacer() }
-		ToolbarItemGroup {
-			ActionButton(
-				name: "Fit",
-				image: "arrow.up.left.and.down.right.magnifyingglass",
-				action: { state.frame(board) }
-			)
-		}
 	}
 }
 

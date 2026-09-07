@@ -9,6 +9,12 @@ struct LayoutToolBar: ToolbarContent {
 
 	var body: some ToolbarContent {
 		ToolbarItemGroup {
+			ForEach(Tool.allCases, id: \.self) { tool in
+				ToolButton(tool: tool, state: $state.tool, shortcuts: shortcuts)
+			}
+		}
+		ToolbarItemGroup { Spacer() }
+		ToolbarItemGroup {
 			ForEach(Array(stack.signals.enumerated()), id: \.element) { index, layer in
 				LayerButton(
 					layer: layer,
@@ -17,20 +23,6 @@ struct LayoutToolBar: ToolbarContent {
 					shortcut: shortcuts ? Character("\(index + 1)") : nil
 				)
 			}
-		}
-		ToolbarItemGroup { Spacer() }
-		ToolbarItemGroup {
-			ForEach(Tool.allCases, id: \.self) { tool in
-				ToolButton(tool: tool, state: $state.tool, shortcuts: shortcuts)
-			}
-		}
-		ToolbarItemGroup { Spacer() }
-		ToolbarItemGroup {
-			ActionButton(
-				name: "Board",
-				image: "square.dashed",
-				action: { sheet = .board }
-			)
 		}
 	}
 }

@@ -12,25 +12,5 @@ struct SchematicToolBar: ToolbarContent {
 				ToolButton(tool: tool, state: $state.tool, shortcuts: shortcuts)
 			}
 		}
-		ToolbarItemGroup { Spacer() }
-		ToolbarItemGroup {
-			ActionButton(
-				name: "Symbol",
-				image: "square.on.circle",
-				action: { sheet = .symbol }
-			)
-			ActionButton(
-				name: "Label",
-				image: "tag",
-				action: { sheet = .label }
-			)
-		}
-		ToolbarItemGroup {
-			ActionButton(
-				name: "Sheet",
-				image: "doc",
-				action: { sheet = .schematic }
-			)
-		}
 	}
 }
