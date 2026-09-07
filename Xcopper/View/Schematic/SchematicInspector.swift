@@ -107,14 +107,14 @@ struct SymbolsInspector: View {
 	var indices: [Int]
 	@FocusState.Binding var focus: Property?
 
-	private var symbols: [Symbol] { indices.map { design.schematic.symbols[$0] } }
-	private var value: Binding<String?> { $design.value(of: indices.map(Schematic.Ref.symbol)) }
-
 	var body: some View {
-		ValueRow(title: "Object", value: symbols.map(\.kind.name).shared ?? "Symbols")
+		let symbols = design.schematic.symbols
+		let kinds = indices.map { symbols[$0].kind }
+		let value = $design.value(of: indices.map(Schematic.Ref.symbol))
+		ValueRow(title: "Object", value: kinds.map(\.name).shared ?? "Symbols")
 		ValueRow(title: "Count", value: "\(indices.count)")
 		TextRow(
-			title: symbols.allSatisfy(\.kind.isPower) ? "Net" : "Value",
+			title: kinds.allSatisfy(\.isPower) ? "Net" : "Value",
 			prompt: value.wrappedValue == nil ? "Mixed" : "",
 			text: value.orEmpty,
 			property: .value,

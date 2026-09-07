@@ -130,7 +130,7 @@ struct EditorView: View {
 		case .label:
 			LabelDialog(text: $schematic.label) { schematic.tool = .label }
 		case .find:
-			FindDialog(text: $editor.query) { query in operations.find(query) }
+			FindDialog(query: $editor.query) { query in operations.find(query) }
 		}
 	}
 }

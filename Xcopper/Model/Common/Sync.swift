@@ -1,5 +1,3 @@
-import SwiftUI
-
 extension Design {
 
 	struct Report: Equatable {
@@ -96,67 +94,55 @@ extension Footprint.Spec {
 
 extension Design {
 
-	func values(of refs: [Schematic.Ref]) -> [String] {
+	func symbols(at refs: [Schematic.Ref]) -> [Symbol] {
 		refs.compactMap { ref in
 			guard case let .symbol(index) = ref, schematic.symbols.indices.contains(index)
 			else { return nil }
-			return schematic.symbols[index].value
+			return schematic.symbols[index]
 		}
 	}
 
-	func values(of refs: [Ref]) -> [String] {
+	func footprints(at refs: [Ref]) -> [Footprint] {
 		refs.compactMap { ref in
 			guard case let .footprint(index) = ref, board.footprints.indices.contains(index)
 			else { return nil }
-			return board.footprints[index].value
+			return board.footprints[index]
 		}
 	}
 
+	func values(of refs: [Schematic.Ref]) -> [String] { symbols(at: refs).map(\.value) }
+
+	func values(of refs: [Ref]) -> [String] { footprints(at: refs).map(\.value) }
+
 	mutating func setValue(_ refs: [Schematic.Ref], to value: String) {
-		setValue(of: Set(refs.compactMap { ref in
-			guard case let .symbol(index) = ref, schematic.symbols.indices.contains(index)
-			else { return nil }
-			return schematic.symbols[index].reference
-		}), to: value)
+		setValue(of: Set(symbols(at: refs).map(\.reference)), to: value)
 	}
 
 	mutating func setValue(_ refs: [Ref], to value: String) {
-		setValue(of: Set(refs.compactMap { ref in
-			guard case let .footprint(index) = ref, board.footprints.indices.contains(index)
-			else { return nil }
-			return board.footprints[index].reference
-		}), to: value)
+		setValue(of: Set(footprints(at: refs).map(\.reference)), to: value)
 	}
 
 	private mutating func setValue(of references: Set<String>, to value: String) {
+		updateParts(references, symbol: { $0.value = value }, footprint: { $0.value = value })
+	}
+
+	mutating func rename(_ reference: String, to value: String) {
+		guard value != reference else { return }
+		updateParts([reference], symbol: { $0.reference = value }, footprint: { $0.reference = value })
+	}
+
+	private mutating func updateParts(
+		_ references: Set<String>,
+		symbol updateSymbol: (inout Symbol) -> Void,
+		footprint updateFootprint: (inout Footprint) -> Void
+	) {
 		guard !references.isEmpty else { return }
 		schematic.symbols.modifyEach { symbol in
-			if references.contains(symbol.reference) { symbol.value = value }
+			if references.contains(symbol.reference) { updateSymbol(&symbol) }
 		}
 		board.footprints.modifyEach { footprint in
-			if references.contains(footprint.reference) { footprint.value = value }
+			if references.contains(footprint.reference) { updateFootprint(&footprint) }
 		}
-	}
-}
-
-extension Binding where Value == Design {
-
-	func value(of ref: Schematic.Ref) -> Binding<String?> { value(of: [ref]) }
-
-	func value(of ref: Ref) -> Binding<String?> { value(of: [ref]) }
-
-	func value(of refs: [Schematic.Ref]) -> Binding<String?> {
-		Binding<String?>(
-			get: { wrappedValue.values(of: refs).shared },
-			set: { value in if let value { wrappedValue.setValue(refs, to: value) } }
-		)
-	}
-
-	func value(of refs: [Ref]) -> Binding<String?> {
-		Binding<String?>(
-			get: { wrappedValue.values(of: refs).shared },
-			set: { value in if let value { wrappedValue.setValue(refs, to: value) } }
-		)
 	}
 }
 
@@ -175,16 +161,27 @@ extension Design {
 	@discardableResult
 	mutating func place(_ spec: Symbol.Spec, at point: Point) -> Schematic.Ref {
 		let reference = nextReference(like: spec.referencePrefix)
-		schematic.symbols.append(Symbol(spec: spec, reference: reference, at: point))
+		let symbol = Symbol(spec: spec, reference: reference, at: point)
+		schematic.symbols.append(symbol)
 
 		if let package = spec.footprint {
-			let footprint = Footprint(spec: package, reference: reference, at: .zero)
-			board.footprints.append(modifying(footprint) { footprint in
-				footprint.at = board.parking(for: footprint)
-				footprint.value = schematic.symbols[schematic.symbols.count - 1].value
-			})
+			park(modifying(Footprint(spec: package, reference: reference, at: .zero)) { footprint in
+				footprint.value = symbol.value
+			}, as: reference)
 		}
 		return .symbol(schematic.symbols.count - 1)
+	}
+
+	@discardableResult
+	mutating func place(_ spec: Footprint.Spec, at point: Point) -> Ref {
+		let reference = nextReference(like: spec.referencePrefix)
+		let footprint = Footprint(spec: spec, reference: reference, at: point)
+		board.footprints.append(footprint)
+
+		park(modifying(Symbol(spec: spec.symbol, reference: reference, at: .zero)) { symbol in
+			symbol.value = footprint.value
+		}, as: reference)
+		return .footprint(board.footprints.count - 1)
 	}
 
 	func symbol(of reference: String) -> Symbol? {
@@ -196,43 +193,40 @@ extension Design {
 	}
 
 	mutating func park(_ symbol: Symbol?, as reference: String) {
-		guard let symbol else { return }
-		schematic.symbols.append(modifying(symbol) { symbol in
-			symbol.reference = reference
-			symbol.at = schematic.parking(for: symbol)
-		})
+		var taken = schematic.occupied
+		park(symbol, as: reference, clear: &taken)
 	}
 
 	mutating func park(_ footprint: Footprint?, as reference: String) {
-		guard let footprint else { return }
-		board.footprints.append(modifying(footprint) { footprint in
-			footprint.reference = reference
-			footprint.at = board.parking(for: footprint)
-		})
+		var taken = board.occupied
+		park(footprint, as: reference, clear: &taken)
 	}
 
-	@discardableResult
-	mutating func place(_ spec: Footprint.Spec, at point: Point) -> Ref {
-		let reference = nextReference(like: spec.referencePrefix)
-		board.footprints.append(Footprint(spec: spec, reference: reference, at: point))
+	mutating func park(_ symbol: Symbol?, as reference: String, clear taken: inout [Rect]) {
+		guard let symbol else { return }
+		let placed = modifying(symbol) { symbol in
+			symbol.reference = reference
+			symbol.at = schematic.parking(for: symbol, clear: taken)
+		}
+		taken.append(placed.placedExtent)
+		schematic.symbols.append(placed)
+	}
 
-		let symbol = Symbol(spec: spec.symbol, reference: reference, at: .zero)
-		schematic.symbols.append(modifying(symbol) { symbol in
-			symbol.at = schematic.parking(for: symbol)
-			symbol.value = board.footprints[board.footprints.count - 1].value
-		})
-		return .footprint(board.footprints.count - 1)
+	mutating func park(_ footprint: Footprint?, as reference: String, clear taken: inout [Rect]) {
+		guard let footprint else { return }
+		let placed = modifying(footprint) { footprint in
+			footprint.reference = reference
+			footprint.at = board.parking(for: footprint, clear: taken)
+		}
+		taken.append(placed.placedExtent)
+		board.footprints.append(placed)
 	}
 }
 
 extension Design {
 
 	func footprints(for selection: Set<Schematic.Ref>) -> Set<Ref> {
-		let references = Set(selection.compactMap { ref -> String? in
-			guard case let .symbol(index) = ref, schematic.symbols.indices.contains(index)
-			else { return nil }
-			return schematic.symbols[index].reference
-		})
+		let references = Set(symbols(at: Array(selection)).map(\.reference))
 		return Set(
 			board.footprints.indices
 				.filter { references.contains(board.footprints[$0].reference) }
@@ -241,11 +235,7 @@ extension Design {
 	}
 
 	func symbols(for selection: Set<Ref>) -> Set<Schematic.Ref> {
-		let references = Set(selection.compactMap { ref -> String? in
-			guard case let .footprint(index) = ref, board.footprints.indices.contains(index)
-			else { return nil }
-			return board.footprints[index].reference
-		})
+		let references = Set(footprints(at: Array(selection)).map(\.reference))
 		return Set(
 			schematic.symbols.indices
 				.filter { references.contains(schematic.symbols[$0].reference) }

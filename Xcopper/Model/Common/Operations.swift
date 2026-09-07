@@ -92,12 +92,16 @@ extension Operations {
 
 	func delete() {
 		switch mode {
-		case .layout: design.deleteLayout(layout.selection)
-		case .schematic: design.deleteSchematic(schematic.selection)
+		case .layout:
+			let counterparts = design.deleteLayout(layout.selection)
+			layout.resetTransientInteractions()
+			if counterparts { schematic.resetTransientInteractions() }
+		case .schematic:
+			let counterparts = design.deleteSchematic(schematic.selection)
+			schematic.resetTransientInteractions()
+			if counterparts { layout.resetTransientInteractions() }
 		case .preview: return
 		}
-		layout.resetTransientInteractions()
-		schematic.resetTransientInteractions()
 	}
 
 	func rotate(clockwise: Bool) {
@@ -175,16 +179,12 @@ extension Operations {
 		case .schematic:
 			let refs = design.footprints(for: schematic.selection)
 			guard !refs.isEmpty else { return }
-			layout.cancelSessions()
-			layout.selection = refs
-			if let at = design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
+			reveal(refs)
 			editor.mode = .layout
 		case .layout:
 			let refs = design.symbols(for: layout.selection)
 			guard !refs.isEmpty else { return }
-			schematic.cancelSessions()
-			schematic.selection = refs
-			if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
+			reveal(refs)
 			editor.mode = .schematic
 		case .preview:
 			break
@@ -193,27 +193,28 @@ extension Operations {
 
 	func find(_ query: String) {
 		switch mode {
-		case .layout:
-			let refs = design.layoutRefs(matching: query)
-			layout.cancelSessions()
-			layout.selection = refs
-			if let at = design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
-		case .schematic:
-			let refs = design.schematicRefs(matching: query)
-			schematic.cancelSessions()
-			schematic.selection = refs
-			if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
-		case .preview:
-			break
+		case .layout: reveal(design.layoutRefs(matching: query))
+		case .schematic: reveal(design.schematicRefs(matching: query))
+		case .preview: break
 		}
 	}
 
 	func show(_ violation: Violation) {
-		layout.cancelSessions()
-		layout.selection = violation.refs
+		reveal(violation.refs, at: violation.at)
 		if let layer = violation.layer { layout.layer = layer }
-		layout.viewport.reveal(violation.at)
 		editor.mode = .layout
+	}
+
+	private func reveal(_ refs: Set<Ref>, at point: Point? = nil) {
+		layout.cancelSessions()
+		layout.selection = refs
+		if let at = point ?? design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
+	}
+
+	private func reveal(_ refs: Set<Schematic.Ref>) {
+		schematic.cancelSessions()
+		schematic.selection = refs
+		if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
 	}
 
 	func place(_ device: Device) {
@@ -255,29 +256,19 @@ extension Operations {
 			next.traces = refs.compactMap { if case let .trace(i) = $0, board.traces.indices.contains(i) { board.traces[i] } else { nil } }
 			next.vias = refs.compactMap { if case let .via(i) = $0, board.vias.indices.contains(i) { board.vias[i] } else { nil } }
 			next.holes = refs.compactMap { if case let .hole(i) = $0, board.holes.indices.contains(i) { board.holes[i] } else { nil } }
-			next.footprints = footprints(refs)
-			next.symbols = symbols(design.symbols(for: layout.selection).sorted(by: Schematic.Ref.order))
+			next.footprints = design.footprints(at: refs)
+			next.symbols = design.symbols(at: design.symbols(for: layout.selection).sorted(by: Schematic.Ref.order))
 		case .schematic:
 			let refs = schematic.selection.sorted(by: Schematic.Ref.order)
 			let sheet = design.schematic
-			next.symbols = symbols(refs)
+			next.symbols = design.symbols(at: refs)
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
 			next.labels = refs.compactMap { if case let .label(i) = $0, sheet.labels.indices.contains(i) { sheet.labels[i] } else { nil } }
-			next.footprints = footprints(design.footprints(for: schematic.selection).sorted(by: Ref.order))
+			next.footprints = design.footprints(at: design.footprints(for: schematic.selection).sorted(by: Ref.order))
 		case .preview:
 			return
 		}
 		clipboard = next
-	}
-
-	private func symbols(_ refs: [Schematic.Ref]) -> [Symbol] {
-		let sheet = design.schematic
-		return refs.compactMap { if case let .symbol(i) = $0, sheet.symbols.indices.contains(i) { sheet.symbols[i] } else { nil } }
-	}
-
-	private func footprints(_ refs: [Ref]) -> [Footprint] {
-		let board = design.board
-		return refs.compactMap { if case let .footprint(i) = $0, board.footprints.indices.contains(i) { board.footprints[i] } else { nil } }
 	}
 
 	func paste() {
@@ -292,63 +283,69 @@ extension Operations {
 
 	private func pasteLayout(moduleIDs: Set<UUID>) {
 		let delta = offset
+		var next = design
 		var created: Set<Ref> = []
 
-		for trace in clipboard.traces where design.board.stack.contains(trace.layer) {
-			design.board.traces.append(modifying(trace) { trace in
+		for trace in clipboard.traces where next.board.stack.contains(trace.layer) {
+			next.board.traces.append(modifying(trace) { trace in
 				trace.start = trace.start + delta
 				trace.end = trace.end + delta
 			})
-			created.insert(.trace(design.board.traces.count - 1))
+			created.insert(.trace(next.board.traces.count - 1))
 		}
 		for via in clipboard.vias {
-			design.board.vias.append(modifying(via) { via in
+			next.board.vias.append(modifying(via) { via in
 				via.at = via.at + delta
-				via.from = min(via.from, design.board.stack.bottom)
-				via.to = min(via.to, design.board.stack.bottom)
+				via.from = min(via.from, next.board.stack.bottom)
+				via.to = min(via.to, next.board.stack.bottom)
 			})
-			created.insert(.via(design.board.vias.count - 1))
+			created.insert(.via(next.board.vias.count - 1))
 		}
 		for hole in clipboard.holes {
-			design.board.holes.append(modifying(hole) { hole in hole.at = hole.at + delta })
-			created.insert(.hole(design.board.holes.count - 1))
+			next.board.holes.append(modifying(hole) { hole in hole.at = hole.at + delta })
+			created.insert(.hole(next.board.holes.count - 1))
 		}
+		var taken = next.schematic.occupied
 		for footprint in clipboard.footprints {
-			let reference = design.nextReference(like: footprint.reference)
-			design.board.footprints.append(modifying(footprint) { copy in
+			let reference = next.nextReference(like: footprint.reference)
+			next.board.footprints.append(modifying(footprint) { copy in
 				copy.at = copy.at + delta
 				copy.reference = reference
 			})
-			created.insert(.footprint(design.board.footprints.count - 1))
-			design.park(clipboard.symbol(of: footprint.reference), as: reference)
+			created.insert(.footprint(next.board.footprints.count - 1))
+			next.park(clipboard.symbol(of: footprint.reference), as: reference, clear: &taken)
 		}
+		design = next
 		layout.selection = created.union(moduleIDs.map(Ref.module))
 	}
 
 	private func pasteSchematic(moduleIDs: Set<UUID>) {
 		let delta = offset
+		var next = design
 		var created: Set<Schematic.Ref> = []
 
 		for wire in clipboard.wires {
-			design.schematic.wires.append(modifying(wire) { wire in
+			next.schematic.wires.append(modifying(wire) { wire in
 				wire.start = wire.start + delta
 				wire.end = wire.end + delta
 			})
-			created.insert(.wire(design.schematic.wires.count - 1))
+			created.insert(.wire(next.schematic.wires.count - 1))
 		}
 		for label in clipboard.labels {
-			design.schematic.labels.append(modifying(label) { label in label.at = label.at + delta })
-			created.insert(.label(design.schematic.labels.count - 1))
+			next.schematic.labels.append(modifying(label) { label in label.at = label.at + delta })
+			created.insert(.label(next.schematic.labels.count - 1))
 		}
+		var taken = next.board.occupied
 		for symbol in clipboard.symbols {
-			let reference = design.nextReference(like: symbol.reference)
-			design.schematic.symbols.append(modifying(symbol) { copy in
+			let reference = next.nextReference(like: symbol.reference)
+			next.schematic.symbols.append(modifying(symbol) { copy in
 				copy.at = copy.at + delta
 				copy.reference = reference
 			})
-			created.insert(.symbol(design.schematic.symbols.count - 1))
-			design.park(clipboard.footprint(of: symbol.reference), as: reference)
+			created.insert(.symbol(next.schematic.symbols.count - 1))
+			next.park(clipboard.footprint(of: symbol.reference), as: reference, clear: &taken)
 		}
+		design = next
 		schematic.selection = created.union(moduleIDs.map(Schematic.Ref.module))
 	}
 }

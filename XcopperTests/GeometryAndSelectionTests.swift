@@ -771,14 +771,12 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces[0].end, away + delta)
 	}
 
-	func testDuplicateOffsetsCopiesAndRenamesFootprints() {
+	func testDuplicateOffsetsCopiesOfFootprints() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		let copies = board.duplicate([.footprint(0)], by: Point(x: .mm(1), y: .mm(1)))
+		let created = board.duplicate([.footprint(0)], by: Point(x: .mm(1), y: .mm(1)))
 
-		XCTAssertEqual(copies.refs, [.footprint(1)])
-		XCTAssertEqual(copies.renames.map(\.to), ["R2"])
-		XCTAssertEqual(board.footprints[1].reference, "R2")
+		XCTAssertEqual(created, [.footprint(1)])
 		XCTAssertEqual(board.footprints[1].at, Point(x: .mm(11), y: .mm(11)))
 	}
 

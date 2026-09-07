@@ -184,7 +184,11 @@ extension Board {
 extension Board {
 
 	func parking(for footprint: Footprint) -> Point {
-		Xcopper.parking(footprint.placedExtent, in: bounds, clear: occupied)
+		parking(for: footprint, clear: occupied)
+	}
+
+	func parking(for footprint: Footprint, clear taken: [Rect]) -> Point {
+		Xcopper.parking(footprint.placedExtent, in: bounds, clear: taken)
 	}
 
 	var occupied: [Rect] {
@@ -315,13 +319,8 @@ extension Board {
 		}
 	}
 
-	mutating func duplicate(
-		_ refs: Set<Ref>,
-		by delta: Point,
-		references used: Set<String> = []
-	) -> (refs: Set<Ref>, renames: [(from: String, to: String)]) {
+	mutating func duplicate(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
 		var created: Set<Ref> = []
-		var renames: [(from: String, to: String)] = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
 			case let .trace(index) where traces.indices.contains(index):
@@ -337,22 +336,15 @@ extension Board {
 				holes.append(modifying(holes[index]) { hole in hole.at = hole.at + delta })
 				created.insert(.hole(holes.count - 1))
 			case let .footprint(index) where footprints.indices.contains(index):
-				let reference = nextReference(like: footprints[index].reference, besides: used)
-				renames.append((footprints[index].reference, reference))
 				footprints.append(modifying(footprints[index]) { footprint in
 					footprint.at = footprint.at + delta
-					footprint.reference = reference
 				})
 				created.insert(.footprint(footprints.count - 1))
 			default:
 				break
 			}
 		}
-		return (created, renames)
-	}
-
-	func nextReference(like reference: String, besides used: Set<String> = []) -> String {
-		Xcopper.nextReference(like: reference, used: Set(footprints.map(\.reference)).union(used))
+		return created
 	}
 }
 

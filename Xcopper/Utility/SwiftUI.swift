@@ -94,9 +94,10 @@ extension Binding {
 	) -> Binding<Field?> where Value == [Element] {
 		Binding<Field?>(
 			get: {
-				indices
+				let elements = wrappedValue
+				return indices
 					.compactMap { index in
-						wrappedValue.indices.contains(index) ? wrappedValue[index][keyPath: field] : nil
+						elements.indices.contains(index) ? elements[index][keyPath: field] : nil
 					}
 					.shared
 			},

@@ -72,25 +72,18 @@ struct LabelDialog: View {
 
 @MainActor
 struct FindDialog: View {
-	@Binding var text: String
+	@Binding var query: String
 	var confirm: (String) -> Void
-
-	@State var draft: String = ""
 
 	var body: some View {
 		Dialog(
 			action: "Find",
-			isValid: !draft.trimmingWhitespace.isEmpty,
-			confirm: {
-				let query = draft.trimmingWhitespace
-				text = query
-				confirm(query)
-			}
+			isValid: !query.trimmingWhitespace.isEmpty,
+			confirm: { confirm(query.trimmingWhitespace) }
 		) {
-			TextField("Reference or value", text: $draft)
+			TextField("Reference or value", text: $query)
 				.frame(width: 180.0)
 		}
-		.onAppear { draft = text }
 	}
 }
 

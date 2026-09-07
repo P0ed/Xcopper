@@ -220,14 +220,12 @@ final class SchematicTests: XCTestCase {
 		XCTAssertNil(schematic.snapTarget(near: Point(x: .mm(2.3), y: .mm(40)), radius: .mm(0.8)))
 	}
 
-	func testDuplicateOffsetsCopiesAndRenamesSymbols() {
+	func testDuplicateOffsetsCopiesOfSymbols() {
 		var schematic = Schematic()
 		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		let copies = schematic.duplicate([.symbol(0)], by: Point(x: .mm(5), y: 0))
+		let created = schematic.duplicate([.symbol(0)], by: Point(x: .mm(5), y: 0))
 
-		XCTAssertEqual(copies.refs, [.symbol(1)])
-		XCTAssertEqual(copies.renames.map(\.to), ["R2"])
-		XCTAssertEqual(schematic.symbols[1].reference, "R2")
+		XCTAssertEqual(created, [.symbol(1)])
 		XCTAssertEqual(schematic.symbols[1].at, Point(x: .mm(15), y: .mm(10)))
 	}
 

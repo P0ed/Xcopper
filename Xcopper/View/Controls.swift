@@ -254,15 +254,11 @@ struct PositionRows: View {
 	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
 
 	private var x: Binding<Nm?> {
-		Binding(get: { Nm(clamping: at.x) }, set: { value in
-			if let value { at = Point(x: Int(value), y: at.y) }
-		})
+		Binding(get: { Nm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) }).optional
 	}
 
 	private var y: Binding<Nm?> {
-		Binding(get: { Nm(clamping: at.y) }, set: { value in
-			if let value { at = Point(x: at.x, y: Int(value)) }
-		})
+		Binding(get: { Nm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) }).optional
 	}
 
 	var body: some View {

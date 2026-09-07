@@ -231,6 +231,34 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertEqual(design.board.footprints.count, parts.1)
 	}
 
+	func testDeletingCopperLeavesTheOtherEditorsSelectionStanding() {
+		let harness = EditorHarness(design: design())
+		harness.design.board.traces = [trace(.mm(0.4))]
+		harness.editor.mode = .layout
+		harness.layout.selection = [.trace(0)]
+		harness.schematic.selection = [.symbol(1)]
+		harness.perform { $0.delete() }
+		XCTAssertTrue(harness.layout.selection.isEmpty)
+		XCTAssertEqual(harness.schematic.selection, [.symbol(1)])
+
+		harness.layout.selection = [.footprint(1)]
+		harness.perform { $0.delete() }
+		XCTAssertTrue(harness.schematic.selection.isEmpty)
+	}
+
+	func testAPartWillNotTakeAReferenceAnotherPartAlreadyHolds() {
+		var design = design()
+		let before = design
+		design.renameReference(Ref.footprint(0), to: "R2")
+		design.renameReference(Schematic.Ref.symbol(0), to: "C1")
+		design.renameReference(Ref.footprint(0), to: "  ")
+		XCTAssertEqual(design, before)
+
+		design.renameReference(Ref.footprint(0), to: "R7")
+		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R7", "R2", "C1"])
+		XCTAssertEqual(design.board.footprints.map(\.reference), ["R7", "R2", "C1"])
+	}
+
 	func testFindSelectsPartsWhoseReferenceOrValueStartsWithTheQuery() {
 		let design = design()
 		XCTAssertEqual(design.schematicRefs(matching: "C"), [.symbol(2)])

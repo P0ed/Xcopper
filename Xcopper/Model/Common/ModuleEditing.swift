@@ -8,14 +8,18 @@ extension Design {
 			&& !schematic.symbols.contains { $0.reference == value }
 	}
 
+	func referenceIsFree(_ value: String) -> Bool {
+		!value.trimmingWhitespace.isEmpty && !usedReferences.contains(value)
+	}
+
 	mutating func renameReference(_ ref: Ref, to value: String) {
-		guard !modules.contains(where: { .module($0.id) != ref && $0.reference == value }) else { return }
 		switch ref {
 		case let .module(id):
 			guard let index = modules.firstIndex(where: { $0.id == id }), moduleReferenceIsValid(value, ignoring: id)
 			else { return }
 			modules[index].reference = value
 		case let .footprint(index) where board.footprints.indices.contains(index):
+			guard referenceIsFree(value) else { return }
 			rename(board.footprints[index].reference, to: value)
 		default: break
 		}
@@ -25,19 +29,9 @@ extension Design {
 		switch ref {
 		case let .module(id): renameReference(Ref.module(id), to: value)
 		case let .symbol(index) where schematic.symbols.indices.contains(index):
-			guard !modules.contains(where: { $0.reference == value }) else { return }
+			guard referenceIsFree(value) else { return }
 			rename(schematic.symbols[index].reference, to: value)
 		default: break
-		}
-	}
-
-	private mutating func rename(_ reference: String, to value: String) {
-		guard value != reference else { return }
-		schematic.symbols.modifyEach { symbol in
-			if symbol.reference == reference { symbol.reference = value }
-		}
-		board.footprints.modifyEach { footprint in
-			if footprint.reference == reference { footprint.reference = value }
 		}
 	}
 
@@ -92,32 +86,48 @@ extension Design {
 		Rect.union([schematic.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map { $0.symbol.placedExtent })
 	}
 
-	mutating func deleteLayout(_ refs: Set<Ref>) {
+	@discardableResult
+	mutating func deleteLayout(_ refs: Set<Ref>) -> Bool {
 		let counterparts = symbols(for: refs)
 		removeModules(refs.moduleIDs)
 		board.remove(refs)
 		schematic.remove(counterparts)
+		return !counterparts.isEmpty
 	}
 
-	mutating func deleteSchematic(_ refs: Set<Schematic.Ref>) {
+	@discardableResult
+	mutating func deleteSchematic(_ refs: Set<Schematic.Ref>) -> Bool {
 		let counterparts = footprints(for: refs)
 		removeModules(refs.moduleIDs)
 		schematic.remove(refs)
 		board.remove(counterparts)
+		return !counterparts.isEmpty
 	}
 
 	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
-		let copies = board.duplicate(refs, by: delta, references: usedReferences)
-		for (from, to) in copies.renames { park(symbol(of: from), as: to) }
-		return copies.refs.union(ids.map(Ref.module))
+		let created = board.duplicate(refs, by: delta)
+		var taken = schematic.occupied
+		for case let .footprint(index) in created.sorted(by: Ref.order) {
+			let source = board.footprints[index].reference
+			let reference = nextReference(like: source)
+			board.footprints[index].reference = reference
+			park(symbol(of: source), as: reference, clear: &taken)
+		}
+		return created.union(ids.map(Ref.module))
 	}
 
 	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) -> Set<Schematic.Ref> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
-		let copies = schematic.duplicate(refs, by: delta, references: usedReferences)
-		for (from, to) in copies.renames { park(footprint(of: from), as: to) }
-		return copies.refs.union(ids.map(Schematic.Ref.module))
+		let created = schematic.duplicate(refs, by: delta)
+		var taken = board.occupied
+		for case let .symbol(index) in created.sorted(by: Schematic.Ref.order) {
+			let source = schematic.symbols[index].reference
+			let reference = nextReference(like: source)
+			schematic.symbols[index].reference = reference
+			park(footprint(of: source), as: reference, clear: &taken)
+		}
+		return created.union(ids.map(Schematic.Ref.module))
 	}
 
 	mutating func removeModules(_ ids: Set<UUID>) {
@@ -280,6 +290,24 @@ extension Binding where Value == Design {
 
 	func reference(of ref: Schematic.Ref) -> Binding<String> {
 		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
+	}
+
+	func value(of ref: Schematic.Ref) -> Binding<String?> { value(of: [ref]) }
+
+	func value(of ref: Ref) -> Binding<String?> { value(of: [ref]) }
+
+	func value(of refs: [Schematic.Ref]) -> Binding<String?> {
+		Binding<String?>(
+			get: { wrappedValue.values(of: refs).shared },
+			set: { value in if let value { wrappedValue.setValue(refs, to: value) } }
+		)
+	}
+
+	func value(of refs: [Ref]) -> Binding<String?> {
+		Binding<String?>(
+			get: { wrappedValue.values(of: refs).shared },
+			set: { value in if let value { wrappedValue.setValue(refs, to: value) } }
+		)
 	}
 }
 

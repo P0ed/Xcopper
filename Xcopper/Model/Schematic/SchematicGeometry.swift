@@ -192,13 +192,8 @@ extension Schematic {
 		}
 	}
 
-	mutating func duplicate(
-		_ refs: Set<Ref>,
-		by delta: Point,
-		references used: Set<String> = []
-	) -> (refs: Set<Ref>, renames: [(from: String, to: String)]) {
+	mutating func duplicate(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
 		var created: Set<Ref> = []
-		var renames: [(from: String, to: String)] = []
 		for ref in refs.sorted(by: Ref.order) {
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
@@ -211,32 +206,29 @@ extension Schematic {
 				labels.append(modifying(labels[index]) { label in label.at = label.at + delta })
 				created.insert(.label(labels.count - 1))
 			case let .symbol(index) where symbols.indices.contains(index):
-				let reference = nextReference(like: symbols[index].reference, besides: used)
-				renames.append((symbols[index].reference, reference))
 				symbols.append(modifying(symbols[index]) { symbol in
 					symbol.at = symbol.at + delta
-					symbol.reference = reference
 				})
 				created.insert(.symbol(symbols.count - 1))
 			default:
 				break
 			}
 		}
-		return (created, renames)
-	}
-
-	func nextReference(like reference: String, besides used: Set<String> = []) -> String {
-		Xcopper.nextReference(like: reference, used: Set(symbols.map(\.reference)).union(used))
+		return created
 	}
 }
 
 extension Schematic {
 
 	func parking(for symbol: Symbol) -> Point {
-		Xcopper.parking(symbol.placedExtent, in: bounds, clear: occupied)
+		parking(for: symbol, clear: occupied)
 	}
 
-	private var occupied: [Rect] {
+	func parking(for symbol: Symbol, clear taken: [Rect]) -> Point {
+		Xcopper.parking(symbol.placedExtent, in: bounds, clear: taken)
+	}
+
+	var occupied: [Rect] {
 		symbols.map(\.placedExtent)
 			+ wires.map { wire in Rect(from: wire.start, to: wire.end) }
 			+ labels.map(\.bounds)

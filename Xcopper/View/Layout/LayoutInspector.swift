@@ -125,8 +125,6 @@ struct TracesInspector: View {
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
-	private var selected: [Trace] { indices.map { traces[$0] } }
-
 	var body: some View {
 		ValueRow(title: "Object", value: "Traces")
 		ValueRow(title: "Count", value: "\(indices.count)")
@@ -141,7 +139,7 @@ struct TracesInspector: View {
 		NetChoice(net: $traces.shared(indices, \.net), nets: nets)
 		ValueRow(
 			title: "Length",
-			value: millimeters(selected.reduce(0.0) { $0 + length(from: $1.start, to: $1.end) })
+			value: millimeters(indices.reduce(0.0) { $0 + length(from: traces[$1].start, to: traces[$1].end) })
 		)
 	}
 }
@@ -282,12 +280,11 @@ struct FootprintsInspector: View {
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
-	private var footprints: [Footprint] { indices.map { design.board.footprints[$0] } }
-	private var value: Binding<String?> { $design.value(of: indices.map(Ref.footprint)) }
-
 	var body: some View {
-		ValueRow(title: "Device", value: footprints.map(\.device.name).shared ?? "Mixed")
-		ValueRow(title: "Package", value: footprints.map(\.package.name).shared ?? "Mixed")
+		let footprints = design.board.footprints
+		let value = $design.value(of: indices.map(Ref.footprint))
+		ValueRow(title: "Device", value: indices.map { footprints[$0].device.name }.shared ?? "Mixed")
+		ValueRow(title: "Package", value: indices.map { footprints[$0].package.name }.shared ?? "Mixed")
 		ValueRow(title: "Count", value: "\(indices.count)")
 		TextRow(
 			title: "Value",
@@ -330,9 +327,9 @@ struct NetChoice: View {
 
 	var body: some View {
 		ChoiceRow(title: "Net", value: $net) {
-			Text("None").tag(Optional<Net.ID?>.some(nil))
+			Text("None").tag(Net.ID??.some(nil))
 			ForEach(nets) { net in
-				Text(net.name).tag(Optional<Net.ID?>.some(net.id))
+				Text(net.name).tag(Net.ID??.some(net.id))
 			}
 		}
 	}

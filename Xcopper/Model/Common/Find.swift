@@ -1,16 +1,7 @@
 extension Design {
 
 	func layoutRefs(matching query: String) -> Set<Ref> {
-		let query = query.lowercased()
-		guard !query.isEmpty else { return [] }
-		return Set(
-			board.footprints.indices
-				.filter { index in
-					matches(query, board.footprints[index].reference, board.footprints[index].value)
-				}
-				.map(Ref.footprint)
-		)
-		.union(modules.filter { matches(query, $0.reference, $0.filename) }.map { Ref.module($0.id) })
+		footprints(for: schematicRefs(matching: query))
 	}
 
 	func schematicRefs(matching query: String) -> Set<Schematic.Ref> {
