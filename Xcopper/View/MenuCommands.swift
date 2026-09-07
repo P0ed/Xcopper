@@ -194,14 +194,6 @@ struct MenuCommands: Commands {
 				action: { op?.editor.sheet = .symbol }
 			)
 			ActionButton(
-				name: "Place flag",
-				image: "flag",
-				shortcut: "P",
-				modifiers: [.command, .shift],
-				disabled: op.schematicDisabled,
-				action: { op?.editor.sheet = .flag }
-			)
-			ActionButton(
 				name: "Place label",
 				image: "tag",
 				shortcut: "T",

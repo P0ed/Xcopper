@@ -25,7 +25,6 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 | `W` | Wire |
 | `L` | Label |
 | `F` | Place symbol |
-| `P` | Place flag |
 
 `⌘B` sets how big the sheet is, in millimetres or inches, the way the same key
 sets the board on the layout. A new one is 297 × 210 mm. The sheet is the
@@ -37,23 +36,23 @@ than its drawing leaves it hanging over the edge.
 `R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
 use horizontal and vertical segments, including when snapping to an offset pin
 or wire. Click or drag to draw and continue from the last endpoint; landing on a
-pin, flag, label or existing wire finishes the route and returns to Select. Hold `⌃`
+pin, label or existing wire finishes the route and returns to Select. Hold `⌃`
 to ignore connection snapping, or press `⎋` to cancel. `⇧` keeps wires orthogonal.
 
-Dragging a symbol, module, flag, label or wire segment keeps its existing
+Dragging a symbol, module, label or wire segment keeps its existing
 connections. Neighbouring wires extend or contract, corners slide, and extra
 right-angle legs appear where needed to reach a fixed pin or junction. Collapsed segments disappear
-and straight segments fuse. `⌘` selects a whole wire run up to a pin, flag, label or
+and straight segments fuse. `⌘` selects a whole wire run up to a pin, label or
 branch, using the same selection rules as layout traces.
 
-A selected symbol, flag, wire or label lights up the way copper does on the layout,
+A selected symbol, wire or label lights up the way copper does on the layout,
 with the glow carrying the selection on a symbol already drawn near white.
 
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor and an IC
 box with any pin count. Every symbol represents a part with one footprint.
-Power and ground flags carry a net name — dropping a `GND` flag on a wire names
-that net, no label needed. `⌘⇧P` opens the flag picker; `P` places the current flag.
-Double-click a flag or label to edit its net name in the sidebar.
+Net labels name every connection, including supplies: `GND`, `VCC` and `VEE`
+use the same labels as signal nets. Double-click a label to edit its name in
+the sidebar.
 
 The part picker also contains manufacturer-specific symbols with named pins and
 matching footprints. Package variants use SOIC where the manufacturer offers it.
@@ -148,7 +147,7 @@ The value belongs to the part rather than to either drawing. Typing a resistance
 into the sidebar on the sheet writes it on the footprint as well, typing it on
 the layout writes it back on the symbol, and a part placed with a value carries
 it to the half that follows: the two are one part under the reference they
-share. Power and ground flags carry their own net name and have no footprint.
+share. Labels carry their own net name and have no footprint.
 
 The reference belongs to the part as well. Retyping it on either side renames
 both halves at once, so a rename never breaks the pair, and deleting either half
@@ -159,14 +158,14 @@ are — only the part goes.
 Copying carries the part whole. Either half copied puts both on the clipboard,
 and pasting or duplicating lays the half in front of you where the offset falls
 while the other is parked where there is room, the two sharing the one new
-reference. A flag copies and pastes on the sheet alone, keeping its net name.
+reference. A label copies and pastes on the sheet alone, keeping its net name.
 
 Either half shows the other. With a part picked, `⌘J` turns the document over,
 lights up what stands there for it — the footprint a symbol stands for, or the
 symbol a footprint does — and scrolls it into the middle of the view. The sidebar
 offers the same under the selection. It is the shared designator that pairs the
 two, so a part whose other half has been deleted has nothing to show, and neither
-has a wire, a length of copper or a flag.
+has a wire, a length of copper or a label.
 
 The picker shelves the library by what a part does rather than by the package
 it comes in — op-amps, multipliers, logic, switches, panel controls, connectors
@@ -191,8 +190,8 @@ without assigning a device or library identity.
 of every part in the editor in front of you, ignoring case, and a part answers
 when either field begins with it: `R10` finds that resistor, `C` every
 capacitor, `1K5` everything of that value. A module answers to its reference and
-to the file it came from, and a flag to its net name: `GND` finds every ground
-flag carrying that name. What matched becomes the selection and is scrolled
+to the file it came from, and a label to its net name: `GND` finds every label
+carrying that name. What matched becomes the selection and is scrolled
 into view, ready for the sidebar to edit as one; a query nothing answers selects
 nothing. The part pickers, which `⌘F` used to open, are on `⌘⇧F` on both sides.
 
@@ -204,12 +203,12 @@ the layers it spans and its net; a hole its drill; a footprint its reference,
 value, side, rotation, position and whether the bill of materials carries it.
 On the sheet a symbol gives its reference and value — the resistance, the
 capacitance, the part number — along with its rotation, whether it is mirrored
-and where it stands. A flag gives its net name, rotation and position; a label
-its net name and position. A wire reports the net it lands in and how long it is,
-both read back out of the drawing rather than stored.
+and where it stands. A label gives its net name and position. A wire reports
+the net it lands in and how long it is, both read back out of the drawing
+rather than stored.
 
 Several objects of one kind are edited at once. A selection of traces, of
-footprints, of flags, of labels — anything of a single kind — puts the same rows
+footprints, of labels — anything of a single kind — puts the same rows
 in the sidebar standing for all of it: a field they agree on shows that value, one they
 differ over shows empty, and what is typed or picked there lands on every one of
 them. Properties that cannot be shared stay out of it, a reference and a
@@ -220,13 +219,13 @@ how much copper or wire the selection comes to.
 ## Nets
 
 Connectivity is never stored, only drawn. A wire shorts its own two ends, and any
-pin tip, flag anchor, wire end or label anchor sitting on a wire joins it.
+pin tip, wire end or label anchor sitting on a wire joins it.
 Because only those terminals are tested against wires, a T-junction connects
 and two wires merely crossing do not — the usual schematic convention, and junction dots follow from
 it rather than being placed by hand.
 
-A net takes its name from a label in it, or failing that from a power or ground
-flag. Unnamed nets get an `N$n` when they reach the board.
+A net takes its name from a label in it. Unnamed nets get an `N$n` when they
+reach the board.
 
 `⌘U` pushes the netlist onto the layout: footprints are matched to symbols by
 reference designator and pads to pins by number, and `Pad.net` is set from that.
@@ -279,6 +278,13 @@ A plane fills the board and clears around every pad, via, hole and trace that
 carries a different net. It joins what is drilled through it, so a through-hole
 pad or a via on the plane's net needs no ratsnest line to reach the rest of that
 net, while copper that only ever touches an outer layer still does.
+
+Supply labels on a module assign its component pins to `GND`, `VCC` or `VEE`.
+Those nets join the parent's supply nets by name. Place a power inlet such as
+MTA-156-3 on the parent and label its pins with the matching rails. On the
+layout, a via carrying the same net joins its internal plane; a short trace
+from a surface-mount pad to the via completes that pad's connection. Placing
+a via nearby alone does not connect the pad.
 
 Changing the stackup keeps the drawing: copper on the top stays on the top and
 copper on the bottom follows the bottom to wherever the new stackup puts it.
@@ -352,8 +358,9 @@ nor placed.
 ## File format
 
 Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
-The schematic stores parts in `symbols` and power and ground flags in `flags`.
-Older documents open with their power and ground symbols read back as flags.
+The schematic stores parts in `symbols` and net names in `labels`.
+Older power and ground symbols and saved flags open as net labels, preserving
+their connection points and effective net names.
 
 ## Modularity
 
@@ -361,7 +368,7 @@ Any `.xcb` design can be imported into another as a module. Save and edit it wit
 the usual schematic and layout tools. Mark schematic connections with labels
 such as `#IN`, `#OUT` and `#ENABLE`.
 IO names are case sensitive and must be nonempty. Repeated names must resolve to
-the same internal net. Ordinary net labels and power flags can connect separate
+the same internal net. Net labels can connect separate
 parts of an interface net.
 
 Save the parent design and put all module sources in the same folder. Choose

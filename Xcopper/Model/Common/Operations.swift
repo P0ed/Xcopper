@@ -19,7 +19,6 @@ struct Clipboard: Equatable, Codable {
 	var holes: [Hole] = []
 	var footprints: [Footprint] = []
 	var symbols: [Symbol] = []
-	var flags: [Flag] = []
 	var wires: [Wire] = []
 	var labels: [NetLabel] = []
 	var modules: [ModuleInstance] = []
@@ -29,7 +28,7 @@ struct Clipboard: Equatable, Codable {
 	}
 
 	var schematicIsEmpty: Bool {
-		symbols.isEmpty && flags.isEmpty && wires.isEmpty && labels.isEmpty && modules.isEmpty
+		symbols.isEmpty && wires.isEmpty && labels.isEmpty && modules.isEmpty
 	}
 
 	func isEmpty(in mode: Mode) -> Bool {
@@ -263,7 +262,6 @@ extension Operations {
 			let refs = schematic.selection.sorted(by: Schematic.Ref.order)
 			let sheet = design.schematic
 			next.symbols = design.symbols(at: refs)
-			next.flags = refs.compactMap { if case let .flag(i) = $0, sheet.flags.indices.contains(i) { sheet.flags[i] } else { nil } }
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
 			next.labels = refs.compactMap { if case let .label(i) = $0, sheet.labels.indices.contains(i) { sheet.labels[i] } else { nil } }
 			next.footprints = design.footprints(at: design.footprints(for: schematic.selection).sorted(by: Ref.order))
@@ -336,10 +334,6 @@ extension Operations {
 		for label in clipboard.labels {
 			next.schematic.labels.append(modifying(label) { label in label.at = label.at + delta })
 			created.insert(.label(next.schematic.labels.count - 1))
-		}
-		for flag in clipboard.flags {
-			next.schematic.flags.append(modifying(flag) { flag in flag.at = flag.at + delta })
-			created.insert(.flag(next.schematic.flags.count - 1))
 		}
 		var taken = next.board.occupied
 		for symbol in clipboard.symbols {

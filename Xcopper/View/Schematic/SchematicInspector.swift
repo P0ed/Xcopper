@@ -32,11 +32,6 @@ struct SchematicInspector: View {
 			)
 		case let .wire(index) where schematic.wires.indices.contains(index):
 			WireInspector(wire: schematic.wires[index], netlist: netlist)
-		case let .flag(index) where schematic.flags.indices.contains(index):
-			FlagInspector(
-				flag: $design.schematic.flags[index, or: schematic.flags[index]],
-				focus: $focus
-			)
 		case let .label(index) where schematic.labels.indices.contains(index):
 			LabelInspector(
 				label: $design.schematic.labels[index, or: schematic.labels[index]],
@@ -65,12 +60,6 @@ struct SchematicInspector: View {
 			LabelsInspector(
 				labels: $design.schematic.labels,
 				indices: indices.filter { schematic.labels.indices.contains($0) },
-				focus: $focus
-			)
-		case .flag:
-			FlagsInspector(
-				flags: $design.schematic.flags,
-				indices: indices.filter { schematic.flags.indices.contains($0) },
 				focus: $focus
 			)
 		case .module:
@@ -167,47 +156,6 @@ struct WiresInspector: View {
 			title: "Length",
 			value: millimeters(wires.reduce(0.0) { $0 + length(from: $1.start, to: $1.end) })
 		)
-	}
-}
-
-@MainActor
-struct FlagInspector: View {
-	@Binding var flag: Flag
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: "\(flag.kind.name) flag")
-		TextRow(
-			title: "Net",
-			prompt: flag.kind.defaultNet,
-			text: $flag.net,
-			property: .text,
-			focus: $focus
-		)
-		RotationChoice(rotation: $flag.rotation.optional)
-		PositionRows(at: $flag.at, focus: $focus)
-	}
-}
-
-@MainActor
-struct FlagsInspector: View {
-	@Binding var flags: [Flag]
-	var indices: [Int]
-	@FocusState.Binding var focus: Property?
-
-	private var net: Binding<String?> { $flags.shared(indices, \.net) }
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Flags")
-		ValueRow(title: "Count", value: "\(indices.count)")
-		TextRow(
-			title: "Net",
-			prompt: net.wrappedValue == nil ? "Mixed" : "NET",
-			text: net.orEmpty,
-			property: .text,
-			focus: $focus
-		)
-		RotationChoice(rotation: $flags.shared(indices, \.rotation))
 	}
 }
 

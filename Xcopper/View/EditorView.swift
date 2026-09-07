@@ -127,8 +127,6 @@ struct EditorView: View {
 			NetDialog { name in operations.addNet(name: name) }
 		case .symbol:
 			SymbolDialog(spec: $schematic.spec) { schematic.tool = .symbol }
-		case .flag:
-			FlagDialog(spec: $schematic.flag) { schematic.tool = .flag }
 		case .label:
 			LabelDialog(text: $schematic.label) { schematic.tool = .label }
 		case .find:

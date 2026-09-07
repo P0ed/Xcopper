@@ -44,27 +44,20 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(schematic.junctions, [])
 	}
 
-	func testALabelNamesItsNetAndOverridesAPowerFlag() {
+	func testALabelNamesItsNet() {
 		var schematic = Schematic()
 		schematic.wires = [wire(0, 0, 10, 0)]
-		XCTAssertNil(Netlist(schematic).name(at: Point(x: 0, y: 0)))
+		XCTAssertNil(Netlist(schematic).name(at: .zero))
 
 		schematic.labels = [NetLabel(at: Point(x: .mm(4), y: 0), text: "SDA")]
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "SDA")
-
-		schematic.flags = [Flag(spec: .init(kind: .power), at: .zero)]
-		XCTAssertEqual(schematic.flags[0].net, "VCC")
-		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "SDA")
-
-		schematic.labels = []
-		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "VCC")
 	}
 
-	func testAGroundFlagNamesTheNetItTouches() {
+	func testAGroundLabelNamesTheNetItTouches() {
 		var schematic = Schematic()
 		schematic.wires = [wire(0, 0, 10, 0)]
-		schematic.flags = [Flag(spec: .init(kind: .ground), at: Point(x: .mm(10), y: 0))]
-		XCTAssertEqual(schematic.flags[0].net, "GND")
+		schematic.labels = [NetLabel(at: Point(x: .mm(10), y: 0), text: "GND")]
+		XCTAssertEqual(schematic.labels[0].text, "GND")
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: 0, y: 0)), "GND")
 	}
 
@@ -277,12 +270,12 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(package.referencePrefix, "C")
 	}
 
-	func testAPowerFlagStandsOnTheSheetAlone() {
+	func testPowerLabelsStandOnTheSheetAlone() {
 		var design = Design()
-		design.schematic.flags.append(Flag(spec: .init(kind: .ground), at: .zero))
-		design.schematic.flags.append(Flag(spec: .init(kind: .power), at: Point(x: .mm(10), y: 0)))
+		design.schematic.labels.append(NetLabel(at: .zero, text: "GND"))
+		design.schematic.labels.append(NetLabel(at: Point(x: .mm(10), y: 0), text: "VCC"))
 
-		XCTAssertEqual(design.schematic.flags.count, 2)
+		XCTAssertEqual(design.schematic.labels.count, 2)
 		XCTAssertTrue(design.schematic.symbols.isEmpty)
 		XCTAssertTrue(design.board.footprints.isEmpty)
 	}
@@ -440,14 +433,14 @@ final class SchematicTests: XCTestCase {
 
 	func testOnlyAPartHasAnotherHalfToShow() {
 		var design = Design()
-		design.schematic.flags.append(Flag(spec: .init(kind: .ground), at: .zero))
+		design.schematic.labels.append(NetLabel(at: .zero, text: "GND"))
 		design.schematic.wires = [wire(0, 0, 10, 0)]
 		design.board.traces = [
 			Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.4), layer: 0, net: nil),
 		]
 
 		XCTAssertTrue(design.board.footprints.isEmpty)
-		XCTAssertTrue(design.footprints(for: [.flag(0)]).isEmpty)
+		XCTAssertTrue(design.footprints(for: [.label(0)]).isEmpty)
 		XCTAssertTrue(design.footprints(for: [.wire(0)]).isEmpty)
 		XCTAssertTrue(design.symbols(for: [.trace(0)]).isEmpty)
 		XCTAssertTrue(design.footprints(for: []).isEmpty)
@@ -683,9 +676,9 @@ final class SchematicTests: XCTestCase {
 			Symbol(spec: .init(kind: .diode), reference: "D1", at: Point(x: .mm(60), y: .mm(30))),
 			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: .mm(80), y: .mm(30))),
 		])
-		design.schematic.flags = [
-			Flag(spec: .init(kind: .ground), at: Point(x: .mm(20), y: .mm(50))),
-			Flag(spec: .init(kind: .power), at: Point(x: .mm(40), y: .mm(50))),
+		design.schematic.labels += [
+			NetLabel(at: Point(x: .mm(20), y: .mm(50)), text: "GND"),
+			NetLabel(at: Point(x: .mm(40), y: .mm(50)), text: "VCC"),
 		]
 		design.schematic.wires.append(Wire(start: Point(x: .mm(20), y: .mm(50)), end: Point(x: .mm(40), y: .mm(50))))
 

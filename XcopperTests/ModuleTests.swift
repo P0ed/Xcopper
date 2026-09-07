@@ -69,6 +69,58 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.board.footprints.count, 0)
 	}
 
+	func testBufferSupplyLabelsReachTheParentInletThroughViasAndPlanes() throws {
+		var buffer = Design(board: Board(size: Size(width: .mm(40), height: .mm(40)), stack: .classic))
+		buffer.place(Symbol.Spec(component: .ad823a), at: point(40, 40))
+		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20, 15))
+		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20, 65))
+		let names = [
+			["1": "#OUT1", "3": "#IN1", "4": "VEE", "5": "#IN2", "7": "#OUT2", "8": "VCC"],
+			["1": "GND", "2": "VCC"],
+			["1": "VEE", "2": "GND"],
+		]
+		for (index, symbol) in buffer.schematic.symbols.enumerated() {
+			for pin in symbol.placedPins {
+				if let name = names[index][pin.number] {
+					buffer.schematic.labels.append(NetLabel(at: pin.at, text: name))
+				}
+			}
+		}
+		_ = buffer.updateBoardFromSchematic()
+		let supplies = Set(["GND", "VCC", "VEE"])
+		let pads = buffer.board.footprints.flatMap(\.placedPads).filter {
+			buffer.net($0.net).map { supplies.contains($0.name) } ?? false
+		}
+		XCTAssertEqual(pads.count, 6)
+		for pad in pads {
+			let via = pad.at + point(0, 2)
+			buffer.board.vias.append(Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: pad.net))
+			buffer.board.traces.append(Trace(start: pad.at, end: via, width: .mm(0.25), layer: 0, net: pad.net))
+		}
+
+		var parent = try imported(["Buffer.xcb": buffer], filenames: ["Buffer.xcb"])
+		parent.place(Symbol.Spec(component: .mta1563), at: point(100, 100))
+		let rails = ["GND", "VCC", "VEE"]
+		for (pin, name) in zip(parent.schematic.symbols[0].placedPins, rails) {
+			parent.schematic.labels.append(NetLabel(at: pin.at, text: name))
+		}
+		_ = parent.updateBoardFromSchematic()
+		let resolved = parent.resolved
+		XCTAssertEqual(parent.modules[0].interface, ["IN1", "IN2", "OUT1", "OUT2"])
+		XCTAssertEqual(resolved.board.footprints.count, 4)
+		XCTAssertEqual(resolved.board.footprints[0].pads.map { parent.net($0.net)?.name }, rails)
+		let amplifier = try XCTUnwrap(resolved.board.footprints.first { $0.reference == "M1/U1" })
+		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "8" }?.net)?.name, "VCC")
+		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "4" }?.net)?.name, "VEE")
+		XCTAssertTrue(resolved.board.vias.allSatisfy { $0.span == 0 ... parent.board.stack.bottom })
+		let supplyIDs = Set(parent.nets.filter { supplies.contains($0.name) }.map(\.id))
+		XCTAssertTrue(resolved.board.ratsnest(planes: parent.planes).filter { supplyIDs.contains($0.net) }.isEmpty)
+		XCTAssertFalse(resolved.board.ratsnest().filter { supplyIDs.contains($0.net) }.isEmpty)
+		var unconnected = resolved.board
+		unconnected.traces = []
+		XCTAssertFalse(unconnected.ratsnest(planes: parent.planes).filter { supplyIDs.contains($0.net) }.isEmpty)
+	}
+
 	func testIOExtractionIsCaseSensitiveLexicalAndRejectsEmptyNames() throws {
 		var source = source()
 		let pin = source.schematic.symbols[0].placedPins[0].at

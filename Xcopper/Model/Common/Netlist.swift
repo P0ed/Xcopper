@@ -44,9 +44,6 @@ extension Netlist {
 		for label in schematic.labels {
 			terminals.insert(label.at)
 		}
-		for flag in schematic.flags {
-			terminals.insert(flag.at)
-		}
 
 		for point in terminals {
 			for wire in schematic.wires where touches(point, wire) {
@@ -78,22 +75,13 @@ extension Netlist {
 			}
 		}
 
-		var supplied: [Int: String] = [:]
 		var labelled: [Int: String] = [:]
-
-		for flag in schematic.flags {
-			let net = flag.net.trimmingWhitespace
-			guard !net.isEmpty else { continue }
-			let slot = bucket(flag.at)
-			supplied[slot] = min(supplied[slot] ?? net, net)
-		}
 		for label in schematic.labels {
 			let text = label.text.trimmingWhitespace
 			guard !text.isEmpty else { continue }
 			let slot = bucket(label.at)
 			labelled[slot] = min(labelled[slot] ?? text, text)
 		}
-		for (slot, net) in supplied { groups[slot].name = net }
 		for (slot, net) in labelled { groups[slot].name = net }
 
 		self.groups = groups
@@ -119,7 +107,7 @@ extension Schematic {
 		for symbol in symbols {
 			for pin in symbol.placedPins { terminals.insert(pin.at) }
 		}
-		for flag in flags { terminals.insert(flag.at) }
+		for label in labels { terminals.insert(label.at) }
 
 		return terminals.filter { point in
 			var legs = 0
@@ -133,7 +121,6 @@ extension Schematic {
 			for symbol in symbols {
 				legs += symbol.placedPins.count { pin in pin.at == point }
 			}
-			legs += flags.count { flag in flag.at == point }
 			return legs >= 3
 		}
 		.sorted(by: Point.order)

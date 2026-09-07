@@ -36,7 +36,6 @@ extension SchematicView {
 		renderJunctions(schematic, in: context, scale: scale, origin: origin)
 		renderSymbols(schematic, selection, in: context, scale: scale, origin: origin)
 		renderPins(projection, in: context, scale: scale, origin: origin, visible: visible)
-		renderFlags(schematic, selection, in: context, scale: scale, origin: origin)
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
 		context.stroke(
@@ -153,50 +152,6 @@ extension SchematicView {
 					at: CGPoint(x: extent.midX, y: extent.maxY + size * 0.7)
 				)
 			}
-		}
-	}
-
-	private func renderFlags(
-		_ schematic: Schematic,
-		_ selection: Set<Schematic.Ref>,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint
-	) {
-		var strokes = Path()
-		var legs = Path()
-		var pickedOutlines = Path()
-
-		for (index, flag) in schematic.flags.enumerated() {
-			let picked = selection.contains(.flag(index))
-			for shape in flag.placedGlyph {
-				let path = shape.path(scale, origin: origin)
-				strokes.addPath(path)
-				if picked { pickedOutlines.addPath(path) }
-			}
-			var leg = Path()
-			leg.move(to: flag.at.cg(scale, origin: origin))
-			leg.addLine(to: flag.root.cg(scale, origin: origin))
-			legs.addPath(leg)
-			if picked { pickedOutlines.addPath(leg) }
-		}
-		context.stroke(legs, with: .color(Palette.pin), lineWidth: 1.0)
-		context.stroke(strokes, with: .color(Palette.symbol), lineWidth: 1.25)
-		Lit.stroke(pickedOutlines, Palette.lit(Palette.symbol), lineWidth: 1.25, in: context)
-
-		guard scale >= 2.0 else { return }
-		let size = max(7.0, min(15.0, scale * 2.2))
-		for flag in schematic.flags {
-			let extent = flag.placedExtent.cg(scale, origin: origin)
-			context.draw(
-				Text(flag.net)
-					.font(.system(size: size))
-					.foregroundStyle(Palette.color(named: flag.net)),
-				at: CGPoint(
-					x: extent.midX,
-					y: flag.kind == .ground ? extent.maxY + size : extent.minY - size
-				)
-			)
 		}
 	}
 

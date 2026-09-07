@@ -52,7 +52,6 @@ struct NetLabel: Hashable, Codable {
 struct Schematic: Equatable, Codable {
 	var size: Size
 	var symbols: [Symbol]
-	var flags: [Flag]
 	var wires: [Wire]
 	var labels: [NetLabel]
 }
@@ -62,17 +61,15 @@ extension Schematic {
 	enum Ref: Hashable, Codable {
 		case module(UUID)
 		case symbol(Int)
-		case flag(Int)
 		case wire(Int)
 		case label(Int)
 
-		enum Kind: Hashable { case module, symbol, flag, wire, label }
+		enum Kind: Hashable { case module, symbol, wire, label }
 
 		var kind: Kind {
 			switch self {
 			case .module: .module
 			case .symbol: .symbol
-			case .flag: .flag
 			case .wire: .wire
 			case .label: .label
 			}
@@ -81,7 +78,7 @@ extension Schematic {
 		var index: Int {
 			switch self {
 			case .module: Int.max
-			case let .symbol(index), let .flag(index), let .wire(index), let .label(index): index
+			case let .symbol(index), let .wire(index), let .label(index): index
 			}
 		}
 
@@ -91,44 +88,66 @@ extension Schematic {
 	init(size: Size = .init(width: .mm(297), height: .mm(210))) {
 		self.size = size
 		symbols = []
-		flags = []
 		wires = []
 		labels = []
 	}
 
 	init(from decoder: Decoder) throws {
 		let values = try decoder.container(keyedBy: CodingKeys.self)
+		let legacy = try decoder.container(keyedBy: LegacyKeys.self)
 		size = try values.decode(Size.self, forKey: .size)
 		symbols = []
-		flags = try values.decodeIfPresent([Flag].self, forKey: .flags) ?? []
-		for element in try values.decode([SymbolOrFlag].self, forKey: .symbols) {
+		var converted = try legacy.decodeIfPresent([LegacyPowerLabel].self, forKey: .flags)?.map(\.label) ?? []
+		for element in try values.decode([SymbolOrLabel].self, forKey: .symbols) {
 			switch element {
 			case let .symbol(symbol): symbols.append(symbol)
-			case let .flag(flag): flags.append(flag)
+			case let .label(label): converted.append(label)
 			}
 		}
 		wires = try values.decode([Wire].self, forKey: .wires)
 		labels = try values.decode([NetLabel].self, forKey: .labels)
+		migratePowerLabels(converted)
 	}
 
-	private enum SymbolOrFlag: Decodable {
-		case symbol(Symbol), flag(Flag)
+	private enum LegacyKeys: String, CodingKey { case flags }
 
-		private enum CodingKeys: String, CodingKey { case kind, at, rotation, value }
+	private struct LegacyPowerLabel: Decodable {
+		var label: NetLabel
+
+		private enum CodingKeys: String, CodingKey { case at, net, value }
 
 		init(from decoder: Decoder) throws {
 			let values = try decoder.container(keyedBy: CodingKeys.self)
-			if let kind = Flag.Kind(rawValue: try values.decode(String.self, forKey: .kind)) {
-				self = .flag(Flag(
-					at: try values.decode(Point.self, forKey: .at),
-					rotation: try values.decode(Rotation.self, forKey: .rotation),
-					net: try values.decode(String.self, forKey: .value),
-					kind: kind
-				))
-			} else {
+			label = NetLabel(
+				at: try values.decode(Point.self, forKey: .at),
+				text: try values.decodeIfPresent(String.self, forKey: .net) ?? values.decode(String.self, forKey: .value)
+			)
+		}
+	}
+
+	private enum SymbolOrLabel: Decodable {
+		case symbol(Symbol), label(NetLabel)
+
+		private enum CodingKeys: String, CodingKey { case kind }
+
+		init(from decoder: Decoder) throws {
+			let values = try decoder.container(keyedBy: CodingKeys.self)
+			switch try values.decode(String.self, forKey: .kind) {
+			case "power", "ground":
+				self = .label(try LegacyPowerLabel(from: decoder).label)
+			default:
 				self = .symbol(try Symbol(from: decoder))
 			}
 		}
+	}
+
+	private mutating func migratePowerLabels(_ converted: [NetLabel]) {
+		guard !converted.isEmpty else { return }
+		var electrical = self
+		electrical.labels = labels.map { NetLabel(at: $0.at, text: $0.ioName == nil ? $0.text : "") }
+		electrical.labels += converted.map { NetLabel(at: $0.at, text: "") }
+		let netlist = Netlist(electrical)
+		labels += converted.map { NetLabel(at: $0.at, text: netlist.name(at: $0.at) ?? $0.text) }
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
