@@ -96,8 +96,8 @@ object, and a `⌘` band that covers only part of one takes none of it.
 Select a footprint first, then click one of its pads to inspect that pad.
 Box selection selects whole objects and never individual pads. The inspector
 shows a pad's number, dimensions, layer, position and net as read-only values.
-Assign pad nets with net labels in the schematic and **Update board from schematic**
-(`⌘U`); layout net assignment applies only to traces and vias. Choose **Select footprint**
+Assign pad nets with net labels in the schematic; the board updates automatically
+as the schematic changes. Layout net assignment applies only to traces and vias. Choose **Select footprint**
 in the inspector to move or edit the whole part. Pads inside imported modules
 select the locked module instance.
 
@@ -143,8 +143,8 @@ there rather than bent, so that stays two segments.
 
 A part is placed once and stands on both sides. Placing a symbol on the sheet
 also puts its footprint on the board, and placing a footprint puts its symbol on
-the sheet. Nothing links the two but the reference designator they share, which
-is all `⌘U` needs to pair them up again.
+the sheet. Their shared reference designator pairs the symbol and footprint
+when the board updates automatically.
 
 The counterpart is parked at the first spot, in reading order, where it covers
 nothing already drawn, on the 0.1 inch pitch both snap grids share, so it lands
@@ -233,14 +233,20 @@ Because only those terminals are tested against wires, a T-junction connects
 and two wires merely crossing do not — the usual schematic convention, and junction dots follow from
 it rather than being placed by hand.
 
-A net takes its name from a label in it. Unnamed nets get an `N$n` when they
-reach the board.
+A net takes its name from a label in it. New unnamed nets get a name based on
+their sorted reference and pin numbers, such as `N$R1.1/R2.2`, when they reach the board.
+Existing unnamed nets keep their names and IDs so routed copper stays connected.
 
-`⌘U` pushes the netlist onto the layout: footprints are matched to symbols by
+Schematic edits automatically update the layout: footprints are matched to symbols by
 reference designator and pads to pins by number, and `Pad.net` is set from that.
 The pass is additive — a pad the schematic says nothing about keeps the net it
-had — and the sidebar reports what it could not match: symbols with no footprint,
-footprints in no schematic, and pins with no pad.
+had. Unnamed nets keep their names across updates, and undo restores the schematic
+and board together.
+
+Traces and vias without a net inherit the single net of physically connected
+copper as the design changes, including chains through pads and vias across their
+copper layers. Existing assignments are preserved. Disconnected copper and copper
+touching more than one net stay unassigned.
 
 The layout then draws a ratsnest for every net whose copper does not yet join all
 of it, as a minimum spanning tree over the disconnected islands. Route one of
@@ -387,7 +393,7 @@ lists IO pins in lexical order. A module can import other modules, provided each
 source has no more copper layers than its containing design. Circular dependencies
 and paths outside the document folder are rejected.
 
-Wire the block's pins and use **Update board from schematic** (`⌘U`). Connections
+Wire the block's pins; the board updates automatically. Connections
 pass through module IO to imported pads, traces, vias and nested modules. Private
 nets and component references belong to their instance hierarchy. Separate
 instances share only connected IO and the `GND`, `VCC` and `VEE` supply nets.

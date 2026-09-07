@@ -47,7 +47,6 @@ protocol ToolKind: Hashable, CaseIterable {
 struct EditorState: Equatable {
 	var mode: Mode = .schematic
 	var sheet: Sheet?
-	var report: Design.Report?
 	var editing: Property?
 	var query: String = ""
 }

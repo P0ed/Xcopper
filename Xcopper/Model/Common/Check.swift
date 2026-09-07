@@ -48,7 +48,7 @@ extension Design {
 	}
 }
 
-private struct Object {
+struct BoardObject {
 	var figure: Figure
 	var net: Net.ID?
 	var ref: Ref
@@ -65,20 +65,20 @@ private struct Object {
 		bounds = figure.bounds
 	}
 
-	func shared(with other: Object) -> Int? {
+	func shared(with other: BoardObject) -> Int? {
 		let layer = max(layers.lowerBound, other.layers.lowerBound)
 		return layers.contains(layer) && other.layers.contains(layer) ? layer : nil
 	}
 }
 
-private extension Board {
+extension Board {
 
-	var objects: [Object] {
+	var objects: [BoardObject] {
 		let through = stack.top ... stack.bottom
-		var objects: [Object] = []
+		var objects: [BoardObject] = []
 
 		for (index, trace) in traces.enumerated() where stack.contains(trace.layer) {
-			objects.append(Object(
+			objects.append(BoardObject(
 				.segment(trace.start, trace.end, trace.width),
 				net: trace.net,
 				ref: .trace(index),
@@ -86,7 +86,7 @@ private extension Board {
 			))
 		}
 		for (index, via) in vias.enumerated() {
-			objects.append(Object(
+			objects.append(BoardObject(
 				.round(via.at, via.pad),
 				net: via.net,
 				ref: .via(index),
@@ -96,7 +96,7 @@ private extension Board {
 		for (index, footprint) in footprints.enumerated() {
 			for pad in footprint.placedPads {
 				let layer = footprint.layer(of: pad, in: stack)
-				objects.append(Object(
+				objects.append(BoardObject(
 					pad.figure,
 					net: pad.net,
 					ref: .footprint(index),
@@ -105,7 +105,7 @@ private extension Board {
 			}
 		}
 		for (index, hole) in holes.enumerated() {
-			objects.append(Object(
+			objects.append(BoardObject(
 				.round(hole.at, hole.diameter),
 				net: nil,
 				ref: .hole(index),
@@ -119,7 +119,7 @@ private extension Board {
 
 private extension Design {
 
-	func clashes(among objects: [Object], on layer: Int, clearance: Int) -> [Violation] {
+	func clashes(among objects: [BoardObject], on layer: Int, clearance: Int) -> [Violation] {
 		let here = objects.filter { $0.layers.contains(layer) }
 			.sorted { $0.bounds.minX < $1.bounds.minX }
 		var found: [Violation] = []
@@ -136,7 +136,7 @@ private extension Design {
 		return found
 	}
 
-	func clash(_ a: Object, _ b: Object, on layer: Int, clearance: Int) -> Violation? {
+	func clash(_ a: BoardObject, _ b: BoardObject, on layer: Int, clearance: Int) -> Violation? {
 		guard !(a.drilled && b.drilled) else { return nil }
 		if !a.drilled, !b.drilled {
 			guard let one = a.net, let two = b.net, one != two else { return nil }
@@ -170,7 +170,7 @@ private extension Design {
 		)
 	}
 
-	func strays(among objects: [Object], clearance: Int) -> [Violation] {
+	func strays(among objects: [BoardObject], clearance: Int) -> [Violation] {
 		let bounds = board.bounds
 
 		return objects.compactMap { object in

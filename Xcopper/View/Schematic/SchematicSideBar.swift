@@ -48,17 +48,6 @@ struct SchematicSideBar: View {
 						.font(.caption)
 						.foregroundStyle(.secondary)
 				}
-
-				Panel(title: "Board") {
-					Button("Update board", systemImage: "arrow.triangle.2.circlepath") {
-						operations.updateBoard()
-					}
-					.buttonStyle(.borderless)
-
-					if let report = editor.report {
-						ReportView(report: report)
-					}
-				}
 			}
 			.padding(12.0)
 		}
@@ -66,31 +55,5 @@ struct SchematicSideBar: View {
 		.onChange(of: focus) { _, field in editor.editing = field }
 		.onChange(of: editor.editing) { _, editing in focus = editing }
 		.onDisappear { editor.editing = nil }
-	}
-}
-
-@MainActor
-struct ReportView: View {
-	var report: Design.Report
-
-	var body: some View {
-		VStack(alignment: .leading, spacing: 2.0) {
-			Text("Assigned \(report.assigned) pad\(report.assigned == 1 ? "" : "s")")
-			line("New nets", report.created, .secondary)
-			line("No footprint", report.missingFootprints, .orange)
-			line("No pad", report.missingPins, .orange)
-			line("Not in schematic", report.extraFootprints, .secondary)
-		}
-		.font(.caption)
-		.foregroundStyle(.secondary)
-		.padding(.top, 2.0)
-	}
-
-	@ViewBuilder
-	private func line(_ title: String, _ items: [String], _ color: Color) -> some View {
-		if !items.isEmpty {
-			Text("\(title): \(items.joined(separator: ", "))")
-				.foregroundStyle(color)
-		}
 	}
 }

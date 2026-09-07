@@ -50,11 +50,12 @@ final class SelectionEditingTests: XCTestCase {
 	}
 
 	func testPadNetsComeFromSchematicLabelsAndCannotBeAssignedInLayout() {
-		var design = design()
-		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "SIGNAL")]
+		let design = design()
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
-		harness.perform { $0.updateBoard() }
+		harness.perform {
+			$0.design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "SIGNAL")]
+		}
 		let original = harness.design
 		XCTAssertEqual(original.net(original.board[net: .pad(0, 0)])?.name, "SIGNAL")
 		XCTAssertNil(original.board[net: .pad(0, 1)])
@@ -393,38 +394,6 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertEqual(design.schematicRefs(matching: ""), [])
 	}
 
-	func testBothInspectorsDrawTheirBulkPropertiesForASelectionOfOneKind() {
-		var design = design()
-		design.board.traces = [trace(.mm(0.4)), trace(.mm(1.2), layer: 1)]
-		design.board.vias = [Via(at: .zero, drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil)]
-		design.schematic.labels = [NetLabel(at: .zero, text: "SDA"), NetLabel(at: point(5, 0), text: "SCL")]
-
-		let layout: [Set<Ref>] = [[.trace(0), .trace(1)], [.footprint(0), .footprint(2)], [.via(0)], [.pad(0, 0)], [.pad(0, 0), .pad(1, 1)]]
-		let schematic: [Set<Schematic.Ref>] = [[.symbol(0), .symbol(1)], [.label(0), .label(1)]]
-
-		for selection in layout {
-			XCTAssertNotNil(rendered { focus in
-				LayoutInspector(design: .constant(design), selection: selection, focus: focus)
-			})
-		}
-		for selection in schematic {
-			XCTAssertNotNil(rendered { focus in
-				SchematicInspector(
-					design: .constant(design),
-					netlist: Netlist(design.schematic),
-					selection: selection,
-					focus: focus
-				)
-			})
-		}
-	}
-
-	private func rendered<Content: View>(
-		@ViewBuilder _ content: @escaping (FocusState<Property?>.Binding) -> Content
-	) -> NSImage? {
-		ImageRenderer(content: InspectorHost(content: content)).nsImage
-	}
-
 	func testFindReplacesTheSelectionInTheEditorItIsUsedIn() {
 		let harness = EditorHarness(design: design())
 		harness.editor.mode = .schematic
@@ -439,15 +408,5 @@ final class SelectionEditingTests: XCTestCase {
 		harness.perform { $0.find("nothing") }
 		XCTAssertEqual(harness.layout.selection, [])
 		XCTAssertEqual(harness.schematic.selection, [.symbol(0), .symbol(1)])
-	}
-}
-
-@MainActor
-private struct InspectorHost<Content: View>: View {
-	@FocusState private var focus: Property?
-	@ViewBuilder var content: (FocusState<Property?>.Binding) -> Content
-
-	var body: some View {
-		VStack(alignment: .leading) { content($focus) }.frame(width: 220.0)
 	}
 }

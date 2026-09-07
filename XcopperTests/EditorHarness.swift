@@ -24,7 +24,7 @@ final class EditorHarness {
 	}
 	var operations: Operations {
 		Operations(editor: binding(\.editor), layout: binding(\.layout), schematic: binding(\.schematic), preview: binding(\.preview),
-			design: Binding(get: { self.design }, set: { self.replace($0) }), clipboard: binding(\.clipboard), documentURL: url, documentName: "Parent")
+			design: Binding(get: { self.design }, set: { self.replace($0) }).synchronizingBoard, clipboard: binding(\.clipboard), documentURL: url, documentName: "Parent")
 	}
 	func perform(_ action: (Operations) -> Void) {
 		undo.beginUndoGrouping()

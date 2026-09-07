@@ -7,7 +7,7 @@ struct XcopperApp: App {
 
 	var body: some Scene {
 		DocumentGroup(newDocument: Document()) { cfg in
-			EditorView(design: cfg.$document.design, clipboard: $clipboard)
+			EditorView(design: cfg.$document.design.synchronizingBoard, clipboard: $clipboard)
 		}
 		.windowToolbarStyle(.unified)
 		.defaultWindowPlacement { _, context in

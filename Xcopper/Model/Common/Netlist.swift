@@ -13,6 +13,13 @@ struct Netlist {
 		var name: String?
 		var nodes: Set<Node>
 		var points: Set<Point>
+
+		func pinNames(in schematic: Schematic) -> [String] {
+			nodes.map { node in
+				let symbol = schematic.symbols[node.symbol]
+				return "\(symbol.reference).\(symbol.pins[node.pin].number)"
+			}.sorted()
+		}
 	}
 
 	var groups: [Group] = []

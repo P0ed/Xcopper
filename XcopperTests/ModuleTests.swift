@@ -140,15 +140,19 @@ final class ModuleTests: XCTestCase {
 		XCTAssertNoThrow(try imported(["Part.xcb": source]))
 	}
 
-	func testParentWireMapsIOToPadsTracesViasAndLeavesPrivateNetsAlone() throws {
+	@MainActor
+	func testParentWireAutomaticallyMapsIOToPadsTracesViasAndLeavesPrivateNetsAlone() throws {
 		var design = try imported(["Part.xcb": source()])
 		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
 		let modulePin = design.modules[0].symbol.placedPins[0].at
 		let parentPin = design.schematic.symbols[0].placedPins[0].at
-		design.schematic.wires = [Wire(start: modulePin, end: parentPin)]
-		design.schematic.labels = [NetLabel(at: parentPin, text: "SIGNAL")]
 		let before = design.moduleCache
-		_ = design.updateBoardFromSchematic()
+		let harness = EditorHarness(design: design)
+		harness.perform {
+			$0.design.schematic.wires = [Wire(start: modulePin, end: parentPin)]
+			$0.design.schematic.labels = [NetLabel(at: parentPin, text: "SIGNAL")]
+		}
+		design = harness.design
 		let resolved = design.resolved
 		let signal = try XCTUnwrap(design.nets.first { $0.name == "SIGNAL" }?.id)
 		XCTAssertEqual(design.board.footprints[0].pads[0].net, signal)
@@ -158,6 +162,27 @@ final class ModuleTests: XCTestCase {
 		XCTAssertNotEqual(resolved.board.footprints[1].pads[1].net, signal)
 		XCTAssertEqual(design.moduleCache, before)
 		XCTAssertFalse(resolved.board.ratsnest(planes: resolved.planes).isEmpty)
+	}
+
+	@MainActor
+	func testParentCopperInheritsAnImportedPadsNetAutomatically() throws {
+		var module = source()
+		module.board.traces = []
+		module.board.vias = []
+		module.board.footprints[0].pads[1].net = nil
+		let design = try imported(["Part.xcb": module])
+		let pad = design.resolved.board.footprints[0].placedPads[0]
+		let harness = EditorHarness(design: design)
+		harness.perform {
+			$0.design.board.traces.append(Trace(start: pad.at, end: pad.at + point(0, 10),
+				width: .mm(0.3), layer: 0, net: nil))
+		}
+		XCTAssertNotNil(pad.net)
+		XCTAssertEqual(harness.design.board.traces[0].net, pad.net)
+		XCTAssertNotNil(harness.design.net(pad.net))
+		XCTAssertEqual(harness.design.moduleCache, design.moduleCache)
+		harness.undo.undo()
+		XCTAssertEqual(harness.design, design)
 	}
 
 	func testNestedPortsPropagateThroughEveryLevelAndKeepTopLevelOwnership() throws {

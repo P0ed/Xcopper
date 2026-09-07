@@ -100,8 +100,7 @@ struct EditorView: View {
 			SchematicToolBar(
 				state: $schematic,
 				sheet: $editor.sheet,
-				shortcuts: editor.editing == nil,
-				update: operations.updateBoard
+				shortcuts: editor.editing == nil
 			)
 		case .preview:
 			PreviewToolBar(board: design.resolved.board, state: $preview)

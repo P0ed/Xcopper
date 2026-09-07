@@ -388,8 +388,4 @@ extension Operations {
 		design.removeNet(id)
 		if layout.net == id { layout.net = nil }
 	}
-
-	func updateBoard() {
-		editor.report = design.updateBoardFromSchematic()
-	}
 }

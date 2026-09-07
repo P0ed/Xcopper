@@ -1,3 +1,28 @@
+import SwiftUI
+
+extension Binding where Value == Design {
+
+	var synchronizingBoard: Binding<Design> {
+		Binding(
+			get: { wrappedValue },
+			set: { next, transaction in
+				var next = next
+				let previous = wrappedValue
+				if next.schematic != previous.schematic
+					|| next.modules.map(\.id) != previous.modules.map(\.id)
+					|| next.modules.map(\.symbol) != previous.modules.map(\.symbol)
+					|| next.moduleCache != previous.moduleCache {
+					_ = next.updateBoardFromSchematic()
+				}
+				if next.board != previous.board || next.modules != previous.modules || next.moduleCache != previous.moduleCache {
+					next.inheritConnectedNets()
+				}
+				self.transaction(transaction).wrappedValue = next
+			}
+		)
+	}
+}
+
 extension Design {
 
 	struct Report: Equatable {
@@ -26,19 +51,40 @@ extension Design {
 		var report = Report()
 		var placed: [String: Int] = [:]
 		var wired: Set<String> = []
+		var usedNames = Set(netlist.groups.compactMap(\.name))
 
 		for (index, footprint) in board.footprints.enumerated()
 		where placed[footprint.reference] == nil {
 			placed[footprint.reference] = index
 		}
 
-		for group in netlist.groups {
+		let groups = netlist.groups.map { ($0, $0.pinNames(in: schematic)) }
+			.sorted { $0.1.lexicographicallyPrecedes($1.1) }
+		for (group, pins) in groups {
 			let nodes = group.nodes
 				.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }
 
 			guard nodes.count > 1 || group.name != nil, !nodes.isEmpty else { continue }
 
-			let name = group.name ?? nextAnonymousName
+			let existingNames = nodes.flatMap { node -> [String] in
+				let symbol = schematic.symbols[node.symbol]
+				guard let footprint = placed[symbol.reference] else { return [] }
+				let number = symbol.pins[node.pin].number
+				return board.footprints[footprint].pads
+					.filter { $0.name == number }
+					.compactMap { net($0.net)?.name }
+			}
+			let existingName = existingNames.sorted().first { $0.hasPrefix("N$") && !usedNames.contains($0) }
+			var name = group.name ?? existingName ?? "N$\(pins.joined(separator: "/"))"
+			if group.name == nil && existingName == nil {
+				let base = name
+				var suffix = 2
+				while usedNames.contains(name) {
+					name = "\(base)/\(suffix)"
+					suffix += 1
+				}
+			}
+			usedNames.insert(name)
 			let (id, created) = net(named: name)
 			if created { report.created.append(name) }
 

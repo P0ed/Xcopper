@@ -76,11 +76,4 @@ extension Design {
 		if let existing = nets.first(where: { $0.name == name }) { return (existing.id, false) }
 		return (addNet(name: name), true)
 	}
-
-	var nextAnonymousName: String {
-		let used = Set(nets.map(\.name))
-		var index = 1
-		while used.contains("N$\(index)") { index += 1 }
-		return "N$\(index)"
-	}
 }

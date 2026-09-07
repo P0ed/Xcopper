@@ -301,7 +301,6 @@ extension Pad {
 extension Board {
 
 	func hitTest(at point: Point, layer: Int, tolerance: Int, selection: Set<Ref> = []) -> Ref? {
-		// Prefer smaller object kinds so footprints cannot hide overlapping copper.
 		for (index, trace) in traces.enumerated().reversed()
 		where trace.layer == layer
 			&& Figure.segment(trace.start, trace.end, trace.width).contains(point, tolerance: tolerance) {

@@ -211,7 +211,7 @@ extension Design {
 				}
 			}
 			if !active && connected.isEmpty { continue }
-			let key = nodes.isEmpty ? group.points.flatMap { ioNamesByPoint[$0] ?? [] }.sorted().joined(separator: "/") : nodes.map { "\(electrical.symbols[$0.symbol].reference).\(electrical.symbols[$0.symbol].pins[$0.pin].number)" }.joined(separator: "/")
+			let key = nodes.isEmpty ? group.points.flatMap { ioNamesByPoint[$0] ?? [] }.sorted().joined(separator: "/") : group.pinNames(in: electrical).joined(separator: "/")
 			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Point.order)) : key)")
 			let named = group.name.map { name in netIDsByName[name] ?? moduleNetID("named/\(name)") }
 			let power = connected.first { id in nets[id].map(supplyNames.contains) ?? false }

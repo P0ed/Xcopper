@@ -5,7 +5,6 @@ struct SchematicToolBar: ToolbarContent {
 	@Binding var state: SchematicState
 	@Binding var sheet: Sheet?
 	var shortcuts: Bool = true
-	var update: () -> Void
 
 	var body: some ToolbarContent {
 		ToolbarItemGroup {
@@ -24,11 +23,6 @@ struct SchematicToolBar: ToolbarContent {
 				name: "Label",
 				image: "tag",
 				action: { sheet = .label }
-			)
-			ActionButton(
-				name: "Update board",
-				image: "arrow.triangle.2.circlepath",
-				action: update
 			)
 		}
 		ToolbarItemGroup {

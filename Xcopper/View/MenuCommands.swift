@@ -133,14 +133,6 @@ struct MenuCommands: Commands {
 				disabled: op.counterpartDisabled,
 				action: { op?.showCounterpart() }
 			)
-			ActionButton(
-				name: "Update board from schematic",
-				image: "arrow.triangle.2.circlepath",
-				shortcut: "U",
-				modifiers: .command,
-				disabled: op.actionsDisabled,
-				action: { op?.updateBoard() }
-			)
 		}
 		CommandMenu("Sheet") {
 			ActionButton(
