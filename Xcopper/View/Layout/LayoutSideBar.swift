@@ -15,7 +15,10 @@ struct LayoutSideBar: View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Selection") {
-					LayoutInspector(design: $design, selection: state.selection, focus: $focus)
+					LayoutInspector(design: $design, selection: state.selection, focus: $focus) { index in
+						state.cancelSessions()
+						state.selection = [.footprint(index)]
+					}
 					CounterpartButton(operations: operations)
 				}
 
@@ -43,7 +46,7 @@ struct LayoutSideBar: View {
 						Button("Add", systemImage: "plus") { editor.sheet = .net }
 						Spacer()
 						Button("Assign", systemImage: "link") { operations.assignNet(state.net) }
-							.disabled(state.selection.isEmpty || operations.hasModuleSelection)
+							.disabled(!operations.canAssignNet)
 					}
 					.buttonStyle(.borderless)
 					.padding(.top, 2.0)

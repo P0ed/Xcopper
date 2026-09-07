@@ -62,7 +62,10 @@ struct ModuleProjection {
 	var interfaceError: String?
 	var report = Design.Report()
 
-	func owner(_ ref: Ref) -> Ref { owners[ref].map(Ref.module) ?? ref }
+	func owner(_ ref: Ref) -> Ref {
+		if case let .pad(index, _) = ref { return owners[.footprint(index)].map(Ref.module) ?? ref }
+		return owners[ref].map(Ref.module) ?? ref
+	}
 	func owner(_ ref: Schematic.Ref) -> Schematic.Ref { symbolOwners[ref].map(Schematic.Ref.module) ?? ref }
 	func expanded(_ refs: Set<Ref>) -> Set<Ref> {
 		let ids = refs.moduleIDs

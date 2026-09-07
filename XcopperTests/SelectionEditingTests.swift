@@ -25,10 +25,93 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertNil(Set<Ref>([.trace(0), .via(0)]).group)
 		XCTAssertNil(Set<Ref>([.footprint(0), .module(UUID())]).group)
 		XCTAssertNil(Set<Ref>([.module(UUID())]).group)
+		XCTAssertNil(Set<Ref>([.pad(0, 0), .pad(1, 0)]).group)
 		XCTAssertNil(Set<Ref>().group)
 
 		XCTAssertEqual(Set<Schematic.Ref>([.symbol(1), .symbol(0)]).group?.kind, .symbol)
 		XCTAssertNil(Set<Schematic.Ref>([.symbol(0), .wire(0)]).group)
+	}
+
+	func testClickingAPadSelectsItsFootprintBeforeSelectingThePad() {
+		let design = design()
+		let at = design.board.footprints[0].placedPads[0].at
+		let first = design.layoutRefs(at: at, layer: 0, tolerance: 0)
+		XCTAssertEqual(first, [.footprint(0)])
+		XCTAssertEqual(design.layoutRefs(at: at, layer: 0, tolerance: 0, selection: first), [.pad(0, 0)])
+		XCTAssertEqual(design.layoutRefs(at: at, layer: 0, tolerance: 0, whole: true, selection: first), [.pad(0, 0)])
+		XCTAssertEqual(design.layoutRefs(at: at, layer: 0, tolerance: 0, selection: [.footprint(1)]), first)
+		XCTAssertEqual(design.layoutRefs(at: at, layer: 0, tolerance: 0, selection: [.pad(0, 0)]), first)
+
+		let harness = EditorHarness(design: design)
+		harness.editor.mode = .layout
+		harness.layout.selection = [.pad(0, 0)]
+		harness.operations.selectAll()
+		XCTAssertEqual(harness.layout.selection, [.footprint(0), .footprint(1), .footprint(2)])
+	}
+
+	func testPadNetsComeFromSchematicLabelsAndCannotBeAssignedInLayout() {
+		var design = design()
+		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "SIGNAL")]
+		let harness = EditorHarness(design: design)
+		harness.editor.mode = .schematic
+		harness.perform { $0.updateBoard() }
+		let original = harness.design
+		XCTAssertEqual(original.net(original.board[net: .pad(0, 0)])?.name, "SIGNAL")
+		XCTAssertNil(original.board[net: .pad(0, 1)])
+		harness.editor.mode = .layout
+		for selection: Set<Ref> in [[.pad(0, 0)], [.pad(0, 0), .pad(1, 1)], [.footprint(0)]] {
+			harness.layout.selection = selection
+			XCTAssertFalse(harness.operations.canAssignNet)
+			harness.operations.assignNet(1)
+			harness.operations.assignNet(nil)
+			XCTAssertEqual(harness.design, original)
+		}
+		var board = original.board
+		board[net: .pad(0, 0)] = nil
+		board[net: .footprint(0)] = 1
+		XCTAssertEqual(board, original.board)
+		harness.undo.undo()
+		XCTAssertEqual(harness.design, design)
+	}
+
+	func testLayoutCanStillAssignNetsToTracesAndVias() {
+		var design = design()
+		design.board.traces = [trace(.mm(0.4))]
+		design.board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: nil)]
+		let harness = EditorHarness(design: design)
+		harness.editor.mode = .layout
+		harness.layout.selection = [.trace(0), .via(0)]
+		XCTAssertTrue(harness.operations.canAssignNet)
+		harness.perform { $0.assignNet(1) }
+		XCTAssertEqual(harness.design.board.traces[0].net, 1)
+		XCTAssertEqual(harness.design.board.vias[0].net, 1)
+		XCTAssertEqual(harness.design.board.footprints, design.board.footprints)
+		harness.layout.selection.insert(.pad(0, 0))
+		XCTAssertFalse(harness.operations.canAssignNet)
+		harness.operations.assignNet(nil)
+		XCTAssertEqual(harness.design.board.traces[0].net, 1)
+		harness.undo.undo()
+		XCTAssertEqual(harness.design, design)
+	}
+
+	func testPadSelectionDoesNotMoveDeleteOrCopyItsFootprint() {
+		let original = design()
+		let harness = EditorHarness(design: original)
+		harness.editor.mode = .layout
+		harness.layout.selection = [.pad(0, 0)]
+		harness.clipboard.holes = [Hole(at: .zero, diameter: .mm(1))]
+		let clipboard = harness.clipboard
+		XCTAssertTrue(harness.operations.hasPadSelection)
+		XCTAssertFalse(harness.operations.hasModuleSelection)
+		harness.operations.nudge(dx: 1)
+		harness.operations.rotate(clockwise: true)
+		harness.operations.flip()
+		harness.operations.duplicate()
+		harness.operations.cut()
+		XCTAssertEqual(harness.design, original)
+		XCTAssertEqual(harness.layout.selection, [.pad(0, 0)])
+		XCTAssertEqual(harness.clipboard, clipboard)
+		XCTAssertFalse(harness.undo.canUndo)
 	}
 
 	func testLabelsSelectedTogetherEditAsOne() throws {
@@ -316,7 +399,7 @@ final class SelectionEditingTests: XCTestCase {
 		design.board.vias = [Via(at: .zero, drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil)]
 		design.schematic.labels = [NetLabel(at: .zero, text: "SDA"), NetLabel(at: point(5, 0), text: "SCL")]
 
-		let layout: [Set<Ref>] = [[.trace(0), .trace(1)], [.footprint(0), .footprint(2)], [.via(0)]]
+		let layout: [Set<Ref>] = [[.trace(0), .trace(1)], [.footprint(0), .footprint(2)], [.via(0)], [.pad(0, 0)], [.pad(0, 0), .pad(1, 1)]]
 		let schematic: [Set<Schematic.Ref>] = [[.symbol(0), .symbol(1)], [.label(0), .label(1)]]
 
 		for selection in layout {

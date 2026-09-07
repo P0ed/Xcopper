@@ -235,6 +235,8 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(moved.footprints[0].at, before.footprints[0].at + delta)
 		XCTAssertEqual(design.modules[0].schematicAt, originalSchematic)
 		XCTAssertEqual(design.layoutRefs(at: moved.footprints[0].placedPads[0].at, layer: 0, tolerance: 1), [.module(id)])
+		let pad = moved.footprints[0].placedPads[0]
+		XCTAssertEqual(design.layoutRefs(in: Rect(center: pad.at, size: Size(width: .mm(0.1), height: .mm(0.1))), layer: 0), [.module(id)])
 		XCTAssertEqual(design.schematicRef(at: design.modules[0].symbol.at, tolerance: 1), .module(id))
 		XCTAssertEqual(design.footprints(for: [.module(id)]), [.module(id)])
 		XCTAssertEqual(design.symbols(for: [.module(id)]), [.module(id)])

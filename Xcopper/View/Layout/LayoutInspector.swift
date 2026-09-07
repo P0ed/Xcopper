@@ -5,12 +5,15 @@ struct LayoutInspector: View {
 	@Binding var design: Design
 	var selection: Set<Ref>
 	@FocusState.Binding var focus: Property?
+	var selectFootprint: ((Int) -> Void)? = nil
 
 	private var board: Board { design.board }
 
 	var body: some View {
 		if selection.count == 1, let ref = selection.first {
 			properties(of: ref)
+		} else if !selection.isEmpty, selection.allSatisfy({ $0.kind == .pad }) {
+			PadsInspector(design: design, refs: selection)
 		} else if selection.count > 1, let group = selection.group {
 			properties(of: group.kind, group.indices)
 		} else {
@@ -44,6 +47,13 @@ struct LayoutInspector: View {
 				hole: $design.board.holes[index, or: board.holes[index]],
 				focus: $focus
 			)
+		case let .pad(index, pad) where board.footprints.indices.contains(index)
+			&& board.footprints[index].pads.indices.contains(pad):
+			PadsInspector(design: design, refs: [ref])
+			if let selectFootprint {
+				Button("Select footprint") { selectFootprint(index) }
+					.buttonStyle(.borderless)
+			}
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			FootprintInspector(
 				footprint: $design.board.footprints[index, or: board.footprints[index]],
@@ -89,9 +99,48 @@ struct LayoutInspector: View {
 				stack: board.stack,
 				focus: $focus
 			)
-		case .module:
+		case .module, .pad:
 			EmptyView()
 		}
+	}
+}
+
+@MainActor
+struct PadsInspector: View {
+	var design: Design
+	var refs: Set<Ref>
+
+	private var validRefs: [Ref] {
+		refs.filter { ref in
+			guard case let .pad(index, pad) = ref else { return false }
+			return design.board.footprints.indices.contains(index)
+				&& design.board.footprints[index].pads.indices.contains(pad)
+		}
+	}
+
+	private var netName: String {
+		guard let net = validRefs.map({ design.board[net: $0] }).shared else { return "Mixed" }
+		return design.net(net)?.name ?? "None"
+	}
+
+	var body: some View {
+		ValueRow(title: "Object", value: refs.count == 1 ? "Pad" : "Pads")
+		if validRefs.count == 1, case let .pad(index, padIndex) = validRefs[0] {
+			let footprint = design.board.footprints[index]
+			let pad = footprint.placedPads[padIndex]
+			ValueRow(title: "Ref", value: footprint.reference)
+			ValueRow(title: "Pad", value: pad.name)
+			ValueRow(title: "Shape", value: pad.shape == .rect ? "Rectangle" : "Oval")
+			ValueRow(title: "Width", value: millimeters(Double(pad.size.width).mm))
+			ValueRow(title: "Height", value: millimeters(Double(pad.size.height).mm))
+			if pad.isThrough { ValueRow(title: "Drill", value: millimeters(pad.drill.mm)) }
+			ValueRow(title: "Layer", value: pad.isThrough ? "Through hole" : design.board.stack.name(of: footprint.layer(of: pad, in: design.board.stack)))
+			ValueRow(title: "X", value: millimeters(Double(pad.at.x).mm))
+			ValueRow(title: "Y", value: millimeters(Double(pad.at.y).mm))
+		} else {
+			ValueRow(title: "Count", value: "\(validRefs.count)")
+		}
+		ValueRow(title: "Net", value: netName)
 	}
 }
 

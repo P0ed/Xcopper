@@ -162,7 +162,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(viaTarget?.1, 1)
 	}
 
-	func testHitTestRespectsLayerToleranceAndTopmostOrder() {
+	func testHitTestRespectsLayerToleranceAndPrefersSmallerObjectKinds() {
 		var board = board()
 		board.traces = [
 			Trace(start: Point(x: 0, y: .mm(5)), end: Point(x: .mm(10), y: .mm(5)), width: .mm(0.25), layer: 0, net: nil),
@@ -178,7 +178,60 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNil(board.hitTest(at: Point(x: 0, y: .mm(5) + .mm(0.3)), layer: 0, tolerance: tolerance))
 
 		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
-		XCTAssertEqual(board.hitTest(at: Point(x: .mm(5), y: .mm(5)), layer: 0, tolerance: tolerance), .via(0))
+		board.holes = [Hole(at: Point(x: .mm(5), y: .mm(5)), diameter: .mm(1))]
+		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(5), y: .mm(5)))]
+		let overlap = Point(x: .mm(5), y: .mm(5))
+		XCTAssertEqual(board.hitTest(at: overlap, layer: 0, tolerance: tolerance), .trace(0))
+		XCTAssertEqual(board.refs(at: overlap, layer: 0, tolerance: tolerance, whole: true), [.trace(0)])
+		XCTAssertEqual(board.hitTest(at: overlap, layer: 1, tolerance: tolerance), .via(0))
+
+		board.vias = []
+		XCTAssertEqual(board.hitTest(at: overlap, layer: 1, tolerance: tolerance), .hole(0))
+		board.holes = []
+		XCTAssertEqual(board.hitTest(at: overlap, layer: 1, tolerance: tolerance), .footprint(0))
+	}
+
+	func testPadsSelectAndHighlightIndividuallyAfterRotationAndFlipping() {
+		var board = board()
+		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
+		for rotation in Rotation.allCases {
+			for flipped in [false, true] {
+				board.footprints[0].rotation = rotation
+				board.footprints[0].flipped = flipped
+				let footprint = board.footprints[0]
+				let layer = flipped ? board.stack.bottom : board.stack.top
+				for (index, pad) in footprint.placedPads.enumerated() {
+					let ref = Ref.pad(0, index)
+					XCTAssertEqual(board.hitTest(at: pad.at, layer: layer, tolerance: 0), .footprint(0))
+					XCTAssertEqual(board.hitTest(at: pad.at, layer: layer, tolerance: 0, selection: [.footprint(0)]), ref)
+					XCTAssertNotEqual(board.hitTest(at: pad.at, layer: board.stack.bottom - layer, tolerance: 0, selection: [.footprint(0)]), ref)
+					XCTAssertEqual(board.figures(on: layer, of: [ref]), [pad.figure])
+					XCTAssertEqual(board.figures(on: board.stack.bottom - layer, of: [ref]), [])
+					XCTAssertEqual(board.bounds(of: [ref]), pad.figure.bounds)
+					let box = Rect(center: pad.at, size: Size(width: .mm(0.1), height: .mm(0.1)))
+					XCTAssertEqual(board.refs(in: box, layer: layer), [])
+					XCTAssertEqual(board.refs(in: box, layer: layer, whole: true), [])
+				}
+				XCTAssertEqual(board.hitTest(at: footprint.at, layer: layer, tolerance: 0), .footprint(0))
+				XCTAssertEqual(board.refs(in: footprint.placedExtent, layer: layer), [.footprint(0)])
+				XCTAssertEqual(Set(board.figures(on: layer, of: [.footprint(0), .pad(0, 0)])), Set(footprint.placedPads.map(\.figure)))
+			}
+		}
+	}
+
+	func testPadsBeatOverlappingFootprintBodiesAndThroughPadsSelectOnEveryLayer() {
+		var board = board()
+		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
+		board.footprints[0].pads[0].drill = .mm(0.3)
+		let pad = board.footprints[0].placedPads[0]
+		board.footprints.append(Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R2", at: pad.at))
+		for layer in board.stack.copper {
+			XCTAssertEqual(board.hitTest(at: pad.at, layer: layer, tolerance: 0), .footprint(1))
+			XCTAssertEqual(board.hitTest(at: pad.at, layer: layer, tolerance: 0, selection: [.footprint(0)]), .pad(0, 0))
+			XCTAssertEqual(board.figures(on: layer, of: [.pad(0, 0)]), [pad.figure])
+		}
+		board.traces = [trace(from: pad.at, to: pad.at + Point(x: .mm(10), y: 0))]
+		XCTAssertEqual(board.hitTest(at: pad.at, layer: 0, tolerance: 0, selection: [.footprint(0)]), .trace(0))
 	}
 
 	func testRubberBandSelectionIsLayerFilteredAndNeedsWhollyContainedTraces() {

@@ -117,7 +117,7 @@ private extension LayoutView {
 		}
 		if state.selectSession == nil, !picksRun {
 			let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance).first
-			if let hit, state.selection.contains(hit) {
+			if let hit, state.selection.contains(hit), !state.selection.containsPads {
 				state.beginMove(at: start.snapped(to: state.snap))
 				return state.updateMove(to: current.snapped(to: state.snap))
 			}
@@ -136,6 +136,9 @@ private extension LayoutView {
 						state.selection = selection
 					}
 				}
+			} else {
+				let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, selection: state.selection)
+				if hit.containsPads { state.selection = selectionMode.apply(state.selection, hit) }
 			}
 			state.moveSession = nil
 			return
@@ -146,7 +149,7 @@ private extension LayoutView {
 		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
 			? design.layoutRefs(in: session.rect, layer: state.layer, whole: whole)
-			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole)
+			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole, selection: session.initial)
 
 		state.selection = session.mode.apply(session.initial, hit)
 		state.selectSession = nil

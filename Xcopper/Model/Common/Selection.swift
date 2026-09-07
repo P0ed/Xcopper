@@ -60,8 +60,9 @@ struct WireSession: Equatable {
 }
 
 extension Set where Element == Ref {
+	var containsPads: Bool { contains { $0.kind == .pad } }
 	var group: (kind: Ref.Kind, indices: [Int])? {
-		guard let kind = first?.kind, kind != .module, allSatisfy({ $0.kind == kind }) else { return nil }
+		guard let kind = first?.kind, kind != .module, kind != .pad, allSatisfy({ $0.kind == kind }) else { return nil }
 		return (kind, map(\.index).sorted())
 	}
 }

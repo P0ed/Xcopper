@@ -242,6 +242,15 @@ extension Board {
 				result.append(pad.figure)
 			}
 		}
+		for case let .pad(index, padIndex) in refs
+		where footprints.indices.contains(index) && footprints[index].pads.indices.contains(padIndex)
+			&& !refs.contains(.footprint(index)) {
+			let footprint = footprints[index]
+			let pad = footprint.placedPads[padIndex]
+			if pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
+				result.append(pad.figure)
+			}
+		}
 		return result
 	}
 
@@ -291,15 +300,12 @@ extension Pad {
 
 extension Board {
 
-	func hitTest(at point: Point, layer: Int, tolerance: Int) -> Ref? {
-		for (index, footprint) in footprints.enumerated().reversed() {
-			let hit = footprint.placedPads.contains { pad in
-				(pad.isThrough || footprint.layer(of: pad, in: stack) == layer)
-					&& pad.figure.contains(point, tolerance: tolerance)
-			}
-			if hit || footprint.placedBody.outset(tolerance).contains(point) {
-				return .footprint(index)
-			}
+	func hitTest(at point: Point, layer: Int, tolerance: Int, selection: Set<Ref> = []) -> Ref? {
+		// Prefer smaller object kinds so footprints cannot hide overlapping copper.
+		for (index, trace) in traces.enumerated().reversed()
+		where trace.layer == layer
+			&& Figure.segment(trace.start, trace.end, trace.width).contains(point, tolerance: tolerance) {
+			return .trace(index)
 		}
 		for (index, via) in vias.enumerated().reversed()
 		where Figure.round(via.at, via.pad).contains(point, tolerance: tolerance) {
@@ -309,16 +315,27 @@ extension Board {
 		where Figure.round(hole.at, hole.diameter).contains(point, tolerance: tolerance) {
 			return .hole(index)
 		}
-		for (index, trace) in traces.enumerated().reversed()
-		where trace.layer == layer
-			&& Figure.segment(trace.start, trace.end, trace.width).contains(point, tolerance: tolerance) {
-			return .trace(index)
+		for (index, footprint) in footprints.enumerated().reversed() where selection.contains(.footprint(index)) {
+			for (padIndex, pad) in footprint.placedPads.enumerated().reversed()
+			where (pad.isThrough || footprint.layer(of: pad, in: stack) == layer)
+				&& pad.figure.contains(point, tolerance: tolerance) {
+				return .pad(index, padIndex)
+			}
+		}
+		for (index, footprint) in footprints.enumerated().reversed() {
+			let hit = footprint.placedPads.contains { pad in
+				(pad.isThrough || footprint.layer(of: pad, in: stack) == layer)
+					&& pad.figure.contains(point, tolerance: tolerance)
+			}
+			if hit || footprint.placedBody.outset(tolerance).contains(point) {
+				return .footprint(index)
+			}
 		}
 		return nil
 	}
 
-	func refs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
-		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance) else { return [] }
+	func refs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
+		guard let hit = hitTest(at: point, layer: layer, tolerance: tolerance, selection: selection) else { return [] }
 		guard whole, case let .trace(index) = hit else { return [hit] }
 		return Set(run(of: index).map(Ref.trace))
 	}
@@ -357,6 +374,8 @@ extension Board {
 				Figure.round(holes[index].at, holes[index].diameter).bounds
 			case let .footprint(index) where footprints.indices.contains(index):
 				footprints[index].placedExtent
+			case let .pad(index, pad) where footprints.indices.contains(index) && footprints[index].pads.indices.contains(pad):
+				footprints[index].placedPads[pad].figure.bounds
 			default:
 				nil
 			}

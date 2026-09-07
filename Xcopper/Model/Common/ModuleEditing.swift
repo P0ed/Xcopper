@@ -50,9 +50,9 @@ extension Design {
 		}
 	}
 
-	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false) -> Set<Ref> {
+	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
 		let projection = moduleProjection()
-		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole)
+		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole, selection: selection)
 		if !hit.isEmpty { return Set(hit.map { projection.owner($0) }) }
 		return modules.last { $0.bounds.outset(tolerance).contains(point) }.map { [.module($0.id)] } ?? []
 	}

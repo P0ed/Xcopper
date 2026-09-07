@@ -8,6 +8,7 @@ extension FocusedValues {
 extension Operations? {
 	var actionsDisabled: Bool { !(self?.editor.keysAvailable ?? false) }
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
+	var objectEditingDisabled: Bool { selectionDisabled || (self?.hasPadSelection ?? false) }
 	var pasteDisabled: Bool { actionsDisabled || !(self?.canPaste ?? false) }
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
 	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }
@@ -29,7 +30,7 @@ struct MenuCommands: Commands {
 					image: "scissors",
 					shortcut: "X",
 					modifiers: .command,
-					disabled: op.selectionDisabled,
+					disabled: op.objectEditingDisabled,
 					action: { op?.cut() }
 				)
 				ActionButton(
@@ -37,7 +38,7 @@ struct MenuCommands: Commands {
 					image: "document.on.document",
 					shortcut: "C",
 					modifiers: .command,
-					disabled: op.selectionDisabled,
+					disabled: op.objectEditingDisabled,
 					action: { op?.copy() }
 				)
 				ActionButton(
@@ -215,7 +216,7 @@ struct MenuCommands: Commands {
 				image: "link",
 				shortcut: "L",
 				modifiers: .command,
-				disabled: op.layoutDisabled || op.selectionDisabled || op.hasModuleSelection,
+				disabled: op.actionsDisabled || !(op?.canAssignNet ?? false),
 				action: { op.map { op in op.assignNet(op.layout.net) } }
 			)
 			Divider()
@@ -239,7 +240,7 @@ struct MenuCommands: Commands {
 				image: "rotate.left",
 				shortcut: "R",
 				modifiers: [.command, .shift],
-				disabled: op.selectionDisabled,
+				disabled: op.objectEditingDisabled,
 				action: { op?.rotate(clockwise: false) }
 			)
 			ActionButton(
@@ -247,7 +248,7 @@ struct MenuCommands: Commands {
 				image: "rotate.right",
 				shortcut: "R",
 				modifiers: .command,
-				disabled: op.selectionDisabled,
+				disabled: op.objectEditingDisabled,
 				action: { op?.rotate(clockwise: true) }
 			)
 			ActionButton(
@@ -255,7 +256,7 @@ struct MenuCommands: Commands {
 				image: "arrow.left.and.right.righttriangle.left.righttriangle.right",
 				shortcut: "H",
 				modifiers: [.command, .shift],
-				disabled: op.selectionDisabled || op.hasModuleSelection,
+				disabled: op.objectEditingDisabled || op.hasModuleSelection,
 				action: { op?.flip() }
 			)
 			ActionButton(
@@ -263,7 +264,7 @@ struct MenuCommands: Commands {
 				image: "plus.square.on.square",
 				shortcut: "D",
 				modifiers: .command,
-				disabled: op.selectionDisabled,
+				disabled: op.objectEditingDisabled,
 				action: { op?.duplicate() }
 			)
 			Divider()
@@ -271,7 +272,7 @@ struct MenuCommands: Commands {
 				name: "Delete",
 				image: "trash",
 				shortcut: KeyEquivalent.delete.character,
-				disabled: op.selectionDisabled,
+				disabled: op.objectEditingDisabled,
 				action: { op?.delete() }
 			)
 		}

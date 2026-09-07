@@ -87,10 +87,19 @@ joined on a pad or a via is joined rather than bent, and so is copper the route
 branches off, so neither ties down which way the next segment leaves.
 
 Clicking picks up the one segment under the pointer, and a rubber band takes
-every segment that fits inside it whole. Hold `⌘` to take the run instead — the
+every segment that fits inside it whole. Where objects overlap, clicks prefer
+traces, then vias, holes and footprints. Hold `⌘` to take the run instead — the
 chain of segments joined end to end on one layer, up to wherever the copper
 branches or lands on a pad or via. A run selects, moves and deletes as one
 object, and a `⌘` band that covers only part of one takes none of it.
+
+Select a footprint first, then click one of its pads to inspect that pad.
+Box selection selects whole objects and never individual pads. The inspector
+shows a pad's number, dimensions, layer, position and net as read-only values.
+Assign pad nets with net labels in the schematic and **Update board from schematic**
+(`⌘U`); layout net assignment applies only to traces and vias. Choose **Select footprint**
+in the inspector to move or edit the whole part. Pads inside imported modules
+select the locked module instance.
 
 A click is still a click when the hand is not quite still. The pointer has to
 travel a few points across the screen before a press counts as a drag, so a

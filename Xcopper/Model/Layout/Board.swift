@@ -206,6 +206,9 @@ extension Board {
 			switch ref {
 			case let .trace(index): traces.indices.contains(index) ? traces[index].net : nil
 			case let .via(index): vias.indices.contains(index) ? vias[index].net : nil
+			case let .pad(index, pad):
+				footprints.indices.contains(index) && footprints[index].pads.indices.contains(pad)
+					? footprints[index].pads[pad].net : nil
 			case .hole, .footprint, .module: nil
 			}
 		}
@@ -215,11 +218,7 @@ extension Board {
 				if traces.indices.contains(index) { traces[index].net = newValue }
 			case let .via(index):
 				if vias.indices.contains(index) { vias[index].net = newValue }
-			case let .footprint(index):
-				if footprints.indices.contains(index) {
-					footprints[index].pads.modifyEach { pad in pad.net = newValue }
-				}
-			case .hole, .module:
+			case .pad, .footprint, .hole, .module:
 				break
 			}
 		}
@@ -357,6 +356,7 @@ extension Ref {
 	var index: Int {
 		switch self {
 		case .module: Int.max
+		case let .pad(index, _): index
 		case let .trace(index), let .via(index), let .hole(index), let .footprint(index): index
 		}
 	}
