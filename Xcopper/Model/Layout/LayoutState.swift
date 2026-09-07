@@ -69,7 +69,7 @@ extension Nm {
 	}
 }
 
-struct LayoutState: Equatable {
+struct LayoutState: Equatable, SelectionState {
 	var tool: Tool = .select {
 		didSet {
 			guard tool != oldValue else { return }
@@ -97,11 +97,6 @@ extension LayoutState {
 		moveSession = nil
 	}
 
-	mutating func resetTransientInteractions() {
-		selection = []
-		cancelSessions()
-	}
-
 	mutating func prevLayer(_ stack: Stack) {
 		step(stack, by: -1)
 	}
@@ -122,28 +117,6 @@ extension LayoutState {
 }
 
 extension LayoutState {
-
-	mutating func beginSelect(at point: Point, mode: SelectionMode) {
-		guard selectSession == nil else { return }
-		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
-	}
-
-	mutating func updateSelect(to point: Point) {
-		guard var session = selectSession, session.end != point else { return }
-		session.end = point
-		selectSession = session
-	}
-
-	mutating func beginMove(at point: Point) {
-		guard moveSession == nil else { return }
-		moveSession = MoveSession(start: point, end: point)
-	}
-
-	mutating func updateMove(to point: Point) {
-		guard var session = moveSession, session.end != point else { return }
-		session.end = point
-		moveSession = session
-	}
 
 	mutating func beginTrace(at point: Point) {
 		if let session = traceSession, session.phase == .pending {

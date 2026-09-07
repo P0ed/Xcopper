@@ -1,5 +1,23 @@
 import SwiftUI
 
+@MainActor
+extension UndoManager {
+	func undoGroup(_ name: String, _ action: () -> Void) {
+		beginUndoGrouping()
+		defer { endUndoGrouping() }
+		action()
+		setActionName(name)
+	}
+}
+
+@MainActor
+extension UndoManager? {
+	func undoGroup(_ name: String, _ action: () -> Void) {
+		if let self { self.undoGroup(name, action) }
+		else { action() }
+	}
+}
+
 extension Figure {
 
 	func path(_ scale: CGFloat, origin: CGPoint) -> Path {

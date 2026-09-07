@@ -32,7 +32,7 @@ extension SchematicTool {
 	}
 }
 
-struct SchematicState: Equatable {
+struct SchematicState: Equatable, SelectionState {
 	var tool: SchematicTool = .select {
 		didSet {
 			guard tool != oldValue else { return }
@@ -56,33 +56,6 @@ extension SchematicState {
 		wireSession = nil
 		selectSession = nil
 		moveSession = nil
-	}
-
-	mutating func resetTransientInteractions() {
-		selection = []
-		cancelSessions()
-	}
-
-	mutating func beginSelect(at point: Point, mode: SelectionMode) {
-		guard selectSession == nil else { return }
-		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
-	}
-
-	mutating func updateSelect(to point: Point) {
-		guard var session = selectSession, session.end != point else { return }
-		session.end = point
-		selectSession = session
-	}
-
-	mutating func beginMove(at point: Point) {
-		guard moveSession == nil else { return }
-		moveSession = MoveSession(start: point, end: point)
-	}
-
-	mutating func updateMove(to point: Point) {
-		guard var session = moveSession, session.end != point else { return }
-		session.end = point
-		moveSession = session
 	}
 
 	mutating func beginWire(at point: Point) {

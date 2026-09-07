@@ -1,11 +1,6 @@
 import Foundation
 
-func id<A>(_ x: A) -> A { x }
 func ø<each A>(_ x: repeat each A) {}
-
-func modify<A>(_ value: inout A, _ transform: (inout A) -> Void) {
-	transform(&value)
-}
 
 func modifying<A>(_ value: A, _ transform: (inout A) -> Void) -> A {
 	var value = value
@@ -80,13 +75,14 @@ struct UnionFind<Element: Hashable> {
 	private var parent: [Element: Element] = [:]
 
 	mutating func find(_ element: Element) -> Element {
-		guard let up = parent[element] else {
-			parent[element] = element
-			return element
+		var root = element
+		while let up = parent[root], up != root { root = up }
+		parent[root] = root
+		var walk = element
+		while let up = parent[walk], up != root {
+			parent[walk] = root
+			walk = up
 		}
-		guard up != element else { return element }
-		let root = find(up)
-		parent[element] = root
 		return root
 	}
 

@@ -345,6 +345,17 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(SelectionMode(shift: false, option: false), .replace)
 	}
 
+	func testConnectivityResolvesLongChainsAndKeepsSeparateIslands() {
+		var connections = UnionFind<Int>()
+		for index in 0 ..< 50_000 { connections.union(index, index + 1) }
+		XCTAssertEqual(connections.find(0), connections.find(50_000))
+		XCTAssertEqual(connections.find(25_000), connections.find(0))
+		connections.union(-1, -2)
+		XCTAssertNotEqual(connections.find(-1), connections.find(0))
+		connections.union(-2, 0)
+		XCTAssertEqual(connections.find(-1), connections.find(50_000))
+	}
+
 	func testAWanderingClickNeitherBandsNorMovesAtAnyMagnification() {
 		let press = CGPoint(x: 120.0, y: 90.0)
 		let wobble = CGPoint(x: 122.0, y: 92.0)

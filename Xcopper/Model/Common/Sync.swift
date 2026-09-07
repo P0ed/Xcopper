@@ -84,7 +84,7 @@ extension Design {
 					.filter { $0.name == number }
 					.compactMap { $0.net.flatMap { id in netNames[id] } }
 			}
-			let existingName = existingNames.sorted().first { $0.hasPrefix("N$") && !usedNames.contains($0) }
+			let existingName = existingNames.filter { $0.hasPrefix("N$") && !usedNames.contains($0) }.min()
 			let name = group.name ?? existingName ?? unusedName("N$\(pins.joined(separator: "/"))", in: usedNames)
 			usedNames.insert(name)
 			let (id, created) = net(named: name)

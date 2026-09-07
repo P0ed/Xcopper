@@ -19,6 +19,55 @@ final class SelectionEditingTests: XCTestCase {
 		return design
 	}
 
+	func testBothEditorsFinishSelectionAndMovementAtTheReleasePosition() throws {
+		func check<State: SelectionState>(_ initial: State, ref: State.SelectionRef) throws {
+			var state = initial
+			state.selection = [ref]
+			state.beginSelect(at: .zero, mode: .union)
+			state.updateSelect(to: point(2, 2))
+			state.beginSelect(at: point(2, 2), mode: .replace)
+			let selection = try XCTUnwrap(state.endSelect(at: point(4, 4)))
+			XCTAssertEqual(selection.rect, Rect(from: .zero, to: point(4, 4)))
+			XCTAssertEqual(selection.initial, [ref])
+			XCTAssertEqual(selection.mode, .union)
+			XCTAssertNil(state.selectSession)
+			XCTAssertNil(state.endSelect(at: .zero))
+
+			state.beginMove(at: .zero)
+			state.updateMove(to: point(2, 2))
+			let move = try XCTUnwrap(state.endMove(at: point(4, 4)))
+			XCTAssertEqual(move.delta, point(4, 4))
+			XCTAssertNil(state.moveSession)
+			XCTAssertNil(state.endMove(at: .zero))
+
+			state.beginMove(at: .zero)
+			state.updateMove(to: point(2, 2))
+			XCTAssertFalse(try XCTUnwrap(state.endMove(at: .zero)).didMove)
+		}
+
+		try check(LayoutState(), ref: .via(0))
+		try check(SchematicState(), ref: .symbol(0))
+	}
+
+	func testUndoGroupRunsWithoutAManagerAndCombinesEditsWhenOneIsPresent() {
+		var invoked = false
+		let manager: UndoManager? = nil
+		manager.undoGroup("Edit") { invoked = true }
+		XCTAssertTrue(invoked)
+
+		let original = design()
+		let harness = EditorHarness(design: original)
+		harness.undo.undoGroup("Edit") {
+			harness.operations.design.setValue([Schematic.Ref.symbol(0)], to: "4K7")
+			harness.operations.design.setValue([Schematic.Ref.symbol(1)], to: "10K")
+		}
+		XCTAssertEqual(harness.undo.undoActionName, "Edit")
+		XCTAssertEqual(harness.undo.groupingLevel, 0)
+		harness.undo.undo()
+		XCTAssertEqual(harness.design, original)
+		XCTAssertFalse(harness.undo.canUndo)
+	}
+
 	func testOnlyASelectionOfOneKindGroupsForBulkEditing() {
 		XCTAssertEqual(Set<Ref>([.trace(2), .trace(0)]).group?.indices, [0, 2])
 		XCTAssertEqual(Set<Ref>([.trace(2), .trace(0)]).group?.kind, .trace)

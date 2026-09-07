@@ -16,30 +16,6 @@ private struct Terminal {
 	var net: Net.ID
 }
 
-private struct Merge {
-	private var parent: [Int]
-
-	init(count: Int) { parent = Array(0 ..< count) }
-
-	mutating func find(_ index: Int) -> Int {
-		var root = index
-		while parent[root] != root { root = parent[root] }
-		var walk = index
-		while parent[walk] != root {
-			let next = parent[walk]
-			parent[walk] = root
-			walk = next
-		}
-		return root
-	}
-
-	mutating func union(_ a: Int, _ b: Int) {
-		let (ra, rb) = (find(a), find(b))
-		guard ra != rb else { return }
-		parent[ra] = rb
-	}
-}
-
 extension Board {
 
 	private var terminals: [Terminal] {
@@ -64,8 +40,8 @@ extension Board {
 		return result
 	}
 
-	private func merged(_ terminals: [Terminal], planes: [Net.ID?]) -> Merge {
-		var merge = Merge(count: terminals.count + traces.count + planes.count)
+	private func merged(_ terminals: [Terminal], planes: [Net.ID?]) -> UnionFind<Int> {
+		var merge = UnionFind<Int>()
 
 		for (layer, plane) in planes.enumerated() {
 			guard let plane else { continue }

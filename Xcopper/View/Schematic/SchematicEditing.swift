@@ -53,13 +53,13 @@ extension SchematicView {
 					state.updateWire(to: wireEnd(current))
 					if let wires = state.endWire(), let end = wires.last?.end {
 						let landed = design.resolved.schematic.isConnection(end)
-						undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(contentsOf: wires) }
+						undoManager.undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(contentsOf: wires) }
 						if landed { state.tool = .select }
 					}
 				case .label:
-					undoGroup(SchematicTool.label.actionName) { placeLabel(at: current) }
+					undoManager.undoGroup(SchematicTool.label.actionName) { placeLabel(at: current) }
 				case .symbol:
-					undoGroup(SchematicTool.symbol.actionName) { placeSymbol(at: current) }
+					undoManager.undoGroup(SchematicTool.symbol.actionName) { placeSymbol(at: current) }
 				}
 			}
 	}
@@ -85,13 +85,6 @@ private extension SchematicView {
 			shift: modifierFlags.contains(.shift),
 			option: modifierFlags.contains(.option)
 		)
-	}
-
-	func undoGroup(_ name: String, _ body: () -> Void = {}) {
-		undoManager?.beginUndoGrouping()
-		body()
-		undoManager?.setActionName(name)
-		undoManager?.endUndoGrouping()
 	}
 
 	func wireEnd(_ point: Point) -> Point {
@@ -122,28 +115,25 @@ private extension SchematicView {
 	}
 
 	func endSelection(from start: Point, to current: Point) {
-		if let session = state.moveSession {
+		if let session = state.endMove(at: current.snapped(to: state.snap)) {
 			if session.didMove {
 				var moved = design
 				if let selection = moved.moveSchematic(state.selection, by: session.delta, grid: state.snap) {
-					undoGroup("Move") {
+					undoManager.undoGroup("Move") {
 						design = moved
 						state.selection = selection
 					}
 				}
 			}
-			state.moveSession = nil
 			return
 		}
-		guard let session = state.selectSession else { return }
-		state.updateSelect(to: current)
+		guard let session = state.endSelect(at: current) else { return }
 
 		let hit: Set<Schematic.Ref> = session.didDrag
 			? design.schematicRefs(in: session.rect, whole: picksRun)
 			: design.schematicRefs(at: start, tolerance: hitTolerance, whole: picksRun)
 
 		state.selection = session.mode.apply(session.initial, hit)
-		state.selectSession = nil
 	}
 
 	func editLabel(at point: Point) {

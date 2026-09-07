@@ -47,15 +47,15 @@ extension LayoutView {
 					state.updateTrace(to: routeEnd(current))
 					if let trace = state.endTrace() {
 						let landed = design.resolved.board.isConnection(trace.end, layer: trace.layer)
-						undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
+						undoManager.undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
 						if landed { state.tool = .select }
 					}
 				case .via:
-					undoGroup(Tool.via.actionName) { placeVia(at: current) }
+					undoManager.undoGroup(Tool.via.actionName) { placeVia(at: current) }
 				case .hole:
-					undoGroup(Tool.hole.actionName) { placeHole(at: current) }
+					undoManager.undoGroup(Tool.hole.actionName) { placeHole(at: current) }
 				case .footprint:
-					undoGroup(Tool.footprint.actionName) { placeFootprint(at: current) }
+					undoManager.undoGroup(Tool.footprint.actionName) { placeFootprint(at: current) }
 				}
 			}
 	}
@@ -82,13 +82,6 @@ private extension LayoutView {
 	}
 
 	var picksRun: Bool { modifierFlags.contains(.command) }
-
-	func undoGroup(_ name: String, _ body: () -> Void = {}) {
-		undoManager?.beginUndoGrouping()
-		body()
-		undoManager?.setActionName(name)
-		undoManager?.endUndoGrouping()
-	}
 
 	func routeStart(_ point: Point) -> Point {
 		let (snapped, net) = snapped(point, layer: state.layer)
@@ -127,11 +120,11 @@ private extension LayoutView {
 	}
 
 	func endSelection(from start: Point, to current: Point) {
-		if let session = state.moveSession {
+		if let session = state.endMove(at: current.snapped(to: state.snap)) {
 			if session.didMove {
 				var moved = design
 				if let selection = moved.moveLayout(state.selection, by: session.delta, grid: state.snap) {
-					undoGroup("Move") {
+					undoManager.undoGroup("Move") {
 						design = moved
 						state.selection = selection
 					}
@@ -140,11 +133,9 @@ private extension LayoutView {
 				let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, selection: state.selection)
 				if hit.containsPads { state.selection = selectionMode.apply(state.selection, hit) }
 			}
-			state.moveSession = nil
 			return
 		}
-		guard let session = state.selectSession else { return }
-		state.updateSelect(to: current)
+		guard let session = state.endSelect(at: current) else { return }
 
 		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
@@ -152,7 +143,6 @@ private extension LayoutView {
 			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole, selection: session.initial)
 
 		state.selection = session.mode.apply(session.initial, hit)
-		state.selectSession = nil
 	}
 
 	func placeVia(at point: Point) {

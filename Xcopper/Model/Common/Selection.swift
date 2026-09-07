@@ -32,6 +32,52 @@ struct MoveSession: Equatable {
 	var didMove: Bool { start != end }
 }
 
+protocol SelectionState {
+	associatedtype SelectionRef: Hashable
+	var selection: Set<SelectionRef> { get set }
+	var selectSession: SelectSession<SelectionRef>? { get set }
+	var moveSession: MoveSession? { get set }
+	mutating func cancelSessions()
+}
+
+extension SelectionState {
+
+	mutating func resetTransientInteractions() {
+		selection = []
+		cancelSessions()
+	}
+
+	mutating func beginSelect(at point: Point, mode: SelectionMode) {
+		guard selectSession == nil else { return }
+		selectSession = SelectSession(start: point, end: point, mode: mode, initial: selection)
+	}
+
+	mutating func updateSelect(to point: Point) {
+		selectSession?.end = point
+	}
+
+	mutating func endSelect(at point: Point) -> SelectSession<SelectionRef>? {
+		defer { selectSession = nil }
+		updateSelect(to: point)
+		return selectSession
+	}
+
+	mutating func beginMove(at point: Point) {
+		guard moveSession == nil else { return }
+		moveSession = MoveSession(start: point, end: point)
+	}
+
+	mutating func updateMove(to point: Point) {
+		moveSession?.end = point
+	}
+
+	mutating func endMove(at point: Point) -> MoveSession? {
+		defer { moveSession = nil }
+		updateMove(to: point)
+		return moveSession
+	}
+}
+
 enum RoutePhase: Equatable {
 	case pending
 	case gesture(committable: Bool)
