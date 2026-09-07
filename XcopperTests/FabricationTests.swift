@@ -151,7 +151,7 @@ final class FabricationTests: XCTestCase {
 	}
 
 	func testThePlaneRegionStopsOneClearanceShortOfTheBoardEdge() {
-		var design = design()
+		let design = design()
 		let inset = Int(design.board.rules.clearance)
 		let text = file(design, ".G1")
 

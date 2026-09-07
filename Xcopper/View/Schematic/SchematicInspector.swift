@@ -91,10 +91,10 @@ struct SymbolInspector: View {
 			property: .value,
 			focus: $focus
 		)
-		RotationChoice(rotation: $symbol.rotation.optional)
-		ChoiceRow(title: "Facing", value: $symbol.mirrored.optional) {
-			Text("Normal").tag(Bool?.some(false))
-			Text("Mirrored").tag(Bool?.some(true))
+		RotationChoice(rotation: Binding($symbol.rotation))
+		ChoiceRow(title: "Facing", value: $symbol.mirrored) {
+			Text("Normal").tag(false)
+			Text("Mirrored").tag(true)
 		}
 		PositionRows(at: $symbol.at, focus: $focus)
 		ValueRow(title: "Pins", value: "\(symbol.pins.count)")

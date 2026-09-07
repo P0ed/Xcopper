@@ -106,13 +106,13 @@ struct TraceInspector: View {
 		ValueRow(title: "Object", value: "Trace")
 		LengthRow(
 			title: "Width",
-			value: $trace.width.optional,
+			value: Binding($trace.width),
 			range: 0.01 ... 50.0,
 			property: .width,
 			focus: $focus
 		)
-		LayerChoice(title: "Layer", layer: $trace.layer.optional, stack: stack)
-		NetChoice(net: $trace.net.optional, nets: nets)
+		LayerChoice(title: "Layer", layer: Binding($trace.layer), stack: stack)
+		NetChoice(net: Binding($trace.net), nets: nets)
 		ValueRow(title: "Length", value: millimeters(length(from: trace.start, to: trace.end)))
 	}
 }
@@ -155,21 +155,21 @@ struct ViaInspector: View {
 		ValueRow(title: "Object", value: "Via")
 		LengthRow(
 			title: "Drill",
-			value: $via.drill.optional,
+			value: Binding($via.drill),
 			range: 0.01 ... 20.0,
 			property: .drill,
 			focus: $focus
 		)
 		LengthRow(
 			title: "Pad",
-			value: $via.pad.optional,
+			value: Binding($via.pad),
 			range: 0.01 ... 20.0,
 			property: .pad,
 			focus: $focus
 		)
-		LayerChoice(title: "From", layer: $via.from.optional, stack: stack)
-		LayerChoice(title: "To", layer: $via.to.optional, stack: stack)
-		NetChoice(net: $via.net.optional, nets: nets)
+		LayerChoice(title: "From", layer: Binding($via.from), stack: stack)
+		LayerChoice(title: "To", layer: Binding($via.to), stack: stack)
+		NetChoice(net: Binding($via.net), nets: nets)
 		PositionRows(at: $via.at, focus: $focus)
 	}
 }
@@ -214,7 +214,7 @@ struct HoleInspector: View {
 		ValueRow(title: "Object", value: "Hole")
 		LengthRow(
 			title: "Drill",
-			value: $hole.diameter.optional,
+			value: Binding($hole.diameter),
 			range: 0.01 ... 50.0,
 			property: .diameter,
 			focus: $focus
@@ -262,11 +262,11 @@ struct FootprintInspector: View {
 			focus: $focus
 		)
 		TextRow(title: "Value", text: $value, property: .value, focus: $focus)
-		ChoiceRow(title: "Side", value: $footprint.flipped.optional) {
-			Text(stack.name(of: stack.top)).tag(Bool?.some(false))
-			Text(stack.name(of: stack.bottom)).tag(Bool?.some(true))
+		ChoiceRow(title: "Side", value: $footprint.flipped) {
+			Text(stack.name(of: stack.top)).tag(false)
+			Text(stack.name(of: stack.bottom)).tag(true)
 		}
-		RotationChoice(rotation: $footprint.rotation.optional)
+		RotationChoice(rotation: Binding($footprint.rotation))
 		PositionRows(at: $footprint.at, focus: $focus)
 		ValueRow(title: "Pads", value: "\(footprint.pads.count)")
 		ToggleRow(title: "BOM", label: "Include", value: $footprint.inBOM)

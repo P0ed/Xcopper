@@ -77,20 +77,10 @@ extension Binding {
 			}
 		)
 	}
-}
-
-extension Binding {
-
-	var optional: Binding<Value?> {
-		Binding<Value?>(
-			get: { wrappedValue },
-			set: { value in if let value { wrappedValue = value } }
-		)
-	}
 
 	func shared<Element: Sendable, Field: Equatable & Sendable>(
 		_ indices: [Int],
-		_ field: WritableKeyPath<Element, Field>
+		_ field: WritableKeyPath<Element, Field> & Sendable
 	) -> Binding<Field?> where Value == [Element] {
 		Binding<Field?>(
 			get: {
