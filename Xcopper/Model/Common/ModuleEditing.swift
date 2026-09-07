@@ -1,21 +1,17 @@
 import SwiftUI
 
 extension Design {
-	func moduleReferenceIsValid(_ value: String, ignoring id: UUID? = nil) -> Bool {
+	func referenceIsFree(_ value: String, ignoring id: UUID? = nil) -> Bool {
 		!value.trimmingWhitespace.isEmpty
 			&& !modules.contains { $0.id != id && $0.reference == value }
 			&& !board.footprints.contains { $0.reference == value }
 			&& !schematic.symbols.contains { $0.reference == value }
 	}
 
-	func referenceIsFree(_ value: String) -> Bool {
-		!value.trimmingWhitespace.isEmpty && !usedReferences.contains(value)
-	}
-
 	mutating func renameReference(_ ref: Ref, to value: String) {
 		switch ref {
 		case let .module(id):
-			guard let index = modules.firstIndex(where: { $0.id == id }), moduleReferenceIsValid(value, ignoring: id)
+			guard let index = modules.firstIndex(where: { $0.id == id }), referenceIsFree(value, ignoring: id)
 			else { return }
 			modules[index].reference = value
 		case let .footprint(index) where board.footprints.indices.contains(index):
@@ -108,9 +104,11 @@ extension Design {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		let created = board.duplicate(refs, by: delta)
 		var taken = schematic.occupied
+		var used = usedReferences
 		for case let .footprint(index) in created.sorted(by: Ref.order) {
 			let source = board.footprints[index].reference
-			let reference = nextReference(like: source)
+			let reference = Xcopper.nextReference(like: source, used: used)
+			used.insert(reference)
 			board.footprints[index].reference = reference
 			park(symbol(of: source), as: reference, clear: &taken)
 		}
@@ -121,9 +119,11 @@ extension Design {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		let created = schematic.duplicate(refs, by: delta)
 		var taken = board.occupied
+		var used = usedReferences
 		for case let .symbol(index) in created.sorted(by: Schematic.Ref.order) {
 			let source = schematic.symbols[index].reference
-			let reference = nextReference(like: source)
+			let reference = Xcopper.nextReference(like: source, used: used)
+			used.insert(reference)
 			schematic.symbols[index].reference = reference
 			park(footprint(of: source), as: reference, clear: &taken)
 		}
@@ -291,8 +291,6 @@ extension Binding where Value == Design {
 	func reference(of ref: Schematic.Ref) -> Binding<String> {
 		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
 	}
-
-	func value(of ref: Schematic.Ref) -> Binding<String?> { value(of: [ref]) }
 
 	func value(of ref: Ref) -> Binding<String?> { value(of: [ref]) }
 

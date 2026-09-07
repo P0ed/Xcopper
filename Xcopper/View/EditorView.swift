@@ -93,13 +93,11 @@ struct EditorView: View {
 			LayoutToolBar(
 				stack: design.board.stack,
 				state: $layout,
-				sheet: $editor.sheet,
 				shortcuts: editor.editing == nil
 			)
 		case .schematic:
 			SchematicToolBar(
 				state: $schematic,
-				sheet: $editor.sheet,
 				shortcuts: editor.editing == nil
 			)
 		case .preview:
@@ -129,7 +127,9 @@ struct EditorView: View {
 		case .label:
 			LabelDialog(text: $schematic.label) { schematic.tool = .label }
 		case .find:
-			FindDialog(query: $editor.query) { query in operations.find(query) }
+			PromptDialog(action: "Find", prompt: "Reference or value", text: $editor.query) { query in
+				operations.find(query)
+			}
 		}
 	}
 }

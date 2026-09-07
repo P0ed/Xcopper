@@ -183,10 +183,6 @@ extension Board {
 
 extension Board {
 
-	func parking(for footprint: Footprint) -> Point {
-		parking(for: footprint, clear: occupied)
-	}
-
 	func parking(for footprint: Footprint, clear taken: [Rect]) -> Point {
 		Xcopper.parking(footprint.placedExtent, in: bounds, clear: taken)
 	}
@@ -201,14 +197,19 @@ extension Board {
 
 extension Board {
 
+	func placedPad(_ ref: Ref) -> (footprint: Footprint, pad: Pad)? {
+		guard case let .pad(index, pad) = ref, footprints.indices.contains(index),
+			footprints[index].pads.indices.contains(pad)
+		else { return nil }
+		return (footprints[index], footprints[index].placedPads[pad])
+	}
+
 	subscript(net ref: Ref) -> Net.ID? {
 		get {
 			switch ref {
 			case let .trace(index): traces.indices.contains(index) ? traces[index].net : nil
 			case let .via(index): vias.indices.contains(index) ? vias[index].net : nil
-			case let .pad(index, pad):
-				footprints.indices.contains(index) && footprints[index].pads.indices.contains(pad)
-					? footprints[index].pads[pad].net : nil
+			case .pad: placedPad(ref)?.pad.net
 			case .hole, .footprint, .module: nil
 			}
 		}

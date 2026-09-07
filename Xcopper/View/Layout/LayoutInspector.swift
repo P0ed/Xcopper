@@ -5,16 +5,16 @@ struct LayoutInspector: View {
 	@Binding var design: Design
 	var selection: Set<Ref>
 	@FocusState.Binding var focus: Property?
-	var selectFootprint: ((Int) -> Void)? = nil
+	var selectFootprint: (Int) -> Void
 
 	private var board: Board { design.board }
 
 	var body: some View {
-		if selection.count == 1, let ref = selection.first {
+		if selection.count == 1, let ref = selection.first, ref.kind == .module || ref.kind == .pad {
 			properties(of: ref)
 		} else if !selection.isEmpty, selection.allSatisfy({ $0.kind == .pad }) {
 			PadsInspector(design: design, refs: selection)
-		} else if selection.count > 1, let group = selection.group {
+		} else if let group = selection.group {
 			properties(of: group.kind, group.indices)
 		} else {
 			Text(selection.isEmpty ? "Nothing selected" : "\(selection.count) objects selected")
@@ -28,40 +28,10 @@ struct LayoutInspector: View {
 		switch ref {
 		case let .module(id):
 			ModuleInspector(design: $design, id: id, layout: true, focus: $focus)
-		case let .trace(index) where board.traces.indices.contains(index):
-			TraceInspector(
-				trace: $design.board.traces[index, or: board.traces[index]],
-				nets: design.nets,
-				stack: board.stack,
-				focus: $focus
-			)
-		case let .via(index) where board.vias.indices.contains(index):
-			ViaInspector(
-				via: $design.board.vias[index, or: board.vias[index]],
-				nets: design.nets,
-				stack: board.stack,
-				focus: $focus
-			)
-		case let .hole(index) where board.holes.indices.contains(index):
-			HoleInspector(
-				hole: $design.board.holes[index, or: board.holes[index]],
-				focus: $focus
-			)
-		case let .pad(index, pad) where board.footprints.indices.contains(index)
-			&& board.footprints[index].pads.indices.contains(pad):
+		case let .pad(index, _) where board.placedPad(ref) != nil:
 			PadsInspector(design: design, refs: [ref])
-			if let selectFootprint {
-				Button("Select footprint") { selectFootprint(index) }
-					.buttonStyle(.borderless)
-			}
-		case let .footprint(index) where board.footprints.indices.contains(index):
-			FootprintInspector(
-				footprint: $design.board.footprints[index, or: board.footprints[index]],
-				reference: $design.reference(of: Ref.footprint(index)),
-				value: $design.value(of: Ref.footprint(index)).orEmpty,
-				stack: board.stack,
-				focus: $focus
-			)
+			Button("Select footprint") { selectFootprint(index) }
+				.buttonStyle(.borderless)
 		default:
 			EmptyView()
 		}
@@ -93,14 +63,24 @@ struct LayoutInspector: View {
 				focus: $focus
 			)
 		case .footprint:
-			FootprintsInspector(
-				design: $design,
-				indices: indices.filter { board.footprints.indices.contains($0) },
+			footprints(indices.filter { board.footprints.indices.contains($0) })
+		case .module, .pad:
+			EmptyView()
+		}
+	}
+
+	@ViewBuilder
+	private func footprints(_ indices: [Int]) -> some View {
+		if indices.count == 1, let index = indices.first {
+			FootprintInspector(
+				footprint: $design.board.footprints[index, or: board.footprints[index]],
+				reference: $design.reference(of: Ref.footprint(index)),
+				value: $design.value(of: Ref.footprint(index)).orEmpty,
 				stack: board.stack,
 				focus: $focus
 			)
-		case .module, .pad:
-			EmptyView()
+		} else {
+			FootprintsInspector(design: $design, indices: indices, stack: board.stack, focus: $focus)
 		}
 	}
 }
@@ -111,11 +91,7 @@ struct PadsInspector: View {
 	var refs: Set<Ref>
 
 	private var validRefs: [Ref] {
-		refs.filter { ref in
-			guard case let .pad(index, pad) = ref else { return false }
-			return design.board.footprints.indices.contains(index)
-				&& design.board.footprints[index].pads.indices.contains(pad)
-		}
+		refs.filter { design.board.placedPad($0) != nil }
 	}
 
 	private var netName: String {
@@ -125,44 +101,20 @@ struct PadsInspector: View {
 
 	var body: some View {
 		ValueRow(title: "Object", value: refs.count == 1 ? "Pad" : "Pads")
-		if validRefs.count == 1, case let .pad(index, padIndex) = validRefs[0] {
-			let footprint = design.board.footprints[index]
-			let pad = footprint.placedPads[padIndex]
+		if validRefs.count == 1, let (footprint, pad) = design.board.placedPad(validRefs[0]) {
 			ValueRow(title: "Ref", value: footprint.reference)
 			ValueRow(title: "Pad", value: pad.name)
 			ValueRow(title: "Shape", value: pad.shape == .rect ? "Rectangle" : "Oval")
-			ValueRow(title: "Width", value: millimeters(Double(pad.size.width).mm))
-			ValueRow(title: "Height", value: millimeters(Double(pad.size.height).mm))
+			ValueRow(title: "Width", value: millimeters(pad.size.width.mm))
+			ValueRow(title: "Height", value: millimeters(pad.size.height.mm))
 			if pad.isThrough { ValueRow(title: "Drill", value: millimeters(pad.drill.mm)) }
 			ValueRow(title: "Layer", value: pad.isThrough ? "Through hole" : design.board.stack.name(of: footprint.layer(of: pad, in: design.board.stack)))
-			ValueRow(title: "X", value: millimeters(Double(pad.at.x).mm))
-			ValueRow(title: "Y", value: millimeters(Double(pad.at.y).mm))
+			ValueRow(title: "X", value: millimeters(pad.at.x.mm))
+			ValueRow(title: "Y", value: millimeters(pad.at.y.mm))
 		} else {
 			ValueRow(title: "Count", value: "\(validRefs.count)")
 		}
 		ValueRow(title: "Net", value: netName)
-	}
-}
-
-@MainActor
-struct TraceInspector: View {
-	@Binding var trace: Trace
-	var nets: [Net]
-	var stack: Stack
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Trace")
-		LengthRow(
-			title: "Width",
-			value: Binding($trace.width),
-			range: 0.01 ... 50.0,
-			property: .width,
-			focus: $focus
-		)
-		LayerChoice(title: "Layer", layer: Binding($trace.layer), stack: stack)
-		NetChoice(net: Binding($trace.net), nets: nets)
-		ValueRow(title: "Length", value: millimeters(length(from: trace.start, to: trace.end)))
 	}
 }
 
@@ -175,8 +127,8 @@ struct TracesInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		ValueRow(title: "Object", value: "Traces")
-		ValueRow(title: "Count", value: "\(indices.count)")
+		ValueRow(title: "Object", value: indices.count == 1 ? "Trace" : "Traces")
+		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
 		LengthRow(
 			title: "Width",
 			value: $traces.shared(indices, \.width),
@@ -194,36 +146,6 @@ struct TracesInspector: View {
 }
 
 @MainActor
-struct ViaInspector: View {
-	@Binding var via: Via
-	var nets: [Net]
-	var stack: Stack
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Via")
-		LengthRow(
-			title: "Drill",
-			value: Binding($via.drill),
-			range: 0.01 ... 20.0,
-			property: .drill,
-			focus: $focus
-		)
-		LengthRow(
-			title: "Pad",
-			value: Binding($via.pad),
-			range: 0.01 ... 20.0,
-			property: .pad,
-			focus: $focus
-		)
-		LayerChoice(title: "From", layer: Binding($via.from), stack: stack)
-		LayerChoice(title: "To", layer: Binding($via.to), stack: stack)
-		NetChoice(net: Binding($via.net), nets: nets)
-		PositionRows(at: $via.at, focus: $focus)
-	}
-}
-
-@MainActor
 struct ViasInspector: View {
 	@Binding var vias: [Via]
 	var indices: [Int]
@@ -232,8 +154,8 @@ struct ViasInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		ValueRow(title: "Object", value: "Vias")
-		ValueRow(title: "Count", value: "\(indices.count)")
+		ValueRow(title: "Object", value: indices.count == 1 ? "Via" : "Vias")
+		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
 		LengthRow(
 			title: "Drill",
 			value: $vias.shared(indices, \.drill),
@@ -251,24 +173,9 @@ struct ViasInspector: View {
 		LayerChoice(title: "From", layer: $vias.shared(indices, \.from), stack: stack)
 		LayerChoice(title: "To", layer: $vias.shared(indices, \.to), stack: stack)
 		NetChoice(net: $vias.shared(indices, \.net), nets: nets)
-	}
-}
-
-@MainActor
-struct HoleInspector: View {
-	@Binding var hole: Hole
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Hole")
-		LengthRow(
-			title: "Drill",
-			value: Binding($hole.diameter),
-			range: 0.01 ... 50.0,
-			property: .diameter,
-			focus: $focus
-		)
-		PositionRows(at: $hole.at, focus: $focus)
+		if indices.count == 1, let index = indices.first {
+			PositionRows(at: $vias[index, or: vias[index]].at, focus: $focus)
+		}
 	}
 }
 
@@ -279,8 +186,8 @@ struct HolesInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		ValueRow(title: "Object", value: "Holes")
-		ValueRow(title: "Count", value: "\(indices.count)")
+		ValueRow(title: "Object", value: indices.count == 1 ? "Hole" : "Holes")
+		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
 		LengthRow(
 			title: "Drill",
 			value: $holes.shared(indices, \.diameter),
@@ -288,6 +195,9 @@ struct HolesInspector: View {
 			property: .diameter,
 			focus: $focus
 		)
+		if indices.count == 1, let index = indices.first {
+			PositionRows(at: $holes[index, or: holes[index]].at, focus: $focus)
+		}
 	}
 }
 

@@ -143,8 +143,7 @@ extension Schematic {
 
 	private mutating func migratePowerLabels(_ converted: [NetLabel]) {
 		guard !converted.isEmpty else { return }
-		var electrical = self
-		electrical.labels = labels.map { NetLabel(at: $0.at, text: $0.ioName == nil ? $0.text : "") }
+		var electrical = electrical
 		electrical.labels += converted.map { NetLabel(at: $0.at, text: "") }
 		let netlist = Netlist(electrical)
 		labels += converted.map { NetLabel(at: $0.at, text: netlist.name(at: $0.at) ?? $0.text) }

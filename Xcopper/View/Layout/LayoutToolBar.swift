@@ -4,7 +4,6 @@ import SwiftUI
 struct LayoutToolBar: ToolbarContent {
 	var stack: Stack
 	@Binding var state: LayoutState
-	@Binding var sheet: Sheet?
 	var shortcuts: Bool = true
 
 	var body: some ToolbarContent {

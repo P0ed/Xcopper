@@ -30,20 +30,32 @@ struct Dialog<Content: View>: View {
 }
 
 @MainActor
+struct PromptDialog: View {
+	var action: String
+	var prompt: String
+	@Binding var text: String
+	var confirm: (String) -> Void
+
+	var body: some View {
+		Dialog(
+			action: action,
+			isValid: !text.trimmingWhitespace.isEmpty,
+			confirm: { confirm(text.trimmingWhitespace) }
+		) {
+			TextField(prompt, text: $text)
+				.frame(width: 180.0)
+		}
+	}
+}
+
+@MainActor
 struct NetDialog: View {
 	var confirm: (String) -> Void
 
 	@State var name: String = ""
 
 	var body: some View {
-		Dialog(
-			action: "Add",
-			isValid: !name.trimmingWhitespace.isEmpty,
-			confirm: { confirm(name.trimmingWhitespace) }
-		) {
-			TextField("Net name", text: $name)
-				.frame(width: 180.0)
-		}
+		PromptDialog(action: "Add", prompt: "Net name", text: $name, confirm: confirm)
 	}
 }
 
@@ -55,35 +67,11 @@ struct LabelDialog: View {
 	@State var draft: String = ""
 
 	var body: some View {
-		Dialog(
-			action: "Use",
-			isValid: !draft.trimmingWhitespace.isEmpty,
-			confirm: {
-				text = draft.trimmingWhitespace
-				confirm()
-			}
-		) {
-			TextField("Net name", text: $draft)
-				.frame(width: 180.0)
+		PromptDialog(action: "Use", prompt: "Net name", text: $draft) { name in
+			text = name
+			confirm()
 		}
 		.onAppear { draft = text }
-	}
-}
-
-@MainActor
-struct FindDialog: View {
-	@Binding var query: String
-	var confirm: (String) -> Void
-
-	var body: some View {
-		Dialog(
-			action: "Find",
-			isValid: !query.trimmingWhitespace.isEmpty,
-			confirm: { confirm(query.trimmingWhitespace) }
-		) {
-			TextField("Reference or value", text: $query)
-				.frame(width: 180.0)
-		}
 	}
 }
 

@@ -316,8 +316,10 @@ extension Operations {
 			created.insert(.hole(next.board.holes.count - 1))
 		}
 		var taken = next.schematic.occupied
+		var used = next.usedReferences
 		for footprint in clipboard.footprints {
-			let reference = next.nextReference(like: footprint.reference)
+			let reference = Xcopper.nextReference(like: footprint.reference, used: used)
+			used.insert(reference)
 			next.board.footprints.append(modifying(footprint) { copy in
 				copy.at = copy.at + delta
 				copy.reference = reference
@@ -346,8 +348,10 @@ extension Operations {
 			created.insert(.label(next.schematic.labels.count - 1))
 		}
 		var taken = next.board.occupied
+		var used = next.usedReferences
 		for symbol in clipboard.symbols {
-			let reference = next.nextReference(like: symbol.reference)
+			let reference = Xcopper.nextReference(like: symbol.reference, used: used)
+			used.insert(reference)
 			next.schematic.symbols.append(modifying(symbol) { copy in
 				copy.at = copy.at + delta
 				copy.reference = reference

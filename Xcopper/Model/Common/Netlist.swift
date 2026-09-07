@@ -82,14 +82,12 @@ extension Netlist {
 			}
 		}
 
-		var labelled: [Int: String] = [:]
 		for label in schematic.labels {
 			let text = label.text.trimmingWhitespace
 			guard !text.isEmpty else { continue }
 			let slot = bucket(label.at)
-			labelled[slot] = min(labelled[slot] ?? text, text)
+			groups[slot].name = min(groups[slot].name ?? text, text)
 		}
-		for (slot, net) in labelled { groups[slot].name = net }
 
 		self.groups = groups
 		self.index = index

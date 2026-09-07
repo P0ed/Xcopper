@@ -3,7 +3,6 @@ import SwiftUI
 @MainActor
 struct SchematicToolBar: ToolbarContent {
 	@Binding var state: SchematicState
-	@Binding var sheet: Sheet?
 	var shortcuts: Bool = true
 
 	var body: some ToolbarContent {

@@ -242,14 +242,12 @@ extension Board {
 				result.append(pad.figure)
 			}
 		}
-		for case let .pad(index, padIndex) in refs
-		where footprints.indices.contains(index) && footprints[index].pads.indices.contains(padIndex)
-			&& !refs.contains(.footprint(index)) {
-			let footprint = footprints[index]
-			let pad = footprint.placedPads[padIndex]
-			if pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
-				result.append(pad.figure)
-			}
+		for ref in refs {
+			guard case let .pad(index, _) = ref, !refs.contains(.footprint(index)),
+				let (footprint, pad) = placedPad(ref),
+				pad.isThrough || footprint.layer(of: pad, in: stack) == layer
+			else { continue }
+			result.append(pad.figure)
 		}
 		return result
 	}
@@ -373,8 +371,8 @@ extension Board {
 				Figure.round(holes[index].at, holes[index].diameter).bounds
 			case let .footprint(index) where footprints.indices.contains(index):
 				footprints[index].placedExtent
-			case let .pad(index, pad) where footprints.indices.contains(index) && footprints[index].pads.indices.contains(pad):
-				footprints[index].placedPads[pad].figure.bounds
+			case .pad:
+				placedPad(ref)?.pad.figure.bounds
 			default:
 				nil
 			}

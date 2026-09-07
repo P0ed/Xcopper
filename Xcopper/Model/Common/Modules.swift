@@ -87,6 +87,14 @@ extension NetLabel {
 	}
 }
 
+extension Schematic {
+	var electrical: Schematic {
+		modifying(self) { sheet in
+			sheet.labels = labels.map { NetLabel(at: $0.at, text: $0.ioName == nil ? $0.text : "") }
+		}
+	}
+}
+
 private let supplyNames: Set<String> = ["GND", "VCC", "VEE"]
 
 private func moduleNetID(_ key: String) -> Int {
@@ -169,9 +177,7 @@ extension Design {
 			}
 		}
 
-		var electrical = result.design.schematic
-		electrical.labels.removeAll { $0.ioName != nil }
-		electrical.labels += schematic.labels.filter { $0.ioName != nil }.map { NetLabel(at: $0.at, text: "") }
+		let electrical = result.design.schematic.electrical
 		let netlist = Netlist(electrical)
 		var footprintsByReference: [String: [Int]] = [:]
 		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }

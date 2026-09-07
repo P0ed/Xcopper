@@ -9,36 +9,12 @@ struct SchematicInspector: View {
 	private var schematic: Schematic { design.schematic }
 
 	var body: some View {
-		if selection.count == 1, let ref = selection.first {
-			properties(of: ref)
-		} else if selection.count > 1, let group = selection.group {
+		if let group = selection.group {
 			properties(of: group.kind, group.indices)
 		} else {
 			Text(selection.isEmpty ? "Nothing selected" : "\(selection.count) objects selected")
 				.font(.caption)
 				.foregroundStyle(.secondary)
-		}
-	}
-
-	@ViewBuilder
-	private func properties(of ref: Schematic.Ref) -> some View {
-		switch ref {
-		case let .symbol(index) where schematic.symbols.indices.contains(index):
-			SymbolInspector(
-				symbol: $design.schematic.symbols[index, or: schematic.symbols[index]],
-				reference: $design.reference(of: Schematic.Ref.symbol(index)),
-				value: $design.value(of: Schematic.Ref.symbol(index)).orEmpty,
-				focus: $focus
-			)
-		case let .wire(index) where schematic.wires.indices.contains(index):
-			WireInspector(wire: schematic.wires[index], netlist: netlist)
-		case let .label(index) where schematic.labels.indices.contains(index):
-			LabelInspector(
-				label: $design.schematic.labels[index, or: schematic.labels[index]],
-				focus: $focus
-			)
-		default:
-			EmptyView()
 		}
 	}
 
@@ -69,39 +45,6 @@ struct SchematicInspector: View {
 }
 
 @MainActor
-struct SymbolInspector: View {
-	@Binding var symbol: Symbol
-	@Binding var reference: String
-	@Binding var value: String
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: symbol.kind.name)
-		TextRow(
-			title: "Ref",
-			prompt: symbol.kind.prefix,
-			text: $reference,
-			property: .reference,
-			focus: $focus
-		)
-		TextRow(
-			title: "Value",
-			prompt: "",
-			text: $value,
-			property: .value,
-			focus: $focus
-		)
-		RotationChoice(rotation: Binding($symbol.rotation))
-		ChoiceRow(title: "Facing", value: $symbol.mirrored) {
-			Text("Normal").tag(false)
-			Text("Mirrored").tag(true)
-		}
-		PositionRows(at: $symbol.at, focus: $focus)
-		ValueRow(title: "Pins", value: "\(symbol.pins.count)")
-	}
-}
-
-@MainActor
 struct SymbolsInspector: View {
 	@Binding var design: Design
 	var indices: [Int]
@@ -112,7 +55,16 @@ struct SymbolsInspector: View {
 		let kinds = indices.map { symbols[$0].kind }
 		let value = $design.value(of: indices.map(Schematic.Ref.symbol))
 		ValueRow(title: "Object", value: kinds.map(\.name).shared ?? "Symbols")
-		ValueRow(title: "Count", value: "\(indices.count)")
+		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
+		if indices.count == 1, let index = indices.first {
+			TextRow(
+				title: "Ref",
+				prompt: symbols[index].kind.prefix,
+				text: $design.reference(of: Schematic.Ref.symbol(index)),
+				property: .reference,
+				focus: $focus
+			)
+		}
 		TextRow(
 			title: "Value",
 			prompt: value.wrappedValue == nil ? "Mixed" : "",
@@ -125,18 +77,10 @@ struct SymbolsInspector: View {
 			Text("Normal").tag(Bool?.some(false))
 			Text("Mirrored").tag(Bool?.some(true))
 		}
-	}
-}
-
-@MainActor
-struct WireInspector: View {
-	var wire: Wire
-	var netlist: Netlist
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Wire")
-		ValueRow(title: "Net", value: netlist.name(at: wire.start) ?? "unnamed")
-		ValueRow(title: "Length", value: millimeters(length(from: wire.start, to: wire.end)))
+		if indices.count == 1, let index = indices.first {
+			PositionRows(at: $design.schematic.symbols[index, or: symbols[index]].at, focus: $focus)
+			ValueRow(title: "Pins", value: "\(symbols[index].pins.count)")
+		}
 	}
 }
 
@@ -146,8 +90,8 @@ struct WiresInspector: View {
 	var netlist: Netlist
 
 	var body: some View {
-		ValueRow(title: "Object", value: "Wires")
-		ValueRow(title: "Count", value: "\(wires.count)")
+		ValueRow(title: "Object", value: wires.count == 1 ? "Wire" : "Wires")
+		if wires.count > 1 { ValueRow(title: "Count", value: "\(wires.count)") }
 		ValueRow(
 			title: "Net",
 			value: wires.map { netlist.name(at: $0.start) ?? "unnamed" }.shared ?? "several"
@@ -160,24 +104,6 @@ struct WiresInspector: View {
 }
 
 @MainActor
-struct LabelInspector: View {
-	@Binding var label: NetLabel
-	@FocusState.Binding var focus: Property?
-
-	var body: some View {
-		ValueRow(title: "Object", value: "Label")
-		TextRow(
-			title: "Net",
-			prompt: "NET",
-			text: $label.text,
-			property: .text,
-			focus: $focus
-		)
-		PositionRows(at: $label.at, focus: $focus)
-	}
-}
-
-@MainActor
 struct LabelsInspector: View {
 	@Binding var labels: [NetLabel]
 	var indices: [Int]
@@ -186,8 +112,8 @@ struct LabelsInspector: View {
 	private var text: Binding<String?> { $labels.shared(indices, \.text) }
 
 	var body: some View {
-		ValueRow(title: "Object", value: "Labels")
-		ValueRow(title: "Count", value: "\(indices.count)")
+		ValueRow(title: "Object", value: indices.count == 1 ? "Label" : "Labels")
+		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
 		TextRow(
 			title: "Net",
 			prompt: text.wrappedValue == nil ? "Mixed" : "NET",
@@ -195,5 +121,8 @@ struct LabelsInspector: View {
 			property: .text,
 			focus: $focus
 		)
+		if indices.count == 1, let index = indices.first {
+			PositionRows(at: $labels[index, or: labels[index]].at, focus: $focus)
+		}
 	}
 }

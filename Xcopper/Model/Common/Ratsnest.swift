@@ -154,6 +154,7 @@ extension Board {
 	}
 
 	func stranded(planes: [Net.ID?]) -> [Strand] {
+		guard planes.contains(where: { $0 != nil }) else { return [] }
 		let terminals = terminals
 		guard !terminals.isEmpty else { return [] }
 		var merge = merged(terminals, planes: planes)
@@ -163,7 +164,6 @@ extension Board {
 			guard let plane else { continue }
 			roots[plane, default: []].insert(merge.find(terminals.count + traces.count + layer))
 		}
-		guard !roots.isEmpty else { return [] }
 
 		var seen: Set<Int> = []
 		var found: [Strand] = []

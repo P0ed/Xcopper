@@ -8,13 +8,11 @@ extension Binding where Value == Design {
 			set: { next, transaction in
 				var next = next
 				let previous = wrappedValue
-				if next.schematic != previous.schematic
-					|| next.modules.map(\.id) != previous.modules.map(\.id)
-					|| next.modules.map(\.symbol) != previous.modules.map(\.symbol)
-					|| next.moduleCache != previous.moduleCache {
+				if next.needsBoardSync(from: previous) {
 					_ = next.updateBoardFromSchematic()
 				}
-				if next.board != previous.board || next.modules != previous.modules || next.moduleCache != previous.moduleCache {
+				if next.board != previous.board || next.modules != previous.modules
+					|| next.moduleCache != previous.moduleCache {
 					next.inheritConnectedNets()
 				}
 				self.transaction(transaction).wrappedValue = next
@@ -24,6 +22,17 @@ extension Binding where Value == Design {
 }
 
 extension Design {
+
+	func needsBoardSync(from previous: Design) -> Bool {
+		schematic != previous.schematic
+			|| moduleCache != previous.moduleCache
+			|| !modules.elementsEqual(previous.modules) { one, other in
+				one.id == other.id && one.reference == other.reference && one.filename == other.filename
+					&& one.schematicAt == other.schematicAt
+					&& one.schematicRotation == other.schematicRotation
+					&& one.interface == other.interface
+			}
+	}
 
 	struct Report: Equatable {
 		var assigned: Int = 0
@@ -52,6 +61,7 @@ extension Design {
 		var placed: [String: Int] = [:]
 		var wired: Set<String> = []
 		var usedNames = Set(netlist.groups.compactMap(\.name))
+		var netNames = Dictionary(nets.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
 
 		for (index, footprint) in board.footprints.enumerated()
 		where placed[footprint.reference] == nil {
@@ -72,20 +82,13 @@ extension Design {
 				let number = symbol.pins[node.pin].number
 				return board.footprints[footprint].pads
 					.filter { $0.name == number }
-					.compactMap { net($0.net)?.name }
+					.compactMap { $0.net.flatMap { id in netNames[id] } }
 			}
 			let existingName = existingNames.sorted().first { $0.hasPrefix("N$") && !usedNames.contains($0) }
-			var name = group.name ?? existingName ?? "N$\(pins.joined(separator: "/"))"
-			if group.name == nil && existingName == nil {
-				let base = name
-				var suffix = 2
-				while usedNames.contains(name) {
-					name = "\(base)/\(suffix)"
-					suffix += 1
-				}
-			}
+			let name = group.name ?? existingName ?? unusedName("N$\(pins.joined(separator: "/"))", in: usedNames)
 			usedNames.insert(name)
 			let (id, created) = net(named: name)
+			netNames[id] = name
 			if created { report.created.append(name) }
 
 			for node in nodes {
@@ -112,6 +115,16 @@ extension Design {
 			.sorted()
 		return report
 	}
+}
+
+private func unusedName(_ base: String, in used: Set<String>) -> String {
+	var name = base
+	var suffix = 2
+	while used.contains(name) {
+		name = "\(base)/\(suffix)"
+		suffix += 1
+	}
+	return name
 }
 
 extension Symbol.Spec {
