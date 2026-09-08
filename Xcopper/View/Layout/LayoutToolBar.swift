@@ -14,12 +14,12 @@ struct LayoutToolBar: ToolbarContent {
 		}
 		ToolbarItemGroup { Spacer() }
 		ToolbarItemGroup {
-			ForEach(Array(stack.signals.enumerated()), id: \.element) { index, layer in
+			ForEach(Array(stack.signals), id: \.self) { layer in
 				LayerButton(
 					layer: layer,
 					stack: stack,
 					state: $state,
-					shortcut: shortcuts ? Character("\(index + 1)") : nil
+					shortcut: shortcuts ? layer == 0 ? "T" : "B" : nil
 				)
 			}
 		}

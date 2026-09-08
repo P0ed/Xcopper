@@ -75,15 +75,6 @@ struct CanvasScroll<Content: View>: View {
 	}
 }
 
-@MainActor
-struct Coordinates: View {
-	var cursor: Point
-
-	var body: some View {
-		Text("\(Nm(clamping: cursor.x).coordinate), \(Nm(clamping: cursor.y).coordinate) mm")
-	}
-}
-
 func renderGrid(
 	_ bounds: Rect,
 	step: Nm,

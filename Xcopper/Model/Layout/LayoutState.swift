@@ -63,8 +63,6 @@ extension Nm {
 		[.mil(100), .inches(1)]
 	}
 
-	var coordinate: String { String(format: "%.2f", mm) }
-
 	var label: String {
 		let mm = mm
 		return mm < 0.1
@@ -82,8 +80,8 @@ struct LayoutState: Equatable, SelectionState {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var placementGrid: Nm = .mm(2.54)
-	var routingGrid: Nm = .mm(0.254)
+	var placementGrid: Nm = .placementGrids.first!
+	var routingGrid: Nm = .routingGrids.last!
 	var grid: Nm = .displayGrids.first!
 	var traceWidth: Nm = .widths.first!
 	var spec: Footprint.Spec = .default

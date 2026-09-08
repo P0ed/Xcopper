@@ -38,13 +38,7 @@ extension PackageAppearance {
 			self.init(height: .mm(9.0))
 		case .led5mm:
 			self.init(shell: .dome(.mm(5.0)), height: .mm(8.6), color: Palette.lens)
-		case .bourns51:
-			self.init(height: .mm(6.5), inset: .mm(0.2), color: Palette.trimmer)
-		case .nkkMNPC:
-			self.init(height: .mm(10.0), inset: .mm(0.1), color: Palette.metal)
-		case .mta156:
-			self.init(height: .mm(9.4), color: Palette.nylon)
-		case .pomona1581:
+		case .bourns51, .nkkMNPC, .mta156, .pomona1581:
 			self.init(shell: .none, height: 0)
 		case .custom:
 			let through = footprint.pads.contains(where: \.isThrough)

@@ -149,8 +149,7 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 
 	var azimuth: Double {
 		switch self {
-		case .top, .bottom: 0.0
-		case .angled: 0.0
+		case .top, .bottom, .angled: 0.0
 		}
 	}
 
@@ -158,7 +157,7 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 		switch self {
 		case .top: .pi / 2.0
 		case .bottom: -.pi / 2.0
-		case .angled: .pi / 5.0
+		case .angled: .pi / 3.0
 		}
 	}
 }
