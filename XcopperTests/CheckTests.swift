@@ -296,7 +296,7 @@ final class CheckTests: XCTestCase {
 		]
 		design.board.traces = [trace(at(10.0, 10.0), at(30.0, 10.0), net: 1)]
 		design.board.vias = [
-			Via(at: at(30.0, 10.0), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+			Via(at: at(30.0, 10.0), net: 1),
 		]
 
 		XCTAssertEqual(design.check(), [])

@@ -6,7 +6,7 @@ extension LayoutView {
 		var moved = design
 		var selection = state.selection
 		if let session = state.moveSession, session.didMove,
-			let next = moved.moveLayout(selection, by: session.delta, grid: state.snap) { selection = next }
+			let next = moved.moveLayout(selection, by: session.delta, grid: state.routingGrid) { selection = next }
 		let projection = moved.moduleProjection()
 		return (projection.design, projection.expanded(selection), moved.modules)
 	}
@@ -56,7 +56,9 @@ extension LayoutView {
 		renderOutline(board, in: context, scale: scale, origin: origin)
 		renderViolations(resolved, in: context, scale: scale, origin: origin)
 		renderSessions(board, in: context, scale: scale, origin: origin)
-		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
+		if state.tool != .select {
+			renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
+		}
 	}
 
 	private func renderModules(_ modules: [ModuleInstance], in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {

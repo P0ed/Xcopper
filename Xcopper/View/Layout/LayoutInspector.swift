@@ -53,7 +53,6 @@ struct LayoutInspector: View {
 				vias: $design.board.vias,
 				indices: indices.filter { board.vias.indices.contains($0) },
 				nets: design.nets,
-				stack: board.stack,
 				focus: $focus
 			)
 		case .hole:
@@ -150,28 +149,12 @@ struct ViasInspector: View {
 	@Binding var vias: [Via]
 	var indices: [Int]
 	var nets: [Net]
-	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
 		ValueRow(title: "Object", value: indices.count == 1 ? "Via" : "Vias")
 		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
-		LengthRow(
-			title: "Drill",
-			value: $vias.shared(indices, \.drill),
-			range: 0.01 ... 20.0,
-			property: .drill,
-			focus: $focus
-		)
-		LengthRow(
-			title: "Pad",
-			value: $vias.shared(indices, \.pad),
-			range: 0.01 ... 20.0,
-			property: .pad,
-			focus: $focus
-		)
-		LayerChoice(title: "From", layer: $vias.shared(indices, \.from), stack: stack)
-		LayerChoice(title: "To", layer: $vias.shared(indices, \.to), stack: stack)
+		ValueRow(title: "Layers", value: "Top to bottom")
 		NetChoice(net: $vias.shared(indices, \.net), nets: nets)
 		if indices.count == 1, let index = indices.first {
 			PositionRows(at: $vias[index, or: vias[index]].at, focus: $focus)

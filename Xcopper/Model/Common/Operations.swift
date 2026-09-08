@@ -52,7 +52,7 @@ extension Operations {
 
 	var mode: Mode { editor.mode }
 
-	var snap: Nm { mode == .layout ? layout.snap : schematic.snap }
+	var snap: Nm { mode == .layout ? layout.selectionGrid : schematic.snap }
 
 	var magnification: CGFloat {
 		switch mode {
@@ -78,6 +78,13 @@ extension Operations {
 	}
 
 	var offset: Point { Point(x: Int(snap) * 4, y: Int(snap) * 4) }
+
+	var pasteOffset: Point {
+		guard mode == .layout else { return offset }
+		let placement = !clipboard.footprints.isEmpty || !clipboard.holes.isEmpty || !clipboard.modules.isEmpty
+		let grid = placement ? layout.placementGrid : layout.routingGrid
+		return Point(x: Int(grid) * 4, y: Int(grid) * 4)
+	}
 
 	func setScale(_ scale: CGFloat) {
 		switch mode {
@@ -151,7 +158,7 @@ extension Operations {
 		switch mode {
 		case .layout:
 			var moved = design
-			guard let selection = moved.moveLayout(layout.selection, by: delta, grid: snap) else { return }
+			guard let selection = moved.moveLayout(layout.selection, by: delta, grid: layout.routingGrid) else { return }
 			design = moved
 			layout.selection = selection
 		case .schematic:
@@ -292,7 +299,7 @@ extension Operations {
 	}
 
 	private func pasteLayout(moduleIDs: Set<UUID>) {
-		let delta = offset
+		let delta = pasteOffset
 		var next = design
 		var created: Set<Ref> = []
 
@@ -306,8 +313,6 @@ extension Operations {
 		for via in clipboard.vias {
 			next.board.vias.append(modifying(via) { via in
 				via.at = via.at + delta
-				via.from = min(via.from, next.board.stack.bottom)
-				via.to = min(via.to, next.board.stack.bottom)
 			})
 			created.insert(.via(next.board.vias.count - 1))
 		}
@@ -366,16 +371,19 @@ extension Operations {
 
 extension Operations {
 
-	func resize(size: Size, stack: Stack) {
+	func configureBoard(size: Size, stack: Stack, rules: Rules) {
 		guard stack == design.board.stack || design.canRestack(stack) else {
 			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
 			return
 		}
-		design.board.resize(size: size)
-		if stack != design.board.stack {
-			design.restack(stack)
-			layout.clampLayer(design.board.stack)
+		var next = design
+		next.board.resize(size: size)
+		next.board.rules = rules
+		if stack != next.board.stack {
+			next.restack(stack)
+			layout.clampLayer(next.board.stack)
 		}
+		design = next
 		layout.resetTransientInteractions()
 	}
 

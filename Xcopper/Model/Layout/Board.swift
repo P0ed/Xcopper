@@ -13,15 +13,7 @@ struct Trace: Hashable, Codable {
 
 struct Via: Hashable, Codable {
 	var at: Point
-	var drill: Nm
-	var pad: Nm
-	var from: Int
-	var to: Int
 	var net: Net.ID?
-
-	var span: ClosedRange<Int> { min(from, to) ... max(from, to) }
-
-	func spans(_ layer: Int) -> Bool { span.contains(layer) }
 }
 
 struct Hole: Hashable, Codable {
@@ -163,11 +155,6 @@ extension Board {
 		self.stack = stack
 		traces.removeAll { !old.isSignal($0.layer) }
 		traces.modifyEach { trace in trace.layer = stack.signal(matching: trace.layer, in: old) }
-		vias.modifyEach { via in
-			via.from = stack.signal(matching: via.from, in: old)
-			via.to = stack.signal(matching: via.to, in: old)
-		}
-		vias.removeAll { $0.from == $0.to }
 	}
 
 	mutating func mapNets(_ map: (Net.ID?) -> Net.ID?) {
@@ -190,7 +177,7 @@ extension Board {
 	var occupied: [Rect] {
 		footprints.map(\.placedExtent)
 			+ traces.map { trace in Figure.segment(trace.start, trace.end, trace.width).bounds }
-			+ vias.map { via in Figure.round(via.at, via.pad).bounds }
+			+ vias.map { via in Figure.round(via.at, rules.viaPad).bounds }
 			+ holes.map { hole in Figure.round(hole.at, hole.diameter).bounds }
 	}
 }
@@ -239,7 +226,7 @@ extension Board {
 		}
 		for (index, via) in vias.enumerated() {
 			terminals.append(RouteTerminal(
-				figure: .round(via.at, via.pad), layers: via.span,
+				figure: .round(via.at, rules.viaPad), layers: stack.top ... stack.bottom,
 				moving: refs.contains(.via(index)), carriesAttachments: false
 			))
 		}

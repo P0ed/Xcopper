@@ -60,12 +60,7 @@ struct CanvasScroll<Content: View>: View {
 		GeometryReader { geo in
 			Color(nsColor: .underPageBackgroundColor)
 				.onChange(of: geo.size, initial: true) { _, new in
-					guard new.width != 0.0, new.height != 0.0 else { return }
-
-					let old = viewport.size
-					viewport.size = new
-					if old == .zero { viewport.fit(size) }
-					viewport.revealPending(in: size)
+					viewport.resize(to: new, content: size)
 				}
 		}
 	}

@@ -149,7 +149,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 	func testSnapTargetPrefersTheNearestPadOnTheRoutedLayer() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		board.vias = [Via(at: Point(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: 1)]
+		board.vias = [Via(at: Point(x: .mm(20), y: .mm(20)), net: 1)]
 
 		let pad = board.footprints[0].placedPads[0].at
 		let near = Point(x: pad.x + .mm(0.1), y: pad.y)
@@ -177,7 +177,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNotNil(board.hitTest(at: Point(x: 0, y: .mm(5) + .mm(0.16)), layer: 0, tolerance: tolerance))
 		XCTAssertNil(board.hitTest(at: Point(x: 0, y: .mm(5) + .mm(0.3)), layer: 0, tolerance: tolerance))
 
-		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), net: nil)]
 		board.holes = [Hole(at: Point(x: .mm(5), y: .mm(5)), diameter: .mm(1))]
 		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(5), y: .mm(5)))]
 		let overlap = Point(x: .mm(5), y: .mm(5))
@@ -321,7 +321,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		board.footprints = [
 			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: .mm(30), y: .mm(10))),
 		]
-		board.vias = [Via(at: Point(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: Point(x: .mm(20), y: .mm(20)), net: nil)]
 		board.traces = [trace(from: Point(x: .mm(5), y: .mm(5)), to: Point(x: .mm(10), y: .mm(5)))]
 
 		let pad = board.footprints[0].placedPads[0].at
@@ -452,7 +452,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: .zero, end: Point(x: .mm(10), y: .mm(2)), width: .mm(0.25), layer: 1, net: 1),
 			Trace(start: .zero, end: Point(x: .mm(10), y: .mm(4)), width: .mm(0.25), layer: 1, net: nil),
 		]
-		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: 0)]
+		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), net: 0)]
 		board.holes = [Hole(at: Point(x: .mm(20), y: .mm(20)), diameter: .mm(3.2))]
 
 		XCTAssertEqual(board.clearances(on: 1, net: 0).count, 3)
@@ -465,12 +465,14 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(Int(diameter), .mm(3.2) + clearance * 2)
 	}
 
-	func testPlaneKnockoutsIgnoreLayersTheViaDoesNotSpan() {
+	func testPlaneKnockoutsIncludeViasOnEveryCopperLayer() {
 		var board = board(.analog)
-		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: 1)]
+		board.vias = [Via(at: Point(x: .mm(5), y: .mm(5)), net: 1)]
 
-		XCTAssertEqual(board.clearances(on: 1, net: 0).count, 1)
-		XCTAssertEqual(board.clearances(on: 2, net: 0).count, 0)
+		for layer in board.stack.copper {
+			XCTAssertEqual(board.clearances(on: layer, net: 0).count, 1)
+		}
+		XCTAssertTrue(board.clearances(on: board.stack.count, net: 0).isEmpty)
 	}
 
 	func testRestackCarriesSignalCopperOntoTheNewOuterLayers() {
@@ -479,18 +481,18 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: .zero, end: Point(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: nil),
 			Trace(start: .zero, end: Point(x: .mm(1), y: 0), width: .mm(0.25), layer: 1, net: nil),
 		]
-		board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: nil)]
+		board.vias = [Via(at: .zero, net: nil)]
 
 		board.restack(.analog)
 
 		XCTAssertEqual(board.stack, .analog)
 		XCTAssertEqual(board.traces.map(\.layer), [0, 5])
-		XCTAssertEqual(board.vias[0].span, 0 ... 5)
+		XCTAssertEqual(board.objects.filter { $0.ref == .via(0) }.map(\.layers), [0 ... 5])
 
 		board.restack(.digital)
 
 		XCTAssertEqual(board.traces.map(\.layer), [0, 3])
-		XCTAssertEqual(board.vias[0].span, 0 ... 3)
+		XCTAssertEqual(board.objects.filter { $0.ref == .via(0) }.map(\.layers), [0 ... 3])
 	}
 
 	func testRestackDropsCopperBuriedUnderTheNewPlanes() {
@@ -509,7 +511,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		var design = Design(board: board())
 		let net = design.addNet(name: "SIG")
 		design.board.traces = [Trace(start: .zero, end: Point(x: .mm(1), y: 0), width: .mm(0.25), layer: 0, net: net)]
-		design.board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: net)]
+		design.board.vias = [Via(at: .zero, net: net)]
 		design.board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: .zero)]
 		design.board.footprints[0].pads.modifyEach { pad in pad.net = net }
 
@@ -628,7 +630,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		]
 		let pad = board.footprints[0].placedPads[0].at
 		let via = Point(x: pad.x + .mm(10), y: pad.y)
-		board.vias = [Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: via, net: nil)]
 		board.traces = [Trace(start: pad, end: via, width: .mm(0.3), layer: 0, net: nil)]
 
 		let delta = Point(x: 0, y: .mm(-1))
@@ -757,7 +759,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 	func testASegmentDragLeavesCopperHeldByAViaWhereItIs() {
 		var board = board()
 		let via = Point(x: 0, y: .mm(10))
-		board.vias = [Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: via, net: nil)]
 		board.traces = [
 			trace(from: via, to: Point(x: .mm(10), y: .mm(10))),
 			trace(from: Point(x: .mm(10), y: .mm(10)), to: Point(x: .mm(15), y: .mm(15))),
@@ -787,7 +789,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNil(board.heading(leaving: end, layer: 0))
 
 		board.traces.removeLast()
-		board.vias = [Via(at: end, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: end, net: nil)]
 		XCTAssertNil(board.heading(leaving: end, layer: 0))
 	}
 
@@ -897,8 +899,8 @@ final class GeometryAndSelectionTests: XCTestCase {
 			Trace(start: Point(x: .mm(2), y: .mm(30)), end: Point(x: .mm(30), y: .mm(30)), width: .mm(0.4), layer: 5, net: 1),
 		]
 		board.vias = [
-			Via(at: Point(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: 0),
-			Via(at: Point(x: .mm(24), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: 1),
+			Via(at: Point(x: .mm(20), y: .mm(20)), net: 0),
+			Via(at: Point(x: .mm(24), y: .mm(20)), net: 1),
 		]
 		board.holes = [Hole(at: Point(x: .mm(45), y: .mm(35)), diameter: .mm(3.2))]
 		board.footprints = [
@@ -944,7 +946,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 			trace(from: Point(x: 0, y: .mm(20)), to: junction),
 			trace(from: junction, to: Point(x: .mm(10), y: .mm(30))),
 		]
-		board.vias = [Via(at: junction, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 3, net: nil)]
+		board.vias = [Via(at: junction, net: nil)]
 
 		XCTAssertEqual(sharpestTurn(board), 0)
 
@@ -991,7 +993,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 	func testBoardRoundTripsThroughJSON() throws {
 		var board = board(.analog)
 		board.traces = [Trace(start: .zero, end: Point(x: .mm(5), y: .mm(5)), width: .mm(0.25), layer: 5, net: 1)]
-		board.vias = [Via(at: Point(x: .mm(2), y: .mm(2)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: 1)]
+		board.vias = [Via(at: Point(x: .mm(2), y: .mm(2)), net: 1)]
 		board.holes = [Hole(at: Point(x: .mm(3), y: .mm(3)), diameter: .mm(3.2))]
 		board.footprints = [Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: Point(x: .mm(20), y: .mm(20)))]
 

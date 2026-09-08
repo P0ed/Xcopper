@@ -214,8 +214,8 @@ extension Board {
 		for trace in traces where trace.layer == layer {
 			result.append((.segment(trace.start, trace.end, trace.width), trace.net))
 		}
-		for via in vias where via.spans(layer) {
-			result.append((.round(via.at, via.pad), via.net))
+		for via in vias where stack.contains(layer) {
+			result.append((.round(via.at, rules.viaPad), via.net))
 		}
 		for pad in pads(on: layer) {
 			result.append((pad.figure, pad.net))
@@ -232,8 +232,8 @@ extension Board {
 			result.append(.segment(trace.start, trace.end, trace.width))
 		}
 		for case let .via(index) in refs
-		where vias.indices.contains(index) && vias[index].spans(layer) {
-			result.append(.round(vias[index].at, vias[index].pad))
+		where vias.indices.contains(index) && stack.contains(layer) {
+			result.append(.round(vias[index].at, rules.viaPad))
 		}
 		for case let .footprint(index) in refs where footprints.indices.contains(index) {
 			let footprint = footprints[index]
@@ -264,7 +264,7 @@ extension Board {
 	}
 
 	var drills: [Figure] {
-		vias.map { via in .round(via.at, via.drill) }
+		vias.map { via in .round(via.at, rules.viaDrill) }
 			+ holes.map { hole in .round(hole.at, hole.diameter) }
 			+ footprints.flatMap { footprint in
 				footprint.placedPads.filter(\.isThrough).map { pad in .round(pad.at, pad.drill) }
@@ -305,7 +305,7 @@ extension Board {
 			return .trace(index)
 		}
 		for (index, via) in vias.enumerated().reversed()
-		where Figure.round(via.at, via.pad).contains(point, tolerance: tolerance) {
+		where Figure.round(via.at, rules.viaPad).contains(point, tolerance: tolerance) {
 			return .via(index)
 		}
 		for (index, hole) in holes.enumerated().reversed()
@@ -366,7 +366,7 @@ extension Board {
 			case let .trace(index) where traces.indices.contains(index):
 				Rect(from: traces[index].start, to: traces[index].end)
 			case let .via(index) where vias.indices.contains(index):
-				Figure.round(vias[index].at, vias[index].pad).bounds
+				Figure.round(vias[index].at, rules.viaPad).bounds
 			case let .hole(index) where holes.indices.contains(index):
 				Figure.round(holes[index].at, holes[index].diameter).bounds
 			case let .footprint(index) where footprints.indices.contains(index):
@@ -389,7 +389,7 @@ extension Board {
 
 	func isTerminal(_ point: Point, layer: Int) -> Bool {
 		for via in vias
-		where via.spans(layer) && Figure.round(via.at, via.pad).contains(point) {
+		where stack.contains(layer) && Figure.round(via.at, rules.viaPad).contains(point) {
 			return true
 		}
 		for footprint in footprints {
@@ -426,7 +426,7 @@ extension Board {
 				consider(pad.at, pad.net)
 			}
 		}
-		for via in vias where via.spans(layer) {
+		for via in vias where stack.contains(layer) {
 			consider(via.at, via.net)
 		}
 		for trace in traces where trace.layer == layer {

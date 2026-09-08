@@ -127,7 +127,7 @@ final class SelectionEditingTests: XCTestCase {
 	func testLayoutCanStillAssignNetsToTracesAndVias() {
 		var design = design()
 		design.board.traces = [trace(.mm(0.4))]
-		design.board.vias = [Via(at: .zero, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 5, net: nil)]
+		design.board.vias = [Via(at: .zero, net: nil)]
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .layout
 		harness.layout.selection = [.trace(0), .via(0)]

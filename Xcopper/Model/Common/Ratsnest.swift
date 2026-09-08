@@ -35,7 +35,7 @@ extension Board {
 		}
 		for via in vias {
 			guard let net = via.net else { continue }
-			result.append(Terminal(at: via.at, figure: .round(via.at, via.pad), layers: via.span, net: net))
+			result.append(Terminal(at: via.at, figure: .round(via.at, rules.viaPad), layers: stack.top ... stack.bottom, net: net))
 		}
 		return result
 	}

@@ -146,7 +146,7 @@ struct MenuCommands: Commands {
 		}
 		CommandMenu("Board") {
 			ActionButton(
-				name: "Size and layers",
+				name: "Board settings…",
 				image: "square.dashed",
 				shortcut: "B",
 				modifiers: .command,

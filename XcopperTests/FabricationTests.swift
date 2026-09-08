@@ -142,7 +142,7 @@ final class FabricationTests: XCTestCase {
 	func testAPlanePoursTheBoardThenClearsItBackAroundForeignCopper() {
 		var design = design()
 		design.board.vias = [
-			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+			Via(at: Point(x: .mm(10), y: .mm(10)), net: 1),
 		]
 		let steps = lines(file(design, ".G1")).filter {
 			$0 == "G36*" || $0 == "G37*" || $0 == "%LPC*%" || $0 == "%LPD*%"
@@ -163,7 +163,7 @@ final class FabricationTests: XCTestCase {
 		func knockouts(net: Net.ID?) -> Int {
 			var design = design()
 				design.board.vias = [
-				Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: net),
+				Via(at: Point(x: .mm(10), y: .mm(10)), net: net),
 			]
 			let all = lines(file(design, ".G1"))
 			guard
@@ -180,7 +180,7 @@ final class FabricationTests: XCTestCase {
 		var design = design()
 		design.board.rules.clearance = .mm(0.33)
 		design.board.vias = [
-			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: 1),
+			Via(at: Point(x: .mm(10), y: .mm(10)), net: 1),
 		]
 		XCTAssertTrue(file(design, ".G1").contains("%ADD10C,1.560000*%"))
 	}
@@ -278,9 +278,14 @@ final class FabricationTests: XCTestCase {
 	func testPlatedHolesAreGroupedIntoOneToolPerDiameterSmallestFirst() {
 		var design = design()
 		design.board.vias = [
-			Via(at: Point(x: .mm(10), y: .mm(10)), drill: .mm(0.8), pad: .mm(1.2), from: 0, to: 3, net: nil),
-			Via(at: Point(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
-			Via(at: Point(x: .mm(30), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 3, net: nil),
+			Via(at: Point(x: .mm(20), y: .mm(10)), net: nil),
+			Via(at: Point(x: .mm(30), y: .mm(10)), net: nil),
+		]
+		design.board.footprints = [
+			footprint("J1", at: Point(x: .mm(10), y: .mm(10)), pads: [
+				Pad(at: .zero, size: Size(width: .mm(1.2), height: .mm(1.2)),
+					shape: .oval, drill: .mm(0.8), layer: 0, name: "1", net: nil),
+			]),
 		]
 		let text = file(design, "-PTH.DRL")
 

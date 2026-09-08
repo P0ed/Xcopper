@@ -111,8 +111,10 @@ struct EditorView: View {
 	private func dialog(_ sheet: Sheet) -> some View {
 		switch sheet {
 		case .board:
-			BoardDialog(size: design.board.size, stack: design.board.stack) { size, stack in
-				operations.resize(size: size, stack: stack)
+			BoardDialog(size: design.board.size, stack: design.board.stack, rules: design.board.rules) { size, stack, rules in
+				undoManager.undoGroup("Board settings") {
+					operations.configureBoard(size: size, stack: stack, rules: rules)
+				}
 			}
 		case .schematic:
 			SchematicDialog(size: design.schematic.size) { size in

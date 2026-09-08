@@ -14,8 +14,8 @@ final class ModuleTests: XCTestCase {
 		design.board.footprints[0].pads[1].net = 4
 		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "#IN")]
 		design.board.traces = [Trace(start: point(5, 5), end: point(10, 5), width: .mm(0.4), layer: stack.bottom, net: 3)]
-		design.board.vias = [Via(at: point(10, 5), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: stack.bottom, net: 3),
-			Via(at: point(15, 15), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: stack.bottom, net: 0)]
+		design.board.vias = [Via(at: point(10, 5), net: 3),
+			Via(at: point(15, 15), net: 0)]
 		design.board.holes = [Hole(at: point(10, 15), diameter: .mm(2))]
 		return design
 	}
@@ -64,9 +64,28 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(resolved.board.vias[3].net, 0)
 		XCTAssertEqual(design.moduleCache.contents[design.modules[0].id]?.board.stack, .classic)
 		XCTAssertEqual(resolved.board.traces.map(\.layer), [5, 5])
-		XCTAssertTrue(resolved.board.vias.allSatisfy { $0.span == 0 ... 5 })
+		XCTAssertTrue(resolved.board.objects.filter { $0.ref.kind == .via }.allSatisfy { $0.layers == 0 ... 5 })
 		XCTAssertEqual(resolved.board.rules, design.board.rules)
 		XCTAssertEqual(design.board.footprints.count, 0)
+	}
+
+	func testImportedViasUseParentSizesAndFollowChangesAfterProjectionIsCached() throws {
+		var source = source()
+		source.board.rules.viaDrill = .mm(0.2)
+		source.board.rules.viaPad = .mm(0.5)
+		var parent = try imported(["Part.xcb": source])
+		parent.board.vias = [Via(at: point(80, 80), net: 0)]
+		let before = parent.resolved
+		parent.board.rules.viaDrill = .mm(0.7)
+		parent.board.rules.viaPad = .mm(1.4)
+		let resolved = parent.resolved.board
+		XCTAssertEqual(resolved.vias.count, 3)
+		for index in resolved.vias.indices {
+			XCTAssertEqual(resolved.figures(on: 0, of: [.via(index)]), [.round(resolved.vias[index].at, .mm(1.4))])
+			XCTAssertEqual(resolved.drills[index], .round(resolved.vias[index].at, .mm(0.7)))
+		}
+		XCTAssertNotEqual(resolved.drills, before.board.drills)
+		XCTAssertEqual(parent.moduleCache.contents[parent.modules[0].id]?.board.rules, source.board.rules)
 	}
 
 	func testBufferSupplyLabelsReachTheParentInletThroughViasAndPlanes() throws {
@@ -94,7 +113,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(pads.count, 6)
 		for pad in pads {
 			let via = pad.at + point(0, 2)
-			buffer.board.vias.append(Via(at: via, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: pad.net))
+			buffer.board.vias.append(Via(at: via, net: pad.net))
 			buffer.board.traces.append(Trace(start: pad.at, end: via, width: .mm(0.25), layer: 0, net: pad.net))
 		}
 
@@ -112,7 +131,7 @@ final class ModuleTests: XCTestCase {
 		let amplifier = try XCTUnwrap(resolved.board.footprints.first { $0.reference == "M1/U1" })
 		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "8" }?.net)?.name, "VCC")
 		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "4" }?.net)?.name, "VEE")
-		XCTAssertTrue(resolved.board.vias.allSatisfy { $0.span == 0 ... parent.board.stack.bottom })
+		XCTAssertTrue(resolved.board.objects.filter { $0.ref.kind == .via }.allSatisfy { $0.layers == 0 ... parent.board.stack.bottom })
 		let supplyIDs = Set(parent.nets.filter { supplies.contains($0.name) }.map(\.id))
 		XCTAssertTrue(resolved.board.ratsnest(planes: parent.planes).filter { supplyIDs.contains($0.net) }.isEmpty)
 		XCTAssertFalse(resolved.board.ratsnest().filter { supplyIDs.contains($0.net) }.isEmpty)
@@ -471,7 +490,7 @@ extension ModuleTests {
 		design.modules = [ModuleInstance(reference: "M1", filename: "Missing.xcb", layerCount: 4)]
 		let harness = EditorHarness(design: design)
 		let size = Size(width: .mm(120), height: .mm(80))
-		harness.perform { $0.resize(size: size, stack: .classic) }
+		harness.perform { $0.configureBoard(size: size, stack: .classic, rules: design.board.rules) }
 		XCTAssertEqual(harness.design.board.size, size)
 		XCTAssertEqual(harness.design.board.stack, .classic)
 	}

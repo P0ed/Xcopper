@@ -4,19 +4,29 @@ import SwiftUI
 struct BoardDialog: View {
 	var size: Size
 	var stack: Stack
-	var confirm: (Size, Stack) -> Void
+	var rules: Rules
+	var confirm: (Size, Stack, Rules) -> Void
 
 	@State private var chosen: Size?
 	@State private var selected: Stack?
+	@State private var selectedRules: Rules?
+	@FocusState private var focus: Property?
 
 	private var stackup: Stack { selected ?? stack }
+	private var draft: Binding<Rules> {
+		Binding(get: { selectedRules ?? rules }, set: { selectedRules = $0 })
+	}
+	private var validVias: Bool {
+		let rules = draft.wrappedValue
+		return rules.viaDrill > 0 && rules.viaPad > rules.viaDrill
+	}
 
 	var body: some View {
 		Dialog(
 			action: "Apply",
-			isValid: chosen != nil,
+			isValid: chosen != nil && validVias,
 			confirm: {
-				if let chosen { confirm(chosen, stackup) }
+				if let chosen { confirm(chosen, stackup, draft.wrappedValue) }
 			}
 		) {
 			VStack(spacing: 12.0) {
@@ -33,6 +43,16 @@ struct BoardDialog: View {
 				Text(stackup.summary)
 					.font(.caption)
 					.foregroundStyle(.secondary)
+
+				Panel(title: "Vias") {
+					LengthRow(title: "Drill", value: Binding(draft.viaDrill),
+						range: 0.01 ... 20.0, property: .drill, focus: $focus)
+					LengthRow(title: "Pad", value: Binding(draft.viaPad),
+						range: 0.01 ... 20.0, property: .pad, focus: $focus)
+					Text(validVias ? "Applies to every via on this board." : "The pad must be larger than the drill.")
+						.font(.caption)
+						.foregroundStyle(validVias ? Color.secondary : .orange)
+				}
 			}
 			.frame(width: 240.0)
 		}

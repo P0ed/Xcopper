@@ -168,7 +168,7 @@ extension Design {
 			if selection.contains(.module(owner)) { moving.insert(.footprint(repair.footprints.count)) }
 			repair.footprints.append(Footprint(
 				reference: "", value: "", at: via.at, rotation: .r0, flipped: false,
-				pads: [Pad(at: .zero, size: Size(width: Int(via.pad), height: Int(via.pad)), shape: .oval, drill: via.drill, layer: 0, name: "", net: via.net)],
+				pads: [Pad(at: .zero, size: Size(width: Int(board.rules.viaPad), height: Int(board.rules.viaPad)), shape: .oval, drill: board.rules.viaDrill, layer: 0, name: "", net: via.net)],
 				body: Rect(origin: .zero, size: .zero)
 			))
 		}

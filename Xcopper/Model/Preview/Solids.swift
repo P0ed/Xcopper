@@ -182,7 +182,7 @@ extension Board {
 	}
 
 	private var barrels: [(figure: Figure, plated: Bool)] {
-		vias.map { via in (Figure.round(via.at, via.drill), true) }
+		vias.map { via in (Figure.round(via.at, rules.viaDrill), true) }
 			+ footprints.flatMap { footprint in
 				footprint.placedPads
 					.filter(\.isThrough)
@@ -237,9 +237,9 @@ extension Board {
 				into: &model
 			)
 		}
-		for via in vias where via.spans(side.layer) {
+		for via in vias {
 			lay(
-				.round(via.at, via.pad),
+				.round(via.at, rules.viaPad),
 				drills: punches,
 				shade: .coating,
 				level: side.copper,

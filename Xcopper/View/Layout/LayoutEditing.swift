@@ -7,7 +7,7 @@ extension LayoutView {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
-	var snapRadius: Int { max(Int(state.snap), Int(Nm.mm(0.4))) }
+	var snapRadius: Int { max(Int(state.routingGrid), Int(Nm.mm(0.4))) }
 
 	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
 
@@ -16,7 +16,7 @@ extension LayoutView {
 			let target = design.resolved.board.snapTarget(near: point, layer: layer, radius: snapRadius) {
 			return target
 		}
-		return (point.snapped(to: state.snap), nil)
+		return (point.snapped(to: state.routingGrid), nil)
 	}
 
 	var editingController: some Gesture {
@@ -52,6 +52,7 @@ extension LayoutView {
 					}
 				case .via:
 					undoManager.undoGroup(Tool.via.actionName) { placeVia(at: current) }
+					state.tool = .select
 				case .hole:
 					undoManager.undoGroup(Tool.hole.actionName) { placeHole(at: current) }
 				case .footprint:
@@ -62,9 +63,14 @@ extension LayoutView {
 
 	func hover(at location: CGPoint) {
 		let point = point(at: location)
-		state.viewport.cursor = state.tool == .trace && state.traceSession != nil
-			? routeEnd(point)
-			: snapped(point, layer: state.layer).0
+		switch state.tool {
+		case .trace where state.traceSession != nil:
+			state.viewport.cursor = routeEnd(point)
+		case .trace, .via:
+			state.viewport.cursor = snapped(point, layer: state.layer).0
+		case .select, .footprint, .hole:
+			state.viewport.cursor = point.snapped(to: state.activeGrid)
+		}
 		guard state.tool == .trace else { return }
 		state.hoverTrace(to: state.viewport.cursor)
 	}
@@ -97,22 +103,22 @@ private extension LayoutView {
 			let (target, _) = design.resolved.board.snapTarget(near: point, layer: session.layer, radius: snapRadius) {
 			return target
 		}
-		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.snap) }
+		guard !modifierFlags.contains(.shift) else { return point.snapped(to: state.routingGrid) }
 
 		let arriving = design.resolved.board.heading(leaving: session.start, layer: session.layer) ?? .zero
 		let projected = snapped45(from: session.start, to: point, after: -arriving)
-		return session.start + (projected - session.start).snapped(to: state.snap)
+		return session.start + (projected - session.start).snapped(to: state.routingGrid)
 	}
 
 	func dragSelection(from start: Point, to current: Point) {
 		if state.moveSession != nil {
-			return state.updateMove(to: current.snapped(to: state.snap))
+			return state.updateMove(to: current.snapped(to: state.selectionGrid))
 		}
 		if state.selectSession == nil, !picksRun {
 			let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance).first
 			if let hit, state.selection.contains(hit), !state.selection.containsPads {
-				state.beginMove(at: start.snapped(to: state.snap))
-				return state.updateMove(to: current.snapped(to: state.snap))
+				state.beginMove(at: start.snapped(to: state.selectionGrid))
+				return state.updateMove(to: current.snapped(to: state.selectionGrid))
 			}
 		}
 		state.beginSelect(at: start, mode: selectionMode)
@@ -120,10 +126,10 @@ private extension LayoutView {
 	}
 
 	func endSelection(from start: Point, to current: Point) {
-		if let session = state.endMove(at: current.snapped(to: state.snap)) {
+		if let session = state.endMove(at: current.snapped(to: state.selectionGrid)) {
 			if session.didMove {
 				var moved = design
-				if let selection = moved.moveLayout(state.selection, by: session.delta, grid: state.snap) {
+				if let selection = moved.moveLayout(state.selection, by: session.delta, grid: state.routingGrid) {
 					undoManager.undoGroup("Move") {
 						design = moved
 						state.selection = selection
@@ -149,22 +155,18 @@ private extension LayoutView {
 		let (at, net) = snapped(point, layer: state.layer)
 		board.vias.append(Via(
 			at: at,
-			drill: board.rules.viaDrill,
-			pad: board.rules.viaPad,
-			from: board.stack.top,
-			to: board.stack.bottom,
 			net: net ?? state.net
 		))
 	}
 
 	func placeHole(at point: Point) {
 		board.holes.append(Hole(
-			at: point.snapped(to: state.snap),
+			at: point.snapped(to: state.placementGrid),
 			diameter: .mm(3.2)
 		))
 	}
 
 	func placeFootprint(at point: Point) {
-		state.selection = [design.place(state.spec, at: point.snapped(to: state.snap))]
+		state.selection = [design.place(state.spec, at: point.snapped(to: state.placementGrid))]
 	}
 }

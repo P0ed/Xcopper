@@ -7,6 +7,7 @@ struct Viewport: Equatable {
 	var scrollPosition: ScrollPosition = .init(point: .zero)
 	var magnification: CGFloat = 2.0
 	var pending: Point?
+	private(set) var fitting = true
 }
 
 extension Viewport {
@@ -24,6 +25,7 @@ extension Viewport {
 	}
 
 	mutating func setScale(_ scale: CGFloat) {
+		fitting = false
 		let scale = min(max(scale, 2.0), 256.0)
 		let frame = frame
 		let size = size
@@ -47,6 +49,14 @@ extension Viewport {
 
 	mutating func fit(_ size: Size) {
 		setScale(size.zoomToFit(self.size, margin: Layout.margin))
+		fitting = true
+	}
+
+	mutating func resize(to size: CGSize, content: Size) {
+		guard size.width > 0.0, size.height > 0.0 else { return }
+		self.size = size
+		if fitting { fit(content) }
+		revealPending(in: content)
 	}
 
 	mutating func reveal(_ point: Point) {

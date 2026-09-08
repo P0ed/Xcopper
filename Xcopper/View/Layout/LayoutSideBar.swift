@@ -79,11 +79,11 @@ struct LayoutSideBar: View {
 
 				Panel(title: "Route") {
 					GridPicker(title: "Width", value: $state.traceWidth, options: Nm.widths)
-					GridPicker(title: "Snap", value: $state.snap, options: Nm.snapGrids)
-					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
+					GridPicker(title: "Grid", value: $state.routingGrid, options: Nm.routingGrids)
 				}
 
 				Panel(title: "Place") {
+					GridPicker(title: "Grid", value: $state.placementGrid, options: Nm.placementGrids)
 					Button("Footprint…", systemImage: "square.grid.3x3.square") {
 						editor.sheet = .footprint
 					}
@@ -91,6 +91,10 @@ struct LayoutSideBar: View {
 					Text(state.spec.summary)
 						.font(.caption)
 						.foregroundStyle(.secondary)
+				}
+
+				Panel(title: "Display") {
+					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
 				}
 			}
 			.padding(12.0)

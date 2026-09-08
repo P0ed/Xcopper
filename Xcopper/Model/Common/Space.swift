@@ -78,8 +78,8 @@ extension [V3] {
 
 struct Camera: Equatable {
 	var target: V3 = .zero
-	var azimuth: Double = -.pi / 7.0
-	var elevation: Double = .pi / 5.0
+	var azimuth: Double = Standpoint.angled.azimuth
+	var elevation: Double = Standpoint.angled.elevation
 	var distance: Double = 120.0
 	var fov: Double = .pi / 7.0
 }
@@ -127,7 +127,7 @@ extension Camera {
 }
 
 enum Standpoint: Hashable, CaseIterable, Identifiable {
-	case top, bottom, front, back, left, right, angled
+	case top, bottom, angled
 
 	var id: Self { self }
 
@@ -135,10 +135,6 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 		switch self {
 		case .top: "Top"
 		case .bottom: "Bottom"
-		case .front: "Front"
-		case .back: "Back"
-		case .left: "Left"
-		case .right: "Right"
 		case .angled: "Angled"
 		}
 	}
@@ -147,21 +143,14 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 		switch self {
 		case .top: "t.square"
 		case .bottom: "b.square"
-		case .front: "f.square"
-		case .back: "k.square"
-		case .left: "l.square"
-		case .right: "r.square"
 		case .angled: "a.square"
 		}
 	}
 
 	var azimuth: Double {
 		switch self {
-		case .top, .bottom, .front: 0.0
-		case .back: .pi
-		case .left: .pi / 2.0
-		case .right: -.pi / 2.0
-		case .angled: -.pi / 7.0
+		case .top, .bottom: 0.0
+		case .angled: 0.0
 		}
 	}
 
@@ -169,7 +158,6 @@ enum Standpoint: Hashable, CaseIterable, Identifiable {
 		switch self {
 		case .top: .pi / 2.0
 		case .bottom: -.pi / 2.0
-		case .front, .back, .left, .right: 0.0
 		case .angled: .pi / 5.0
 		}
 	}

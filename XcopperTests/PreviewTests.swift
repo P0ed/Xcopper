@@ -107,7 +107,7 @@ final class PreviewTests: XCTestCase {
 	func testEveryDrillIsPunchedThroughBothFacesAndLinedWithABarrel() {
 		var board = board()
 		board.holes.append(Hole(at: Point(x: .mm(10), y: .mm(10)), diameter: .mm(3)))
-		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil))
+		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), net: nil))
 
 		let model = board.model(Finish().shape)
 		let faces = model.pieces.filter { abs($0.level) == 10 }
@@ -127,6 +127,25 @@ final class PreviewTests: XCTestCase {
 
 		XCTAssertEqual(model.pieces.count { $0.level == 20 }, 1)
 		XCTAssertEqual(model.pieces.count { $0.level == -20 }, 1)
+	}
+
+	func testViaCopperAndBarrelsFollowBoardSizesInThePreview() {
+		var board = board()
+		board.vias = [Via(at: Point(x: .mm(20), y: .mm(10)), net: nil)]
+		for (drill, pad) in [(0.3, 0.6), (0.8, 1.4)] {
+			board.rules.viaDrill = .mm(drill)
+			board.rules.viaPad = .mm(pad)
+			let model = board.model(Finish().shape)
+			let copper = model.pieces.filter { abs($0.level) == 20 }
+			XCTAssertEqual(copper.count, 2)
+			for face in copper {
+				let xs = face.loop.map(\.x)
+				XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), pad, accuracy: 0.0001)
+			}
+			let barrels = model.pieces.filter { $0.level == Side.core && $0.shade == .plating }
+			let xs = barrels.flatMap { $0.loop.map(\.x) }
+			XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), drill, accuracy: 0.0001)
+		}
 	}
 
 	func testAnInnerLayerHasNothingToShow() {
@@ -176,7 +195,7 @@ final class PreviewTests: XCTestCase {
 	func testAClearMaskLeavesEveryPieceOfCopperPlated() {
 		var board = board()
 		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
-		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), drill: .mm(0.5), pad: .mm(0.9), from: 0, to: 1, net: nil))
+		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), net: nil))
 		board.footprints = [chip(at: Point(x: .mm(10), y: .mm(10)))]
 
 		let gold = Plating.gold.rgb

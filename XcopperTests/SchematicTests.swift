@@ -598,7 +598,7 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(design.board.ratsnest().count, 1, "different layers need a via")
 
 		design.board.vias = [
-			Via(at: Point(x: .mm(20), y: .mm(20)), drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: 0),
+			Via(at: Point(x: .mm(20), y: .mm(20)), net: 0),
 		]
 		XCTAssertEqual(design.board.ratsnest(), [])
 	}

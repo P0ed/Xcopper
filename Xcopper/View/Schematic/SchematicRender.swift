@@ -44,7 +44,9 @@ extension SchematicView {
 			lineWidth: 1.5
 		)
 		renderSessions(in: context, scale: scale, origin: origin)
-		renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
+		if state.tool != .select {
+			renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
+		}
 	}
 
 	private func color(of name: String?) -> Color {

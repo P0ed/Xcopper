@@ -108,7 +108,7 @@ private extension Design {
 
 		if plated {
 			for via in board.vias {
-				program.drill(via.drill, at: via.at)
+				program.drill(board.rules.viaDrill, at: via.at)
 			}
 			for footprint in board.footprints {
 				for pad in footprint.placedPads where pad.isThrough {

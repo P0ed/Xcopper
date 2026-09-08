@@ -8,8 +8,8 @@ final class NetInheritanceTests: XCTestCase {
 	private func trace(_ start: Point, _ end: Point, layer: Int = 0, net: Net.ID? = nil) -> Trace {
 		Trace(start: start, end: end, width: .mm(0.4), layer: layer, net: net)
 	}
-	private func via(_ at: Point, from: Int = 0, to: Int = 1, net: Net.ID? = nil) -> Via {
-		Via(at: at, drill: .mm(0.3), pad: .mm(0.6), from: from, to: to, net: net)
+	private func via(_ at: Point, net: Net.ID? = nil) -> Via {
+		Via(at: at, net: net)
 	}
 	private func pad(_ at: Point, net: Net.ID?, through: Bool = false, flipped: Bool = false) -> Footprint {
 		var footprint = Footprint(spec: .init(kind: .chip), reference: "R1", at: at)
@@ -63,16 +63,18 @@ final class NetInheritanceTests: XCTestCase {
 		XCTAssertEqual(reversed.board.traces.map(\.net), [0, 0])
 	}
 
-	func testLayerAndViaSpanLimitConnections() {
+	func testCopperLayersStaySeparateUntilAViaConnectsThem() {
 		var design = Design(board: Board(stack: .analog))
 		design.board.traces = [
 			trace(point(10, 20), point(30, 20), net: 1),
-			trace(point(20, 10), point(20, 30), layer: 1),
+			trace(point(20, 10), point(20, 30), layer: design.board.stack.bottom),
 		]
-		design.board.vias = [via(point(15, 20), from: 1, to: 2)]
 		design.inheritConnectedNets()
 		XCTAssertNil(design.board.traces[1].net)
-		XCTAssertNil(design.board.vias[0].net)
+		design.board.vias = [via(point(20, 20))]
+		design.inheritConnectedNets()
+		XCTAssertEqual(design.board.traces[1].net, 1)
+		XCTAssertEqual(design.board.vias[0].net, 1)
 	}
 
 	func testFlippedAndThroughHolePadsUseTheirCopperLayers() {

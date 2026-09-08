@@ -53,7 +53,9 @@ extension EditorView {
 
 	private func cycleSnap(back: Bool) {
 		switch editor.mode {
-		case .layout: cycle(&layout.snap, Nm.snapGrids, back: back)
+		case .layout:
+			let options = layout.activeGridOptions
+			cycle(&layout.activeGrid, options, back: back)
 		case .schematic: cycle(&schematic.snap, Nm.sheetSnapGrids, back: back)
 		case .preview: break
 		}

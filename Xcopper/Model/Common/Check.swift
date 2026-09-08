@@ -87,10 +87,10 @@ extension Board {
 		}
 		for (index, via) in vias.enumerated() {
 			objects.append(BoardObject(
-				.round(via.at, via.pad),
+				.round(via.at, rules.viaPad),
 				net: via.net,
 				ref: .via(index),
-				layers: via.span
+				layers: through
 			))
 		}
 		for (index, footprint) in footprints.enumerated() {

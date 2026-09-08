@@ -29,7 +29,7 @@ final class SyncTests: XCTestCase {
 		let from = design.board.footprints[0].placedPads[0].at
 		let to = design.board.footprints[1].placedPads[0].at
 		design.board.traces = [Trace(start: from, end: to, width: .mm(0.25), layer: 0, net: legacy)]
-		design.board.vias = [Via(at: to, drill: .mm(0.3), pad: .mm(0.6), from: 0, to: 1, net: legacy)]
+		design.board.vias = [Via(at: to, net: legacy)]
 		_ = design.updateBoardFromSchematic()
 		let synced = design
 		for _ in 0 ..< 3 {

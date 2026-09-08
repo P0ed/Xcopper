@@ -61,6 +61,12 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
+**Board → Board settings…** (`⌘B`) sets the board size, stackup and via drill and
+pad diameters. Every via uses the board's sizes, including existing vias and vias
+inside imported modules. Applying a change updates them together and can be undone.
+Vias always pass through the whole board, from top to bottom.
+Blind and buried vias are not supported.
+
 | Key | Tool |
 | --- | --- |
 | `S` | Select |
@@ -70,9 +76,15 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 | `F` | Place footprint |
 
 `1` and `2` pick the signal layer to draw on. `⇥` / `⇧⇥` step between them and
-`G` cycles snap spacing. Grid dots have their own 1.27 mm and 2.54 mm display
-spacing setting. `R` rotates a selection clockwise and `⇧R` rotates it
-counterclockwise.
+`G` cycles the active tool's grid; in Select it follows the selected objects.
+`⇧G` cycles backward. The Place grid is 1.27, 2.54 or 12.7 mm for footprints,
+holes and module groups. The Route grid is 0.127, 0.254 or 0.635 mm for traces
+and vias. Each setting is remembered independently, with defaults of 2.54 mm
+for placement and 0.254 mm for routing. Moving, nudging, duplicating and pasting
+use the grid for those objects; a mixed group containing a footprint, hole or
+module moves together on the placement grid. Grid dots keep their separate
+spacing setting in Display. `R` rotates a selection clockwise and `⇧R` rotates
+it counterclockwise.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
@@ -374,6 +386,9 @@ nor placed.
 
 Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
 The schematic stores parts in `symbols` and net names in `labels`.
+Via diameters are stored once in the board's rules. Older documents use their
+saved board via sizes; per-via drill and pad overrides are discarded when opened.
+Saved via layer ranges are also discarded: every via spans the current board stack.
 Older power and ground symbols and saved flags open as net labels, preserving
 their connection points and effective net names.
 
@@ -397,7 +412,7 @@ Wire the block's pins; the board updates automatically. Connections
 pass through module IO to imported pads, traces, vias and nested modules. Private
 nets and component references belong to their instance hierarchy. Separate
 instances share only connected IO and the `GND`, `VCC` and `VEE` supply nets.
-The parent supplies its stack, internal planes, clearance rules and 3D thickness.
+The parent supplies its stack, internal planes, clearance rules, via sizes and 3D thickness.
 Source top and bottom copper map to the parent's outer layers, and through holes
 span the parent stack. Module rectangles are placement bounds; fabrication
 exports only the parent's outline.

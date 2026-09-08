@@ -147,7 +147,7 @@ extension Operations {
 		var next = design
 		do {
 			let ids = try ModuleFolderAccess.withAccess(to: documentURL.deletingLastPathComponent()) {
-				try next.pasteModules(clipboard.modules, by: offset, documentURL: documentURL)
+				try next.pasteModules(clipboard.modules, by: pasteOffset, documentURL: documentURL)
 			}
 			design = next
 			return ids

@@ -39,8 +39,12 @@ extension Tool {
 
 extension Nm {
 
-	static var snapGrids: [Nm] {
-		[.mil(5), .mil(10), .mil(25), .mil(50), .mil(100)]
+	static var placementGrids: [Nm] {
+		[.mm(1.27), .mm(2.54), .mm(12.7)]
+	}
+
+	static var routingGrids: [Nm] {
+		[.mm(0.127), .mm(0.254), .mm(0.635)]
 	}
 
 	static var widths: [Nm] {
@@ -78,7 +82,8 @@ struct LayoutState: Equatable, SelectionState {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var snap: Nm = .snapGrids.last!
+	var placementGrid: Nm = .mm(2.54)
+	var routingGrid: Nm = .mm(0.254)
 	var grid: Nm = .displayGrids.first!
 	var traceWidth: Nm = .widths.first!
 	var spec: Footprint.Spec = .default
@@ -90,6 +95,25 @@ struct LayoutState: Equatable, SelectionState {
 }
 
 extension LayoutState {
+
+	private var usesPlacementGrid: Bool {
+		switch tool {
+		case .footprint, .hole: true
+		case .trace, .via: false
+		case .select: selection.usesPlacementGrid
+		}
+	}
+
+	var activeGrid: Nm {
+		get { usesPlacementGrid ? placementGrid : routingGrid }
+		set {
+			if usesPlacementGrid { placementGrid = newValue }
+			else { routingGrid = newValue }
+		}
+	}
+
+	var activeGridOptions: [Nm] { usesPlacementGrid ? Nm.placementGrids : Nm.routingGrids }
+	var selectionGrid: Nm { selection.usesPlacementGrid ? placementGrid : routingGrid }
 
 	mutating func cancelSessions() {
 		traceSession = nil
@@ -113,6 +137,18 @@ extension LayoutState {
 		let signals = stack.signals
 		let index = signals.firstIndex(of: layer) ?? 0
 		layer = signals[(index + offset + signals.count) % signals.count]
+	}
+}
+
+private extension Set where Element == Ref {
+
+	var usesPlacementGrid: Bool {
+		isEmpty || contains { ref in
+			switch ref {
+			case .footprint, .hole, .module, .pad: true
+			case .trace, .via: false
+			}
+		}
 	}
 }
 

@@ -9,7 +9,6 @@ struct PreviewToolBar: ToolbarContent {
 		ToolbarItemGroup {
 			StandButton(stand: .top, shortcut: "T", board: board, state: $state)
 			StandButton(stand: .bottom, shortcut: "B", board: board, state: $state)
-			StandButton(stand: .front, shortcut: "F", board: board, state: $state)
 			StandButton(stand: .angled, shortcut: "A", board: board, state: $state)
 		}
 	}
