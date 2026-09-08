@@ -128,7 +128,7 @@ extension Footprint {
 		Pad(
 			at: Point(x: x, y: y),
 			size: Size(width: Int(pad), height: Int(pad)),
-			shape: name == 1 ? .rect : .oval,
+			shape: .oval,
 			drill: drill,
 			layer: 0,
 			name: "\(name)",
@@ -320,7 +320,7 @@ extension Footprint {
 					pad: .mm(1.8)
 				)
 			},
-			body: Size(width: .mm(12.5), height: .mm(12.5))
+			body: Size(width: .mm(12.5), height: .mm(14.0))
 		)
 	}
 
@@ -358,7 +358,7 @@ extension Footprint {
 			pads: (0 ..< 3).map { index in
 				through(index + 1, 0, (index - 1) * pitch, drill: .mm(1.6), pad: .mm(2.8))
 			},
-			body: Size(width: .mm(4.8), height: .mm(13.0))
+			body: Size(width: .mm(7.9), height: .mm(13.0))
 		)
 	}
 }

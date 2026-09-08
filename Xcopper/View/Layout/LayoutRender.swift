@@ -66,7 +66,7 @@ extension LayoutView {
 			let unresolved = design.moduleStatus(module.id) != nil
 			let color: Color = unresolved ? .red : state.selection.contains(.module(module.id)) ? Palette.preview : Palette.silk
 			let rect = module.bounds.cg(scale, origin: origin)
-			context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+			context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.0, dash: [6, 3]))
 			context.draw(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color), at: CGPoint(x: rect.midX, y: rect.minY - 10))
 		}
 	}
@@ -223,7 +223,7 @@ extension LayoutView {
 				.cg(scale, origin: origin)
 
 			var outline = Path()
-			if footprint.appearance.stands {
+			if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
 				outline.addRect(body)
 			}
 			outline.addEllipse(in: CGRect(center: marker, radius: max(1.0, scale * 0.12)))

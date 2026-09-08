@@ -36,9 +36,7 @@ extension PackageAppearance {
 			self.init(height: .mm(2.5), posts: true)
 		case .sip:
 			self.init(height: .mm(9.0))
-		case .led5mm:
-			self.init(shell: .dome(.mm(5.0)), height: .mm(8.6), color: Palette.lens)
-		case .bourns51, .nkkMNPC, .mta156, .pomona1581:
+		case .led5mm, .bourns51, .nkkMNPC, .mta156, .pomona1581:
 			self.init(shell: .none, height: 0)
 		case .custom:
 			let through = footprint.pads.contains(where: \.isThrough)
