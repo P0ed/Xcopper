@@ -171,7 +171,7 @@ extension Design {
 			for var footprint in imported.footprints {
 				footprint.at = module.place(footprint.at)
 				footprint.rotation = footprint.rotation.adding(module.layoutRotation)
-				footprint.reference = "\(module.reference)/\(footprint.reference)"
+				footprint.reference = "\(module.reference).\(footprint.reference)"
 				result.owners[.footprint(result.design.board.footprints.count)] = module.id
 				result.design.board.footprints.append(footprint)
 			}

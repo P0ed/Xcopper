@@ -57,7 +57,7 @@ final class ModuleTests: XCTestCase {
 		let source = source()
 		let design = try imported(["Part.xcb": source], filenames: ["Part.xcb", "Part.xcb"])
 		let resolved = design.resolved
-		XCTAssertEqual(resolved.board.footprints.map(\.reference), ["M1/R1", "M2/R1"])
+		XCTAssertEqual(resolved.board.footprints.map(\.reference), ["M1.R1", "M2.R1"])
 		XCTAssertNotEqual(resolved.board.footprints[0].pads[0].net, resolved.board.footprints[1].pads[0].net)
 		XCTAssertNotEqual(resolved.board.footprints[0].pads[1].net, resolved.board.footprints[1].pads[1].net)
 		XCTAssertEqual(resolved.board.vias[1].net, 0)
@@ -128,7 +128,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(parent.modules[0].interface, ["IN1", "IN2", "OUT1", "OUT2"])
 		XCTAssertEqual(resolved.board.footprints.count, 4)
 		XCTAssertEqual(resolved.board.footprints[0].pads.map { parent.net($0.net)?.name }, rails)
-		let amplifier = try XCTUnwrap(resolved.board.footprints.first { $0.reference == "M1/U1" })
+		let amplifier = try XCTUnwrap(resolved.board.footprints.first { $0.reference == "M1.U1" })
 		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "8" }?.net)?.name, "VCC")
 		XCTAssertEqual(parent.net(amplifier.pads.first { $0.name == "4" }?.net)?.name, "VEE")
 		XCTAssertTrue(resolved.board.objects.filter { $0.ref.kind == .via }.allSatisfy { $0.layers == 0 ... parent.board.stack.bottom })
@@ -213,7 +213,7 @@ final class ModuleTests: XCTestCase {
 		_ = parent.updateBoardFromSchematic()
 		let projection = parent.moduleProjection()
 		let bus = parent.nets.first { $0.name == "BUS" }?.id
-		XCTAssertEqual(projection.design.board.footprints[0].reference, "M1/M1/R1")
+		XCTAssertEqual(projection.design.board.footprints[0].reference, "M1.M1.R1")
 		XCTAssertEqual(projection.design.board.footprints[0].pads[0].net, bus)
 		XCTAssertEqual(projection.design.board.traces[0].net, bus)
 		XCTAssertTrue(projection.owners.values.allSatisfy { $0 == parent.modules[0].id })

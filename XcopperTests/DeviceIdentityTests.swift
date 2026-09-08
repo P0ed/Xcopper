@@ -27,7 +27,7 @@ final class DeviceIdentityTests: XCTestCase {
 			.init(component: .hlmpWL02), .init(component: .pomona1581), .init(component: .nkkMN12),
 		] { design.place(spec, at: .zero) }
 		let appearances = design.board.footprints.map(\.appearance)
-		let references = ["R9", "C2/R1", "renamed", "M1/M2/C1", "C1"]
+		let references = ["R9", "C2.R1", "renamed", "M1.M2.C1", "C1"]
 		for index in design.board.footprints.indices {
 			design.renameReference(Ref.footprint(index), to: references[index])
 			design.board.footprints[index].value = "Pomona 1581"
@@ -64,7 +64,7 @@ final class DeviceIdentityTests: XCTestCase {
 		let leafData = try Document(design: leaf).encoded()
 		var middle = Design()
 		try middle.importModule(filename: "Leaf.xcb", documentURL: parentURL, read: { _ in leafData })
-		XCTAssertEqual(middle.resolved.board.footprints.map(\.reference), ["M1/C1", "M1/D1"])
+		XCTAssertEqual(middle.resolved.board.footprints.map(\.reference), ["M1.C1", "M1.D1"])
 		XCTAssertEqual(middle.resolved.board.footprints.map(\.appearance), appearances)
 		let middleData = try Document(design: middle).encoded()
 		let read: (URL) throws -> Data = { url in
@@ -72,7 +72,7 @@ final class DeviceIdentityTests: XCTestCase {
 		}
 		var parent = Design()
 		let id = try parent.importModule(filename: "Middle.xcb", documentURL: parentURL, read: read)
-		XCTAssertEqual(parent.resolved.board.footprints.map(\.reference), ["M1/M1/C1", "M1/M1/D1"])
+		XCTAssertEqual(parent.resolved.board.footprints.map(\.reference), ["M1.M1.C1", "M1.M1.D1"])
 		XCTAssertEqual(parent.resolved.board.footprints.map(\.appearance), appearances)
 		parent.renameReference(Ref.module(id), to: "C2")
 		var reopened = try Document.decode(Document(design: parent).encoded())
