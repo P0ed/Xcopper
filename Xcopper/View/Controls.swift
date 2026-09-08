@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @MainActor
@@ -178,6 +179,28 @@ struct PropertyRow<Content: View>: View {
 }
 
 @MainActor
+struct PropertyEditing: ViewModifier {
+	var property: Property
+	@FocusState.Binding var focus: Property?
+
+	func body(content: Content) -> some View {
+		content
+			.focused($focus, equals: property)
+			.onSubmit(finish)
+			.onExitCommand(perform: finish)
+	}
+
+	private func finish() {
+		let window = NSApp.keyWindow
+		DispatchQueue.main.async {
+			guard focus == property else { return }
+			if let window, !window.makeFirstResponder(nil) { return }
+			focus = nil
+		}
+	}
+}
+
+@MainActor
 struct TextRow: View {
 	var title: String
 	var prompt: String = ""
@@ -189,7 +212,7 @@ struct TextRow: View {
 		PropertyRow(title: title) {
 			TextField(prompt, text: $text)
 				.textFieldStyle(.roundedBorder)
-				.focused($focus, equals: property)
+				.modifier(PropertyEditing(property: property, focus: $focus))
 		}
 	}
 }
@@ -232,7 +255,7 @@ struct LengthRow: View {
 		PropertyRow(title: title) {
 			TextField(value == nil ? "Mixed" : "", value: millimeters, format: MixedNumber())
 				.textFieldStyle(.roundedBorder)
-				.focused($focus, equals: property)
+				.modifier(PropertyEditing(property: property, focus: $focus))
 				.overlay(alignment: .trailing) { unit }
 		}
 	}

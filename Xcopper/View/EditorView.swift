@@ -17,12 +17,14 @@ struct EditorView: View {
 	var body: some View {
 		NavigationSplitView(
 			sidebar: { sidebar },
-			detail: { detail }
+			detail: {
+				detail
+					.focusable()
+					.focused($focused)
+					.focusEffectDisabled()
+			}
 		)
 		.toolbar { toolbar }
-		.focusable()
-		.focused($focused)
-		.focusEffectDisabled()
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
 		.onChange(of: configuration?.fileURL, initial: true) { _, _ in
