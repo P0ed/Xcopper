@@ -94,6 +94,14 @@ extension Board {
 			))
 		}
 		for (index, footprint) in footprints.enumerated() {
+			for trace in footprint.copper(in: stack) {
+				objects.append(BoardObject(
+					.segment(trace.start, trace.end, trace.width),
+					net: trace.net,
+					ref: .footprint(index),
+					layers: trace.layer ... trace.layer
+				))
+			}
 			for pad in footprint.placedPads {
 				let layer = footprint.layer(of: pad, in: stack)
 				objects.append(BoardObject(

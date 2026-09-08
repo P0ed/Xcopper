@@ -22,6 +22,15 @@ extension Board {
 		var result: [Terminal] = []
 
 		for footprint in footprints {
+			for trace in footprint.copper(in: stack) {
+				guard let net = trace.net else { continue }
+				result.append(Terminal(
+					at: trace.start,
+					figure: .segment(trace.start, trace.end, trace.width),
+					layers: trace.layer ... trace.layer,
+					net: net
+				))
+			}
 			for pad in footprint.placedPads {
 				guard let net = pad.net else { continue }
 				let layer = footprint.layer(of: pad, in: stack)

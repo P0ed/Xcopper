@@ -19,6 +19,9 @@ struct Design: Equatable, Codable {
 		board = try values.decode(Board.self, forKey: .board)
 		schematic = try values.decode(Schematic.self, forKey: .schematic)
 		modules = try values.decodeIfPresent([ModuleInstance].self, forKey: .modules) ?? []
+		if board.footprints.contains(where: { $0.component != nil }) {
+			_ = updateBoardFromSchematic()
+		}
 	}
 }
 

@@ -226,7 +226,7 @@ extension Board {
 	private func copper(into model: inout Model, side: Side) {
 		let punches = drills.map { drill in (bounds: drill.bounds, loop: drill.polygon()) }
 
-		for trace in traces where trace.layer == side.layer {
+		for trace in traces + footprints.flatMap({ $0.copper(in: stack) }) where trace.layer == side.layer {
 			lay(
 				.segment(trace.start, trace.end, trace.width),
 				arc: 2,

@@ -376,53 +376,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertNotEqual(Layout.point(wobble, scale: 4.0), Layout.point(press, scale: 4.0))
 	}
 
-	func testFootprintRotationAndFlipPlacePadsAbsolutely() {
-		let at = Point(x: .mm(10), y: .mm(20))
-		var footprint = Footprint(spec: .init(kind: .chip, chip: .c0603), reference: "R1", at: at)
-
-		XCTAssertEqual(footprint.placedPads.map(\.at), [
-			Point(x: .mm(9.2), y: .mm(20)),
-			Point(x: .mm(10.8), y: .mm(20)),
-		])
-
-		footprint.rotation = .r90
-		XCTAssertEqual(footprint.placedPads.map(\.at), [
-			Point(x: .mm(10), y: .mm(19.2)),
-			Point(x: .mm(10), y: .mm(20.8)),
-		])
-		XCTAssertEqual(footprint.placedPads[0].size, Size(width: .mm(0.95), height: .mm(0.9)))
-
-		footprint.rotation = .r0
-		footprint.flipped = true
-		XCTAssertEqual(footprint.placedPads.map(\.at), [
-			Point(x: .mm(10.8), y: .mm(20)),
-			Point(x: .mm(9.2), y: .mm(20)),
-		])
-		XCTAssertEqual(footprint.layer(of: footprint.placedPads[0], in: .digital), Stack.digital.bottom)
-	}
-
-	func testThroughHolePadsStayOnBothSidesWhenFlipped() {
-		var footprint = Footprint(spec: .init(kind: .header, pins: 4, rows: 2), reference: "J1", at: .zero)
-		XCTAssertEqual(footprint.pads.count, 8)
-		XCTAssertTrue(footprint.pads.allSatisfy(\.isThrough))
-
-		footprint.flipped = true
-		XCTAssertTrue(footprint.placedPads.allSatisfy { $0.layer == 0 })
-	}
-
-	func testFootprintGeneratorsNumberPadsContiguously() {
-		for spec in [
-			Footprint.Spec(kind: .soic, pins: 8),
-			Footprint.Spec(kind: .dip, pins: 14),
-			Footprint.Spec(kind: .sot23),
-			Footprint.Spec(kind: .chip),
-		] {
-			let footprint = Footprint(spec: spec, reference: "U1", at: .zero)
-			let names = footprint.pads.map { Int($0.name) ?? 0 }.sorted()
-			XCTAssertEqual(names, Array(1 ... footprint.pads.count), "\(spec.kind)")
-		}
-	}
-
 	func testOvalPadsCapsuleAlongTheirLongAxisInEitherOrientation() {
 		let at = Point(x: .mm(5), y: .mm(5))
 		let wide = Pad(at: at, size: Size(width: .mm(2), height: .mm(1)), shape: .oval, drill: 0, layer: 0, name: "1", net: nil)

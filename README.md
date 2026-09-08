@@ -199,10 +199,10 @@ a transistor, SOIC for an IC — and the symbol dialog names it before placement
 The layout picker lets you choose the device and a supported package separately,
 including chip size or SOIC versus DIP for an IC, and draws the matching symbol.
 
-Footprints store device type, physical package and optional library identity
-separately from their reference and value. Renaming a part or importing it into
-a module preserves its identity and appearance. Library parts retain their
-package even with customized pads. Custom land patterns can be represented
+Each footprint has a device type, physical package and optional library identity
+separate from its reference and value. Renaming a part or importing it into
+a module preserves its identity. Library components load their current footprint
+definition whenever a document opens. Custom land patterns can be represented
 without assigning a device or library identity.
 
 ## Find
@@ -386,6 +386,10 @@ nor placed.
 
 Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
 The schematic stores parts in `symbols` and net names in `labels`.
+Library footprints store their component ID, placement, reference, value and BOM
+setting. Pads, body dimensions, device and package come from the current library
+definition when opened, and pad nets are rebuilt from the schematic.
+Generic and custom footprints retain their stored geometry.
 Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
 Saved via layer ranges are also discarded: every via spans the current board stack.

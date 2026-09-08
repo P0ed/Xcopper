@@ -62,12 +62,41 @@ extension Footprint {
 		at = try values.decode(Point.self, forKey: .at)
 		rotation = try values.decode(Rotation.self, forKey: .rotation)
 		flipped = try values.decode(Bool.self, forKey: .flipped)
-		pads = try values.decode([Pad].self, forKey: .pads)
-		body = try values.decode(Rect.self, forKey: .body)
-		device = try values.decode(Device.self, forKey: .device)
-		package = try values.decode(Package.self, forKey: .package)
 		component = try values.decodeIfPresent(Component.self, forKey: .component)
 		inBOM = try values.decodeIfPresent(Bool.self, forKey: .inBOM) ?? true
+		if let component {
+			guard let footprint = component.makeFootprint() else {
+				throw DecodingError.dataCorruptedError(forKey: .component, in: values, debugDescription: "Component has no footprint")
+			}
+			let storedPads = try values.decodeIfPresent([Pad].self, forKey: .pads) ?? []
+			let nets = Dictionary(storedPads.compactMap { pad in pad.net.map { (pad.name, $0) } }, uniquingKeysWith: { first, _ in first })
+			pads = footprint.pads.map { pad in modifying(pad) { $0.net = nets[$0.name] } }
+			body = footprint.body
+			device = footprint.device
+			package = footprint.package
+		} else {
+			pads = try values.decode([Pad].self, forKey: .pads)
+			body = try values.decode(Rect.self, forKey: .body)
+			device = try values.decode(Device.self, forKey: .device)
+			package = try values.decode(Package.self, forKey: .package)
+		}
+	}
+
+	func encode(to encoder: Encoder) throws {
+		var values = encoder.container(keyedBy: CodingKeys.self)
+		try values.encode(reference, forKey: .reference)
+		try values.encode(value, forKey: .value)
+		try values.encode(at, forKey: .at)
+		try values.encode(rotation, forKey: .rotation)
+		try values.encode(flipped, forKey: .flipped)
+		try values.encodeIfPresent(component, forKey: .component)
+		try values.encode(inBOM, forKey: .inBOM)
+		if component == nil {
+			try values.encode(pads, forKey: .pads)
+			try values.encode(body, forKey: .body)
+			try values.encode(device, forKey: .device)
+			try values.encode(package, forKey: .package)
+		}
 	}
 }
 
@@ -215,6 +244,13 @@ extension Board {
 	func routing(moving refs: Set<Ref> = []) -> RouteGeometry<Trace> {
 		var terminals: [RouteTerminal] = []
 		for (index, footprint) in footprints.enumerated() {
+			for trace in footprint.copper(in: stack) {
+				terminals.append(RouteTerminal(
+					figure: .segment(trace.start, trace.end, trace.width),
+					layers: trace.layer ... trace.layer,
+					moving: refs.contains(.footprint(index))
+				))
+			}
 			for pad in footprint.placedPads {
 				let layer = footprint.layer(of: pad, in: stack)
 				terminals.append(RouteTerminal(

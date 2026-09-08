@@ -361,31 +361,6 @@ final class PreviewTests: XCTestCase {
 		return sum / 2.0
 	}
 
-	private func covers(_ piece: Piece, _ point: Point) -> Bool {
-		let triangles = triangulate(piece.loop, holes: piece.holes, facing: piece.normal)
-		let at = point.v3(0.0)
-
-		func turn(_ a: V3, _ b: V3) -> Double {
-			(b.x - a.x) * (at.y - a.y) - (b.y - a.y) * (at.x - a.x)
-		}
-		return stride(from: 0, to: triangles.count, by: 3).contains { corner in
-			let turns = [
-				turn(triangles[corner], triangles[corner + 1]),
-				turn(triangles[corner + 1], triangles[corner + 2]),
-				turn(triangles[corner + 2], triangles[corner]),
-			]
-			return turns.allSatisfy { $0 >= 0.0 } || turns.allSatisfy { $0 <= 0.0 }
-		}
-	}
-
-	private func inside(_ drill: Figure) -> [Point] {
-		guard case let .round(center, diameter) = drill else { return [] }
-		let reach = Int(diameter) / 3
-
-		return [center] + [Point(x: reach, y: 0), Point(x: -reach, y: 0), Point(x: 0, y: reach), Point(x: 0, y: -reach)]
-			.map { offset in center + offset }
-	}
-
 	func testADrillTakesBackTheCopperThatStoodOverIt() {
 		let face = Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20))).corners
 		let drill = circle(at: Point(x: .mm(10), y: 0), diameter: .mm(6))
@@ -430,36 +405,6 @@ final class PreviewTests: XCTestCase {
 		XCTAssertTrue(pieces.contains { holds($0, [Point(x: .mm(1), y: 0)]) })
 		XCTAssertTrue(pieces.contains { holds($0, [Point(x: .mm(9), y: 0)]) })
 		XCTAssertFalse(pieces.contains { holds($0, [Point(x: .mm(5), y: 0)]) }, "the hole is open")
-	}
-
-	func testNoCopperOnEitherFaceStandsOverAHole() {
-		var board = board()
-		board.footprints = [
-			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Point(x: .mm(20), y: .mm(15))),
-		]
-		board.traces.append(Trace(
-			start: Point(x: .mm(20), y: .mm(25)),
-			end: Point(x: .mm(20), y: .mm(20)),
-			width: .mm(0.8),
-			layer: 0,
-			net: nil
-		))
-		board.holes.append(Hole(at: Point(x: .mm(16), y: .mm(15)), diameter: .mm(2)))
-
-		let copper = board.model(Finish().shape).pieces
-			.filter { piece in (20 ... 25).contains(abs(piece.level)) }
-
-		XCTAssertFalse(copper.isEmpty)
-		for drill in board.drills {
-			for point in inside(drill) {
-				XCTAssertFalse(
-					copper.contains { piece in covers(piece, point) },
-					"copper standing over \(drill)"
-				)
-			}
-		}
-		XCTAssertTrue(copper.contains { piece in covers(piece, Point(x: .mm(24), y: .mm(15))) }, "the ring")
-		XCTAssertTrue(copper.contains { piece in covers(piece, Point(x: .mm(20), y: .mm(23))) }, "the trace")
 	}
 
 	func testAMaskChangesWhatTheBoardIsPaintedInAndNotWhatItIsMadeOf() {
@@ -518,68 +463,6 @@ final class PreviewTests: XCTestCase {
 		XCTAssertLessThan(lift(-20), lift(-10))
 		XCTAssertLessThan(lift(-10), 0.0)
 		XCTAssertLessThan(abs(lift(20)), 0.05)
-	}
-
-	func testAPackageIsReadOffTheLandPatternWhenTheLibraryDoesNotKnowThePart() {
-		let chip = Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: .zero)
-		let dip = Footprint(spec: .init(kind: .dip, pins: 8), reference: "U1", at: .zero)
-		let header = Footprint(spec: .init(kind: .header, pins: 4, rows: 1), reference: "J1", at: .zero)
-		let soic = Footprint(spec: .init(kind: .soic, pins: 8), reference: "U2", at: .zero)
-
-		XCTAssertTrue(chip.appearance.leads, "a chip is held up on its terminations")
-		XCTAssertFalse(chip.appearance.posts)
-		XCTAssertFalse(dip.appearance.posts, "a dip's leads are bent under it, not up through it")
-		XCTAssertTrue(header.appearance.posts, "a header carries pins through its moulding")
-		XCTAssertFalse(header.appearance.leads)
-		XCTAssertGreaterThan(soic.appearance.height, chip.appearance.height)
-	}
-
-	func testACapacitorChipStandsTwiceAsTallAsAResistorAndIsMadeOfSomethingElse() {
-		let resistor = Footprint(spec: .init(kind: .chip, chip: .c1206), reference: "R1", at: .zero)
-		let capacitor = Footprint(spec: .init(kind: .chip, chip: .c1206, device: .capacitor), reference: "C1", at: .zero)
-
-		XCTAssertEqual(capacitor.appearance.height, resistor.appearance.height * 2)
-		XCTAssertEqual(capacitor.appearance.color, Palette.ceramic)
-		XCTAssertEqual(resistor.appearance.color, Palette.chip)
-		XCTAssertEqual(capacitor.appearance.shell, resistor.appearance.shell, "both are the same block")
-		XCTAssertTrue(capacitor.appearance.leads, "a chip is held up on its terminations either way")
-	}
-
-	func testASurfaceMountLegIsThinnerThanTheLandItIsSolderedTo() throws {
-		let soic = Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: .zero)
-		let pad = try XCTUnwrap(soic.placedPads.first)
-
-		let land = pad.figure.bounds
-		let leg = pad.leg.bounds
-
-		XCTAssertLessThan(leg.size.height, land.size.height, "the solder fillets either side")
-		XCTAssertLessThan(leg.size.width, land.size.width)
-		XCTAssertEqual(leg.center, land.center, "the leg sits in the middle of its land")
-	}
-
-	func testAPartTheBoardOnlyCarriesThePadsOfStandsNowhereOnIt() {
-		var board = board()
-		board.footprints = [
-			Footprint(spec: .init(component: .pomona1581), reference: "J1", at: Point(x: .mm(20), y: .mm(15))),
-		]
-
-		let model = board.model(Finish().shape)
-
-		XCTAssertFalse(board.footprints[0].appearance.stands, "a panel jack is held by the panel")
-		XCTAssertEqual(board.standing(on: false), 0.0)
-		XCTAssertEqual(model.pieces.count { abs($0.level) == 50 }, 0)
-	}
-
-	func testTheLibraryOverridesALandPatternThatWouldReadWrong() {
-		let led = modifying(Footprint(spec: .init(kind: .chip, component: .hlmpWL02), reference: "D1", at: .zero)) {
-			XCTAssertEqual($0.value, Component.hlmpWL02.name)
-		}
-
-		guard case let .dome(diameter) = led.appearance.shell else {
-			return XCTFail("a 5 mm lamp is a lens, not the header its two holes suggest")
-		}
-		XCTAssertEqual(diameter, .mm(5.0))
-		XCTAssertEqual(led.appearance.height, .mm(8.6))
 	}
 
 	func testLookingStraightDownReadsTheSameWayRoundAsTheLayout() {

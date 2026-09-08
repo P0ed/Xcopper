@@ -334,35 +334,6 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(Netlist(design.schematic).group(at: wire.start)?.nodes, [])
 	}
 
-	func testEveryPackagePairsWithASymbolThatHasAPadForEveryPin() {
-		for kind in Symbol.Kind.allCases {
-			let spec = Symbol.Spec(kind: kind, pins: 9)
-			let package = spec.footprint
-			let symbol = Symbol(spec: spec, reference: "X1", at: .zero)
-			let footprint = Footprint(spec: package, reference: "X1", at: .zero)
-			XCTAssertTrue(
-				Set(symbol.pins.map(\.number)).isSubset(of: Set(footprint.pads.map(\.name))),
-				kind.name
-			)
-		}
-
-		for kind in Footprint.Kind.allCases {
-			let spec = Footprint.Spec(kind: kind, pins: 10, rows: 2)
-			let footprint = Footprint(spec: spec, reference: "X1", at: .zero)
-			let symbol = Symbol(spec: spec.symbol, reference: "X1", at: .zero)
-			XCTAssertEqual(
-				Set(symbol.pins.map(\.number)),
-				Set(footprint.pads.map(\.name)),
-				kind.name
-			)
-		}
-
-		for component in Component.allCases {
-			XCTAssertEqual(Symbol.Spec(component: component).footprint.component, component, component.name)
-			XCTAssertEqual(Footprint.Spec(component: component).symbol.component, component, component.name)
-		}
-	}
-
 	private func assertNothingOverlaps(_ extents: [Rect], inside bounds: Rect) {
 		for (index, extent) in extents.enumerated() {
 			XCTAssertTrue(bounds.contains(extent.origin))

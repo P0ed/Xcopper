@@ -220,6 +220,11 @@ extension Board {
 		for pad in pads(on: layer) {
 			result.append((pad.figure, pad.net))
 		}
+		for footprint in footprints {
+			for trace in footprint.copper(in: stack) where trace.layer == layer {
+				result.append((.segment(trace.start, trace.end, trace.width), trace.net))
+			}
+		}
 		return result
 	}
 
@@ -237,6 +242,9 @@ extension Board {
 		}
 		for case let .footprint(index) in refs where footprints.indices.contains(index) {
 			let footprint = footprints[index]
+			for trace in footprint.copper(in: stack) where trace.layer == layer {
+				result.append(.segment(trace.start, trace.end, trace.width))
+			}
 			for pad in footprint.placedPads
 			where pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
 				result.append(pad.figure)
@@ -388,6 +396,12 @@ extension Board {
 	}
 
 	func isTerminal(_ point: Point, layer: Int) -> Bool {
+		for footprint in footprints {
+			for trace in footprint.copper(in: stack)
+			where trace.layer == layer && Figure.segment(trace.start, trace.end, trace.width).contains(point) {
+				return true
+			}
+		}
 		for via in vias
 		where stack.contains(layer) && Figure.round(via.at, rules.viaPad).contains(point) {
 			return true
