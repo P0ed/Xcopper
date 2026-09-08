@@ -147,7 +147,7 @@ extension Design {
 			for net in content.nets {
 				let id = global(net.name) ?? moduleNetID("\(module.id)/\(net.id)")
 				mapping[net.id] = id
-				if nets[id] == nil { nets[id] = "\(module.reference)/\(net.name)" }
+				if nets[id] == nil { nets[id] = "\(module.reference).\(net.name)" }
 			}
 			portsBySymbol[symbolIndex] = content.ports.mapValues { mapping[$0]! }
 			var imported = content.board
