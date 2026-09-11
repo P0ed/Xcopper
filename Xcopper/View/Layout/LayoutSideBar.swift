@@ -8,6 +8,7 @@ struct LayoutSideBar: View {
 	var operations: Operations
 
 	@FocusState private var focus: Property?
+	@State private var violations: [Violation] = []
 
 	private var stack: Stack { design.board.stack }
 
@@ -29,7 +30,7 @@ struct LayoutSideBar: View {
 						options: µm.clearances
 					)
 					CheckList(
-						violations: design.check(),
+						violations: violations,
 						stack: stack,
 						show: operations.show
 					)
@@ -95,6 +96,7 @@ struct LayoutSideBar: View {
 			.padding(12.0)
 		}
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 230.0, max: 300.0)
+		.onChange(of: design, initial: true) { _, design in violations = design.check() }
 		.onChange(of: focus) { _, field in editor.editing = field }
 		.onChange(of: editor.editing) { _, editing in focus = editing }
 		.onDisappear { editor.editing = nil }
