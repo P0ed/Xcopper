@@ -50,6 +50,8 @@ with the glow carrying the selection on a symbol already drawn near white.
 
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor and an IC
 box with any pin count. Every symbol represents a part with one footprint.
+Double-click a resistor or capacitor in Select mode to edit its value in the
+sidebar.
 Net labels name every connection, including supplies: `GND`, `VCC` and `VEE`
 use the same labels as signal nets. Double-click a label to edit its name in
 the sidebar.

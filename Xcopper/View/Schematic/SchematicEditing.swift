@@ -21,7 +21,7 @@ extension SchematicView {
 
 	var editingController: some Gesture {
 		SpatialTapGesture(count: 2)
-			.onEnded { gesture in editLabel(at: point(at: gesture.location)) }
+			.onEnded { gesture in edit(at: point(at: gesture.location)) }
 			.simultaneously(with: dragController)
 	}
 
@@ -136,14 +136,22 @@ private extension SchematicView {
 		state.selection = session.mode.apply(session.initial, hit)
 	}
 
-	func editLabel(at point: Point) {
+	func edit(at point: Point) {
 		guard state.tool == .select,
-			let ref = design.schematicRef(at: point, tolerance: hitTolerance),
-			case let .label(index) = ref,
-			schematic.labels.indices.contains(index)
+			let ref = design.schematicRef(at: point, tolerance: hitTolerance)
 		else { return }
+		let property: Property
+		switch ref {
+		case let .label(index) where schematic.labels.indices.contains(index):
+			property = .text
+		case let .symbol(index) where schematic.symbols.indices.contains(index):
+			guard [.resistor, .capacitor].contains(schematic.symbols[index].kind) else { return }
+			property = .value
+		default:
+			return
+		}
 		state.selection = [ref]
-		beginEditing(.text)
+		beginEditing(property)
 	}
 
 	func placeLabel(at point: Point) {

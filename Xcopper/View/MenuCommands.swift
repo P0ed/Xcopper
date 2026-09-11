@@ -69,7 +69,6 @@ struct MenuCommands: Commands {
 			}
 		}
 		CommandGroup(replacing: .importExport) {
-			Button("Import Module…") { op?.importModule() }.disabled(op.actionsDisabled)
 			Button("Reload Modules") { op?.reloadModules() }.disabled(op.modulesDisabled)
 			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !op.hasModuleSelection)
 			Divider()
@@ -124,52 +123,61 @@ struct MenuCommands: Commands {
 					action: { op?.editor.mode = mode }
 				)
 			}
-			Divider()
-			ActionButton(
-				name: op?.counterpartName ?? "Show footprint",
-				image: op?.counterpartImage ?? "square.grid.3x3.square",
-				shortcut: "J",
-				modifiers: .command,
-				disabled: op.counterpartDisabled,
-				action: { op?.showCounterpart() }
-			)
-		}
-		CommandMenu("Sheet") {
-			ActionButton(
-				name: "Size",
-				image: "doc",
-				shortcut: "B",
-				modifiers: .command,
-				disabled: op.schematicDisabled,
-				action: { op?.editor.sheet = .schematic }
-			)
-		}
-		CommandMenu("Board") {
-			ActionButton(
-				name: "Board settings…",
-				image: "square.dashed",
-				shortcut: "B",
-				modifiers: .command,
-				disabled: op.layoutDisabled,
-				action: { op?.editor.sheet = .board }
-			)
-			Divider()
-			ActionButton(
-				name: "Previous layer",
-				image: "square.3.layers.3d.bottom.filled",
-				shortcut: "\u{19}",
-				disabled: op.layoutDisabled,
-				action: { op.map { op in op.layout.prevLayer(op.design.board.stack) } }
-			)
-			ActionButton(
-				name: "Next layer",
-				image: "square.3.layers.3d.top.filled",
-				shortcut: "\u{9}",
-				disabled: op.layoutDisabled,
-				action: { op.map { op in op.layout.nextLayer(op.design.board.stack) } }
-			)
+			if op?.mode != .preview {
+				Divider()
+				ActionButton(
+					name: op?.counterpartName ?? "Show footprint",
+					image: op?.counterpartImage ?? "square.grid.3x3.square",
+					shortcut: "J",
+					modifiers: .command,
+					disabled: op.counterpartDisabled,
+					action: { op?.showCounterpart() }
+				)
+				Divider()
+			}
+			if op?.mode == .schematic {
+				ActionButton(
+					name: "Sheet size",
+					image: "doc",
+					shortcut: "B",
+					modifiers: .command,
+					disabled: op.schematicDisabled,
+					action: { op?.editor.sheet = .schematic }
+				)
+			} else if op?.mode == .layout {
+				ActionButton(
+					name: "Board settings",
+					image: "square.dashed",
+					shortcut: "B",
+					modifiers: .command,
+					disabled: op.layoutDisabled,
+					action: { op?.editor.sheet = .board }
+				)
+				Divider()
+				ActionButton(
+					name: "Previous layer",
+					image: "square.3.layers.3d.bottom.filled",
+					shortcut: "\u{19}",
+					disabled: op.layoutDisabled,
+					action: { op.map { op in op.layout.prevLayer(op.design.board.stack) } }
+				)
+				ActionButton(
+					name: "Next layer",
+					image: "square.3.layers.3d.top.filled",
+					shortcut: "\u{9}",
+					disabled: op.layoutDisabled,
+					action: { op.map { op in op.layout.nextLayer(op.design.board.stack) } }
+				)
+			}
 		}
 		CommandMenu("Objects") {
+			ActionButton(
+				name:"Place Module",
+				image: "m.square",
+				shortcut: "M",
+				disabled: op.modulesDisabled,
+				action: { op?.importModule() }
+			)
 			ActionButton(
 				name: "Place footprint",
 				image: "square.grid.3x3.square",
