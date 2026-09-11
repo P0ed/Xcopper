@@ -104,12 +104,12 @@ struct PadsInspector: View {
 			ValueRow(title: "Ref", value: footprint.reference)
 			ValueRow(title: "Pad", value: pad.name)
 			ValueRow(title: "Shape", value: pad.shape == .rect ? "Rectangle" : "Oval")
-			ValueRow(title: "Width", value: millimeters(pad.size.width.mm))
-			ValueRow(title: "Height", value: millimeters(pad.size.height.mm))
-			if pad.isThrough { ValueRow(title: "Drill", value: millimeters(pad.drill.mm)) }
+			ValueRow(title: "Width", value: .millimeters(pad.size.width))
+			ValueRow(title: "Height", value: .millimeters(pad.size.height))
+			if pad.isThrough { ValueRow(title: "Drill", value: .millimeters(pad.drill)) }
 			ValueRow(title: "Layer", value: pad.isThrough ? "Through hole" : design.board.stack.name(of: footprint.layer(of: pad, in: design.board.stack)))
-			ValueRow(title: "X", value: millimeters(pad.at.x.mm))
-			ValueRow(title: "Y", value: millimeters(pad.at.y.mm))
+			ValueRow(title: "X", value: .millimeters(pad.at.x))
+			ValueRow(title: "Y", value: .millimeters(pad.at.y))
 		} else {
 			ValueRow(title: "Count", value: "\(validRefs.count)")
 		}
@@ -139,7 +139,9 @@ struct TracesInspector: View {
 		NetChoice(net: $traces.shared(indices, \.net), nets: nets)
 		ValueRow(
 			title: "Length",
-			value: millimeters(indices.reduce(0.0) { $0 + length(from: traces[$1].start, to: traces[$1].end) })
+			value: .millimeters(indices.reduce(0.0) {
+				$0 + length(from: traces[$1].start, to: traces[$1].end)
+			})
 		)
 	}
 }

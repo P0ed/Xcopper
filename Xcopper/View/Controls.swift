@@ -143,8 +143,8 @@ struct Panel<Content: View>: View {
 @MainActor
 struct GridPicker: View {
 	var title: String
-	@Binding var value: Nm
-	var options: [Nm]
+	@Binding var value: µm
+	var options: [µm]
 
 	var body: some View {
 		PropertyRow(title: title) {
@@ -234,17 +234,17 @@ struct ToggleRow: View {
 @MainActor
 struct LengthRow: View {
 	var title: String
-	@Binding var value: Nm?
+	@Binding var value: µm?
 	var range: ClosedRange<Double> = 0.0 ... 2_000.0
 	var property: Property
 	@FocusState.Binding var focus: Property?
 
 	private var millimeters: Binding<Double?> {
 		Binding(
-			get: { value.map(\.mm) },
+			get: { value.map(Double.mm) },
 			set: { typed in
 				guard let typed else { return }
-				let length = Nm.mm(min(max(typed, range.lowerBound), range.upperBound))
+				let length = µm((min(max(typed, range.lowerBound), range.upperBound) * Double(µm.mm)).rounded())
 				guard length != value else { return }
 				value = length
 			}
@@ -276,12 +276,12 @@ struct PositionRows: View {
 
 	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
 
-	private var x: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
+	private var x: Binding<µm> {
+		Binding(get: { µm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
 	}
 
-	private var y: Binding<Nm> {
-		Binding(get: { Nm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) })
+	private var y: Binding<µm> {
+		Binding(get: { µm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) })
 	}
 
 	var body: some View {
@@ -320,8 +320,16 @@ struct MixedNumber: ParseableFormatStyle {
 	}
 }
 
-func millimeters(_ value: Double) -> String {
-	"\(String(format: "%.2f", value)) mm"
+extension String {
+	static func millimeters(_ value: Double, decimals: Int = 2) -> String {
+		"\(String(format: "%.2f", value)) mm"
+	}
+	static func millimeters(_ value: µm, decimals: Int = 2) -> String {
+		"\(mm(value, decimals: decimals)) mm"
+	}
+	static func mm(_ value: µm, decimals: Int = 6) -> String {
+		String(format: "%.\(decimals)f", Double.mm(value))
+	}
 }
 
 @MainActor

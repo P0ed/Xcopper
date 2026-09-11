@@ -6,7 +6,7 @@ import XCTest
 final class PreviewTests: XCTestCase {
 
 	private func board(_ stack: Stack = .classic) -> Board {
-		Board(size: Size(width: .mm(40), height: .mm(30)), stack: stack)
+		Board(size: Size(width: 40 * .mm, height: 30 * .mm), stack: stack)
 	}
 
 	private func chip(at point: Point, flipped: Bool = false) -> Footprint {
@@ -16,7 +16,7 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testALoopWoundLikeTheLayoutDrawsItFacesUp() {
-		let square = Rect(origin: .zero, size: Size(width: .mm(10), height: .mm(10)))
+		let square = Rect(origin: .zero, size: Size(width: 10 * .mm, height: 10 * .mm))
 
 		XCTAssertEqual(square.corners.map { $0.v3(0.0) }.normal, V3(x: 0.0, y: 0.0, z: 1.0))
 		XCTAssertEqual(
@@ -26,42 +26,42 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testACircleIsWoundTheSameWayAsARectangle() {
-		let ring = circle(at: .zero, diameter: .mm(4)).map { $0.v3(0.0) }
+		let ring = circle(at: .zero, diameter: 4 * .mm).map { $0.v3(0.0) }
 
 		XCTAssertEqual(ring.normal.z, 1.0, accuracy: 0.0001)
 	}
 
 	func testACurveIsCutAsFinelyAsItsSizeAsksFor() {
-		XCTAssertEqual(Figure.round(.zero, .mm(10)).polygon().count, 32)
-		XCTAssertEqual(Figure.round(.zero, .mm(6.35)).polygon().count, 32)
-		XCTAssertEqual(Figure.round(.zero, .mm(0.5)).polygon().count, 12)
+		XCTAssertEqual(Figure.round(.zero, 10 * .mm).polygon().count, 32)
+		XCTAssertEqual(Figure.round(.zero, 6_350).polygon().count, 32)
+		XCTAssertEqual(Figure.round(.zero, 500).polygon().count, 12)
 
-		for diameter in [0.4, 1.0, 2.0, 6.35, 10.0] {
-			let sides = Double(Figure.round(.zero, .mm(diameter)).polygon().count)
+		for diameter in [400, 1 * .mm, 2 * .mm, 6_350, 10 * .mm] {
+			let sides = Double(Figure.round(.zero, diameter).polygon().count)
 			XCTAssertLessThan(
-				diameter / 2.0 * (1.0 - cos(.pi / sides)),
+				Double.mm(diameter) / 2.0 * (1.0 - cos(.pi / sides)),
 				0.025,
-				"\(diameter) mm across"
+				"\(Double.mm(diameter)) mm across"
 			)
 		}
-		XCTAssertEqual(Figure.round(.zero, .mm(25)).polygon().count, 32)
+		XCTAssertEqual(Figure.round(.zero, 25 * .mm).polygon().count, 32)
 	}
 
 	func testAStadiumSurroundsTheTraceItStandsFor() {
-		let start = Point(x: .mm(2), y: .mm(5))
-		let end = Point(x: .mm(9), y: .mm(5))
-		let outline = stadium(from: start, to: end, width: .mm(1))
+		let start = Point(x: 2 * .mm, y: 5 * .mm)
+		let end = Point(x: 9 * .mm, y: 5 * .mm)
+		let outline = stadium(from: start, to: end, width: 1 * .mm)
 		let bounds = Rect.union(outline.map { Rect(origin: $0, size: .zero) })
 
 		XCTAssertEqual(outline.map { $0.v3(0.0) }.normal.z, 1.0, accuracy: 0.0001)
-		XCTAssertEqual(bounds?.minX, .mm(1.5))
-		XCTAssertEqual(bounds?.maxX, .mm(9.5))
-		XCTAssertEqual(bounds?.minY, .mm(4.5))
-		XCTAssertEqual(bounds?.maxY, .mm(5.5))
+		XCTAssertEqual(bounds?.minX, 1_500)
+		XCTAssertEqual(bounds?.maxX, 9_500)
+		XCTAssertEqual(bounds?.minY, 4_500)
+		XCTAssertEqual(bounds?.maxY, 5_500)
 	}
 
 	func testASideFacesOutOfTheBoardOnEitherSurface() {
-		let outline = Rect(origin: .zero, size: Size(width: .mm(8), height: .mm(6))).corners
+		let outline = Rect(origin: .zero, size: Size(width: 8 * .mm, height: 6 * .mm)).corners
 		let top = Side(up: true, z: 0.0, layer: 0)
 		let bottom = Side(up: false, z: -1.6, layer: 1)
 
@@ -72,7 +72,7 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testAPrismShowsItsWallsOutwardsAndItsFarEndOnTheFarSide() {
-		let outline = Rect(center: .zero, size: Size(width: .mm(2), height: .mm(2))).corners
+		let outline = Rect(center: .zero, size: Size(width: 2 * .mm, height: 2 * .mm)).corners
 
 		for (from, to) in [(0.0, 1.0), (-1.6, -2.6)] {
 			var model = Model()
@@ -106,8 +106,8 @@ final class PreviewTests: XCTestCase {
 
 	func testEveryDrillIsPunchedThroughBothFacesAndLinedWithABarrel() {
 		var board = board()
-		board.holes.append(Hole(at: Point(x: .mm(10), y: .mm(10)), diameter: .mm(3)))
-		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), net: nil))
+		board.holes.append(Hole(at: Point(x: 10 * .mm, y: 10 * .mm), diameter: 3 * .mm))
+		board.vias.append(Via(at: Point(x: 20 * .mm, y: 10 * .mm), net: nil))
 
 		let model = board.model(Finish().shape)
 		let faces = model.pieces.filter { abs($0.level) == 10 }
@@ -120,8 +120,8 @@ final class PreviewTests: XCTestCase {
 
 	func testCopperGoesOnTheFaceItsLayerBelongsTo() {
 		var board = board()
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 0, net: nil))
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 1, net: nil))
 
 		let model = board.model(Finish().shape)
 
@@ -131,26 +131,26 @@ final class PreviewTests: XCTestCase {
 
 	func testViaCopperAndBarrelsFollowBoardSizesInThePreview() {
 		var board = board()
-		board.vias = [Via(at: Point(x: .mm(20), y: .mm(10)), net: nil)]
-		for (drill, pad) in [(0.3, 0.6), (0.8, 1.4)] {
-			board.rules.viaDrill = .mm(drill)
-			board.rules.viaPad = .mm(pad)
+		board.vias = [Via(at: Point(x: 20 * .mm, y: 10 * .mm), net: nil)]
+		for (drill, pad) in [(300, 600), (800, 1_400)] {
+			board.rules.viaDrill = drill
+			board.rules.viaPad = pad
 			let model = board.model(Finish().shape)
 			let copper = model.pieces.filter { abs($0.level) == 20 }
 			XCTAssertEqual(copper.count, 2)
 			for face in copper {
 				let xs = face.loop.map(\.x)
-				XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), pad, accuracy: 0.0001)
+				XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), Double.mm(pad), accuracy: 0.0001)
 			}
 			let barrels = model.pieces.filter { $0.level == Side.core && $0.shade == .plating }
 			let xs = barrels.flatMap { $0.loop.map(\.x) }
-			XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), drill, accuracy: 0.0001)
+			XCTAssertEqual((xs.max() ?? 0) - (xs.min() ?? 0), Double.mm(drill), accuracy: 0.0001)
 		}
 	}
 
 	func testAnInnerLayerHasNothingToShow() {
 		var board = board(.digital)
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 1, net: nil))
 
 		let model = board.model(Finish().shape)
 
@@ -159,7 +159,7 @@ final class PreviewTests: XCTestCase {
 
 	func testAFlippedPartStandsUnderTheBoard() {
 		var board = board()
-		board.footprints = [chip(at: Point(x: .mm(10), y: .mm(10)), flipped: true)]
+		board.footprints = [chip(at: Point(x: 10 * .mm, y: 10 * .mm), flipped: true)]
 
 		let model = board.model(Finish().shape)
 
@@ -170,7 +170,7 @@ final class PreviewTests: XCTestCase {
 
 	func testTheBoardCarriesNoLegend() {
 		var board = board()
-		board.footprints = [chip(at: Point(x: .mm(10), y: .mm(10)))]
+		board.footprints = [chip(at: Point(x: 10 * .mm, y: 10 * .mm))]
 
 		let model = board.model(Finish().shape)
 
@@ -181,8 +181,8 @@ final class PreviewTests: XCTestCase {
 
 	func testWhatIsSwitchedOffIsNotBuilt() {
 		var board = board()
-		board.footprints = [chip(at: Point(x: .mm(10), y: .mm(10)))]
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
+		board.footprints = [chip(at: Point(x: 10 * .mm, y: 10 * .mm))]
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 0, net: nil))
 
 		let bare = board.model(modifying(Finish()) {
 			$0.copper = false
@@ -194,9 +194,9 @@ final class PreviewTests: XCTestCase {
 
 	func testAClearMaskLeavesEveryPieceOfCopperPlated() {
 		var board = board()
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
-		board.vias.append(Via(at: Point(x: .mm(20), y: .mm(10)), net: nil))
-		board.footprints = [chip(at: Point(x: .mm(10), y: .mm(10)))]
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 0, net: nil))
+		board.vias.append(Via(at: Point(x: 20 * .mm, y: 10 * .mm), net: nil))
+		board.footprints = [chip(at: Point(x: 10 * .mm, y: 10 * .mm))]
 
 		let gold = Plating.gold.rgb
 		let clear = modifying(Finish()) { $0.mask = .clear }
@@ -229,14 +229,12 @@ final class PreviewTests: XCTestCase {
 		}
 	}
 
-	private func drilled(_ diameter: Double) -> Double {
-		let radius = diameter / 2.0
-		let sides = Double(fineness(across: .mm(diameter)) * 4)
-		return sides * radius * radius * sin(2.0 * .pi / sides) / 2.0
+	private func drilled(_ diameter: µm) -> Double {
+		area(of: circle(at: .zero, diameter: diameter))
 	}
 
 	private var square: [V3] {
-		Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20)))
+		Rect(origin: .zero, size: Size(width: 20 * .mm, height: 20 * .mm))
 			.corners.map { $0.v3(0.0) }
 	}
 
@@ -249,22 +247,22 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testADrillIsCutRoundRatherThanCoveredOver() {
-		let drill = circle(at: Point(x: .mm(10), y: .mm(10)), diameter: .mm(6))
+		let drill = circle(at: Point(x: 10 * .mm, y: 10 * .mm), diameter: 6 * .mm)
 		let triangles = triangulate(
 			square,
 			holes: [drill.map { $0.v3(0.0) }],
 			facing: V3(x: 0.0, y: 0.0, z: 1.0)
 		)
 
-		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6.0), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6 * .mm), accuracy: 0.01)
 		assertFacing(triangles, 1.0)
 	}
 
 	func testEveryDrillIsCutRoundEvenWhereTheyCrowdTheFace() {
 		let drills = (0 ..< 9).map { index -> [Point] in
-			let across = Double(4 + 6 * (index % 3))
-			let down = Double(4 + 6 * (index / 3))
-			return circle(at: Point(x: .mm(across), y: .mm(down)), diameter: .mm(3))
+			let across = (4 + 6 * (index % 3)) * .mm
+			let down = (4 + 6 * (index / 3)) * .mm
+			return circle(at: Point(x: across, y: down), diameter: 3 * .mm)
 		}
 		let triangles = triangulate(
 			square,
@@ -272,71 +270,71 @@ final class PreviewTests: XCTestCase {
 			facing: V3(x: 0.0, y: 0.0, z: 1.0)
 		)
 
-		XCTAssertEqual(area(of: triangles), 400.0 - 9.0 * drilled(3.0), accuracy: 0.02)
+		XCTAssertEqual(area(of: triangles), 400.0 - 9.0 * drilled(3 * .mm), accuracy: 0.02)
 		assertFacing(triangles, 1.0)
 	}
 
 	func testTheUndersideOfTheBoardIsCutTheSameWayRound() {
 		let side = Side(up: false, z: -1.6, layer: 1)
-		let outline = side.loop(Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20))).corners)
-		let drill = side.loop(circle(at: Point(x: .mm(10), y: .mm(10)), diameter: .mm(6)))
+		let outline = side.loop(Rect(origin: .zero, size: Size(width: 20 * .mm, height: 20 * .mm)).corners)
+		let drill = side.loop(circle(at: Point(x: 10 * .mm, y: 10 * .mm), diameter: 6 * .mm))
 
 		let triangles = triangulate(outline, holes: [drill], facing: V3(x: 0.0, y: 0.0, z: -1.0))
 
-		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6.0), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 400.0 - drilled(6 * .mm), accuracy: 0.01)
 		XCTAssertTrue(triangles.allSatisfy { $0.z == -1.6 })
 		assertFacing(triangles, -1.0)
 	}
 
-	private func board(_ width: Double, _ height: Double) -> [V3] {
-		Rect(origin: .zero, size: Size(width: .mm(width), height: .mm(height)))
+	private func board(_ width: µm, _ height: µm) -> [V3] {
+		Rect(origin: .zero, size: Size(width: width, height: height))
 			.corners.map { $0.v3(0.0) }
 	}
 
-	private func drills(_ places: [(Double, Double)], _ diameter: Double) -> [[V3]] {
+	private func drills(_ places: [(µm, µm)], _ diameter: µm) -> [[V3]] {
 		places.map { across, down in
-			circle(at: Point(x: .mm(across), y: .mm(down)), diameter: .mm(diameter))
+			circle(at: Point(x: across, y: down), diameter: diameter)
 				.map { $0.v3(0.0) }
 		}
 	}
 
 	func testDrillsCutOpenToTheSameCornerDoNotCrossTheirSeams() {
-		let face = board(160.0, 100.0)
-		let punches = drills([(6.0, 6.0), (154.0, 6.0)], 0.5)
+		let face = board(160 * .mm, 100 * .mm)
+		let punches = drills([(6 * .mm, 6 * .mm), (154 * .mm, 6 * .mm)], 500)
 
 		let triangles = triangulate(face, holes: punches, facing: V3(x: 0.0, y: 0.0, z: 1.0))
 
-		XCTAssertEqual(area(of: triangles), 16_000.0 - 2.0 * drilled(0.5), accuracy: 0.01)
+		XCTAssertEqual(area(of: triangles), 16_000.0 - 2.0 * drilled(500), accuracy: 0.01)
 		assertFacing(triangles, 1.0)
 	}
 
 	func testAFaceCrowdedWithDrillsIsStillCutToWhatItCovers() {
-		var places: [(Double, Double)] = []
+		var places: [(µm, µm)] = []
 		for row in 0 ..< 2 {
 			for pin in 0 ..< 20 {
-				places.append((10.0 + Double(pin) * 2.54, 10.0 + Double(row) * 2.54))
+				places.append((10 * .mm + pin * 2_540, 10 * .mm + row * 2_540))
 			}
 		}
 		for via in 0 ..< 120 {
-			places.append((8.0 + Double(via % 20) * 7.1, 30.0 + Double(via / 20) * 9.3))
+			places.append((8 * .mm + (via % 20) * 7_100, 30 * .mm + (via / 20) * 9_300))
 		}
 		let triangles = triangulate(
-			board(160.0, 100.0),
-			holes: drills(places, 0.5),
+			board(160 * .mm, 100 * .mm),
+			holes: drills(places, 500),
 			facing: V3(x: 0.0, y: 0.0, z: 1.0)
 		)
 
 		XCTAssertEqual(
 			area(of: triangles),
-			16_000.0 - Double(places.count) * drilled(0.5),
+			16_000.0 - Double(places.count) * drilled(500),
 			accuracy: 0.05
 		)
 		assertFacing(triangles, 1.0)
 	}
 
 	func testADrillTheFaceDoesNotHoldWholeLeavesItWhole() {
-		let stray = circle(at: Point(x: .mm(40), y: .mm(10)), diameter: .mm(4))
-		let overhanging = circle(at: Point(x: .mm(20), y: .mm(10)), diameter: .mm(4))
+		let stray = circle(at: Point(x: 40 * .mm, y: 10 * .mm), diameter: 4 * .mm)
+		let overhanging = circle(at: Point(x: 20 * .mm, y: 10 * .mm), diameter: 4 * .mm)
 
 		for drill in [stray, overhanging] {
 			let triangles = triangulate(
@@ -350,67 +348,66 @@ final class PreviewTests: XCTestCase {
 	}
 
 	private func area(of loop: [Point]) -> Double {
-		var sum = 0.0
+		var sum = 0
 		var previous = loop[loop.count - 1]
 
 		for point in loop {
-			sum += Double(previous.x).mm * Double(point.y).mm
-				- Double(point.x).mm * Double(previous.y).mm
+			sum += previous.x * point.y - point.x * previous.y
 			previous = point
 		}
-		return sum / 2.0
+		return Double(sum) / Double(2 * µm.mm * µm.mm)
 	}
 
 	func testADrillTakesBackTheCopperThatStoodOverIt() {
-		let face = Rect(origin: .zero, size: Size(width: .mm(20), height: .mm(20))).corners
-		let drill = circle(at: Point(x: .mm(10), y: 0), diameter: .mm(6))
+		let face = Rect(origin: .zero, size: Size(width: 20 * .mm, height: 20 * .mm)).corners
+		let drill = circle(at: Point(x: 10 * .mm, y: 0), diameter: 6 * .mm)
 
 		let pieces = punched(face, by: [drill])
 
 		XCTAssertEqual(
 			pieces.reduce(0.0) { total, piece in total + area(of: piece) },
-			400.0 - drilled(6.0) / 2.0,
+			400.0 - drilled(6 * .mm) / 2.0,
 			accuracy: 0.01
 		)
 		for piece in pieces {
 			XCTAssertGreaterThan(area(of: piece), 0.0, "cut the way the layout draws it")
-			XCTAssertFalse(holds(piece, [Point(x: .mm(10), y: .mm(1))]), "no copper over the hole")
+			XCTAssertFalse(holds(piece, [Point(x: 10 * .mm, y: 1 * .mm)]), "no copper over the hole")
 		}
-		XCTAssertTrue(pieces.contains { holds($0, [Point(x: .mm(10), y: .mm(10))]) }, "the rest stays")
+		XCTAssertTrue(pieces.contains { holds($0, [Point(x: 10 * .mm, y: 10 * .mm)]) }, "the rest stays")
 	}
 
 	func testCopperIsCutBackToEveryDrillReachingIntoItAtOnce() {
-		let ring = Figure.round(.zero, .mm(10)).polygon()
-		let barrel = Figure.round(.zero, .mm(6.35)).polygon()
-		let wire = Figure.round(Point(x: 0, y: .mm(5)), .mm(1)).polygon()
+		let ring = Figure.round(.zero, 10 * .mm).polygon()
+		let barrel = Figure.round(.zero, 6_350).polygon()
+		let wire = Figure.round(Point(x: 0, y: 5 * .mm), 1 * .mm).polygon()
 
 		let pieces = punched(ring, by: [barrel, wire])
 		let covered = pieces.reduce(0.0) { total, piece in total + area(of: piece) }
 
-		XCTAssertGreaterThan(covered, drilled(10.0) - drilled(6.35) - drilled(1.0))
-		XCTAssertLessThan(covered, drilled(10.0) - drilled(6.35) - drilled(1.0) / 3.0)
+		XCTAssertGreaterThan(covered, drilled(10 * .mm) - drilled(6_350) - drilled(1 * .mm))
+		XCTAssertLessThan(covered, drilled(10 * .mm) - drilled(6_350) - drilled(1 * .mm) / 3.0)
 		for piece in pieces {
 			XCTAssertGreaterThan(area(of: piece), 0.0)
 			XCTAssertFalse(holds(piece, [.zero]), "the barrel is not covered over")
-			XCTAssertFalse(holds(piece, [Point(x: 0, y: .mm(5))]), "nor is the wire hole")
+			XCTAssertFalse(holds(piece, [Point(x: 0, y: 5 * .mm)]), "nor is the wire hole")
 		}
 	}
 
 	func testADrillRightAcrossATraceLeavesCopperEitherSideOfIt() {
-		let trace = Figure.segment(.zero, Point(x: .mm(10), y: 0), .mm(0.3)).polygon(arc: 2)
-		let hole = circle(at: Point(x: .mm(5), y: 0), diameter: .mm(1))
+		let trace = Figure.segment(.zero, Point(x: 10 * .mm, y: 0), 300).polygon(arc: 2)
+		let hole = circle(at: Point(x: 5 * .mm, y: 0), diameter: 1 * .mm)
 
 		let pieces = punched(trace, by: [hole])
 
-		XCTAssertTrue(pieces.contains { holds($0, [Point(x: .mm(1), y: 0)]) })
-		XCTAssertTrue(pieces.contains { holds($0, [Point(x: .mm(9), y: 0)]) })
-		XCTAssertFalse(pieces.contains { holds($0, [Point(x: .mm(5), y: 0)]) }, "the hole is open")
+		XCTAssertTrue(pieces.contains { holds($0, [Point(x: 1 * .mm, y: 0)]) })
+		XCTAssertTrue(pieces.contains { holds($0, [Point(x: 9 * .mm, y: 0)]) })
+		XCTAssertFalse(pieces.contains { holds($0, [Point(x: 5 * .mm, y: 0)]) }, "the hole is open")
 	}
 
 	func testAMaskChangesWhatTheBoardIsPaintedInAndNotWhatItIsMadeOf() {
 		let green = Finish()
 		let black = modifying(Finish()) { $0.mask = .black }
-		let thicker = modifying(Finish()) { $0.thickness = Nm.thicknesses[2] }
+		let thicker = modifying(Finish()) { $0.thickness = µm.thicknesses[2] }
 		let bare = modifying(Finish()) { $0.copper = false }
 
 		XCTAssertEqual(green.shape, black.shape)
@@ -425,16 +422,16 @@ final class PreviewTests: XCTestCase {
 	func testTheModelIsGatheredIntoOneSurfacePerShade() {
 		var board = board()
 		board.traces = (0 ..< 4).map { index -> Trace in
-			let down = Nm.mm(Double(2 + 3 * index))
+			let down = (2 + 3 * index) * .mm
 			return Trace(
-				start: Point(x: .mm(2), y: Int(down)),
-				end: Point(x: .mm(12), y: Int(down)),
-				width: .mm(0.3),
+				start: Point(x: 2 * .mm, y: Int(down)),
+				end: Point(x: 12 * .mm, y: Int(down)),
+				width: 300,
 				layer: 0,
 				net: nil
 			)
 		}
-		board.footprints = [chip(at: Point(x: .mm(20), y: .mm(20)))]
+		board.footprints = [chip(at: Point(x: 20 * .mm, y: 20 * .mm))]
 
 		let model = board.model(Finish().shape)
 		let surfaces = model.surfaces
@@ -450,8 +447,8 @@ final class PreviewTests: XCTestCase {
 
 	func testEachLevelStandsClearOfTheOneUnderIt() {
 		var board = board()
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 0, net: nil))
-		board.traces.append(Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.3), layer: 1, net: nil))
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 0, net: nil))
+		board.traces.append(Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 300, layer: 1, net: nil))
 
 		let pieces = board.model(Finish().shape).pieces
 		func lift(_ level: Int) -> Double {
@@ -508,7 +505,7 @@ final class PreviewTests: XCTestCase {
 	}
 
 	func testTurningTheBoardIntoASceneTurnsItsWindingRound() {
-		let face = Rect(origin: .zero, size: Size(width: .mm(10), height: .mm(10)))
+		let face = Rect(origin: .zero, size: Size(width: 10 * .mm, height: 10 * .mm))
 			.corners.map { $0.v3(0.0) }
 		XCTAssertEqual(face.normal, V3(x: 0.0, y: 0.0, z: 1.0), "out of the top copper")
 		XCTAssertEqual(face.normal.turned, SIMD3<Float>(0.0, 1.0, 0.0), "up the scene")

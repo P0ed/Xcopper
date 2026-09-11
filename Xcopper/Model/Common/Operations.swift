@@ -52,7 +52,7 @@ extension Operations {
 
 	var mode: Mode { editor.mode }
 
-	var snap: Nm { mode == .layout ? layout.selectionGrid : schematic.snap }
+	var snap: µm { mode == .layout ? layout.selectionGrid : schematic.snap }
 
 	var magnification: CGFloat {
 		switch mode {

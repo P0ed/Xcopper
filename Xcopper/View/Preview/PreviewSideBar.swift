@@ -22,7 +22,7 @@ struct PreviewSideBar: View {
 					GridPicker(
 						title: "Core",
 						value: $state.finish.thickness,
-						options: Nm.thicknesses
+						options: µm.thicknesses
 					)
 				}
 

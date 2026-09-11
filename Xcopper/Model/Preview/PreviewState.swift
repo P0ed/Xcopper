@@ -16,11 +16,11 @@ extension PreviewState {
 	}
 
 	mutating func frame(_ board: Board) {
-		let width = Double(board.size.width).mm
-		let height = Double(board.size.height).mm
-		let thickness = Double(finish.thickness).mm
-		let above = finish.components ? board.standing(on: false) : 0.0
-		let below = finish.components ? board.standing(on: true) : 0.0
+		let width = Double.mm(board.size.width)
+		let height = Double.mm(board.size.height)
+		let thickness = Double.mm(finish.thickness)
+		let above = finish.components ? Double.mm(board.standing(on: false)) : 0.0
+		let below = finish.components ? Double.mm(board.standing(on: true)) : 0.0
 
 		camera.target = V3(x: width / 2.0, y: height / 2.0, z: -thickness / 2.0)
 		reach = distance(covering: V3.box(

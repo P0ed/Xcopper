@@ -9,7 +9,7 @@ extension CGSize {
 
 extension Size {
 
-	var cg: CGSize { CGSize(width: Double(width).mm, height: Double(height).mm) }
+	var cg: CGSize { CGSize(width: Double.mm(width), height: Double.mm(height)) }
 
 	func zoomToFit(_ size: CGSize, margin: CGFloat) -> CGFloat {
 		let board = cg
@@ -22,15 +22,15 @@ extension Size {
 }
 
 extension Double {
-	var mm: Double { self / 1_000_000.0 }
+	var mm: Double { self / 1_000.0 }
 }
 
 extension Point {
 
 	func cg(_ scale: CGFloat, origin: CGPoint) -> CGPoint {
 		CGPoint(
-			x: origin.x + Double(x).mm * scale,
-			y: origin.y + Double(y).mm * scale
+			x: origin.x + Double.mm(x) * scale,
+			y: origin.y + Double.mm(y) * scale
 		)
 	}
 }

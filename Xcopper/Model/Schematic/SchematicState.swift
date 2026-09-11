@@ -39,8 +39,8 @@ struct SchematicState: Equatable, SelectionState {
 			cancelSessions()
 		}
 	}
-	var snap: Nm = .sheetSnapGrids.last!
-	var grid: Nm = .displayGrids.first!
+	var snap: µm = .sheetSnapGrids.last!
+	var grid: µm = .displayGrids.first!
 	var spec: Symbol.Spec = .default
 	var label: String = "NET"
 	var selection: Set<Schematic.Ref> = []

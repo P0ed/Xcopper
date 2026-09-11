@@ -110,29 +110,29 @@ extension Symbol {
 		_ x: Int,
 		_ y: Int,
 		_ direction: Rotation,
-		_ length: Nm = .mm(2.54)
+		_ length: µm = 2_540
 	) -> Pin {
 		Pin(at: Point(x: x, y: y), direction: direction, length: length, name: name, number: "\(number)")
 	}
 
 	static func resistor() -> Symbol {
-		let half = Int.mm(2.54)
+		let half = 2_540
 		return make(
 			.resistor,
 			pins: [pin(1, "1", -half * 2, 0, .r180), pin(2, "2", half * 2, 0, .r0)],
-			body: centred(Size(width: half * 2, height: .mm(1.778))),
-			glyph: [.rect(Rect(center: .zero, size: Size(width: half * 2, height: .mm(1.778))))]
+			body: centred(Size(width: half * 2, height: 1_778)),
+			glyph: [.rect(Rect(center: .zero, size: Size(width: half * 2, height: 1_778)))]
 		)
 	}
 
 	static func capacitor() -> Symbol {
-		let gap = Int.mm(0.635)
-		let plate = Int.mm(1.27)
+		let gap = 635
+		let plate = 1_270
 		return make(
 			.capacitor,
 			pins: [
-				pin(1, "1", -.mm(2.54), 0, .r180, .mm(1.905)),
-				pin(2, "2", .mm(2.54), 0, .r0, .mm(1.905)),
+				pin(1, "1", -2_540, 0, .r180, 1_905),
+				pin(2, "2", 2_540, 0, .r0, 1_905),
 			],
 			body: centred(Size(width: gap * 2, height: plate * 2)),
 			glyph: [
@@ -143,7 +143,7 @@ extension Symbol {
 	}
 
 	static func inductor() -> Symbol {
-		let radius = Int.mm(0.635)
+		let radius = 635
 		let humps = 4
 		var points: [Point] = []
 
@@ -167,7 +167,7 @@ extension Symbol {
 	}
 
 	static func diode() -> Symbol {
-		let half = Int.mm(1.27)
+		let half = 1_270
 		return make(
 			.diode,
 			pins: [pin(1, "A", -half * 3, 0, .r180), pin(2, "K", half * 3, 0, .r0)],
@@ -184,30 +184,30 @@ extension Symbol {
 	}
 
 	static func transistor() -> Symbol {
-		let base = Int.mm(1.27)
-		let reach = Int.mm(2.54)
+		let base = 1_270
+		let reach = 2_540
 		return make(
 			.transistor,
 			pins: [
-				pin(1, "B", -.mm(5.08), 0, .r180, .mm(3.81)),
-				pin(2, "E", reach, .mm(5.08), .r90, .mm(2.54)),
-				pin(3, "C", reach, -.mm(5.08), .r270, .mm(2.54)),
+				pin(1, "B", -5_080, 0, .r180, 3_810),
+				pin(2, "E", reach, 5_080, .r90, 2_540),
+				pin(3, "C", reach, -5_080, .r270, 2_540),
 			],
-			body: centred(Size(width: .mm(5.08), height: .mm(5.08))),
+			body: centred(Size(width: 5_080, height: 5_080)),
 			glyph: [
-				.circle(.zero, .mm(5.08)),
+				.circle(.zero, 5_080),
 				.path(
-					[Point(x: -base, y: -.mm(1.524)), Point(x: -base, y: .mm(1.524))],
+					[Point(x: -base, y: -1_524), Point(x: -base, y: 1_524)],
 					closed: false,
 					filled: false
 				),
 				.path(
-					[Point(x: -base, y: -.mm(0.762)), Point(x: reach, y: -reach)],
+					[Point(x: -base, y: -762), Point(x: reach, y: -reach)],
 					closed: false,
 					filled: false
 				),
 				.path(
-					[Point(x: -base, y: .mm(0.762)), Point(x: reach, y: reach)],
+					[Point(x: -base, y: 762), Point(x: reach, y: reach)],
 					closed: false,
 					filled: false
 				),
@@ -220,7 +220,7 @@ extension Symbol {
 	}
 
 	static func ic(pinNames: [String]) -> Symbol {
-		let pitch = Int.mm(2.54)
+		let pitch = 2_540
 		let count = pinNames.count
 		let perSide = (count + 1) / 2
 		let width = icWidth(pinNames, perSide: perSide)
@@ -244,7 +244,7 @@ extension Symbol {
 	}
 
 	private static func icWidth(_ pinNames: [String], perSide: Int) -> Int {
-		let pitch = Int.mm(2.54)
+		let pitch = 2_540
 
 		func column(_ pins: Range<Int>) -> Int {
 			pins.reduce(0) { widest, index in
@@ -256,6 +256,6 @@ extension Symbol {
 			+ column(perSide ..< pinNames.count)
 			+ PinText.inset * 2
 			+ pitch
-		return max(Int.mm(12.7), (needed + pitch - 1) / pitch * pitch)
+		return max(12_700, (needed + pitch - 1) / pitch * pitch)
 	}
 }

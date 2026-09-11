@@ -1,5 +1,5 @@
 func touches(_ point: Point, _ wire: Wire) -> Bool {
-	distance(from: point, to: wire.start, wire.end) <= 1000.0
+	distance(from: point, to: wire.start, wire.end) <= 1.0
 }
 
 struct Netlist {

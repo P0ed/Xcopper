@@ -85,7 +85,7 @@ enum LengthUnit: CaseIterable, Identifiable {
 @MainActor
 struct SizeFields: View {
 	var size: Size
-	var limit: Nm
+	var limit: µm
 	@Binding var value: Size?
 
 	@State private var width: String = ""
@@ -143,18 +143,18 @@ struct SizeFields: View {
 		value = Size(width: Int(w), height: Int(h))
 	}
 
-	private func length(_ text: String, or fallback: Nm) -> Nm? {
+	private func length(_ text: String, or fallback: µm) -> µm? {
 		text.isEmpty ? fallback : parse(text, as: unit)
 	}
 
-	private func parse(_ text: String, as unit: LengthUnit) -> Nm? {
+	private func parse(_ text: String, as unit: LengthUnit) -> µm? {
 		Double(text.replacingOccurrences(of: ",", with: ".")).map { value in
-			unit == .millimeters ? .mm(value) : .inches(value)
+			µm((value * Double(unit == .millimeters ? µm.mm : µm.inch)).rounded())
 		}
 	}
 
-	private func format(_ length: Nm, as unit: LengthUnit) -> String {
-		let value = unit == .millimeters ? length.mm : length.inches
+	private func format(_ length: µm, as unit: LengthUnit) -> String {
+		let value: Double = unit == .millimeters ? .mm(length) : .inch(length)
 		var text = String(format: unit == .millimeters ? "%.6f" : "%.8f", value)
 		while text.last == "0" { text.removeLast() }
 		if text.last == "." { text.removeLast() }

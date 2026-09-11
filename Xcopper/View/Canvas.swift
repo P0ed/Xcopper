@@ -13,8 +13,8 @@ enum Layout {
 
 	static func point(_ location: CGPoint, scale: CGFloat) -> Point {
 		Point(
-			x: Int(((location.x - margin) / scale * 1_000_000.0).rounded()),
-			y: Int(((location.y - margin) / scale * 1_000_000.0).rounded())
+			x: µm(((location.x - margin) / scale * CGFloat(µm.mm)).rounded()),
+			y: µm(((location.y - margin) / scale * CGFloat(µm.mm)).rounded())
 		)
 	}
 
@@ -77,13 +77,13 @@ struct CanvasScroll<Content: View>: View {
 
 func renderGrid(
 	_ bounds: Rect,
-	step: Nm,
+	step: µm,
 	in context: GraphicsContext,
 	scale: CGFloat,
 	origin: CGPoint,
 	visible: CGRect
 ) {
-	let step = CGFloat(Double(step).mm) * scale
+	let step = CGFloat(Double.mm(step)) * scale
 	let tileSpan = step * 10.0
 	guard step > 0.0, tileSpan >= 3.0 else { return }
 

@@ -3,19 +3,19 @@ import Foundation
 struct Finish: Equatable {
 	var mask: Mask = .green
 	var plating: Plating = .gold
-	var thickness: Nm = .thicknesses[1]
+	var thickness: µm = .thicknesses[1]
 	var copper = true
 	var components = true
 }
 
-extension Nm {
-	static var thicknesses: [Nm] { [.mm(0.8), .mm(1.6), .mm(2.0)] }
+extension µm {
+	static var thicknesses: [µm] { [800, 1_600, 2 * .mm] }
 }
 
 extension Finish {
 
 	struct Shape: Equatable {
-		var thickness: Nm
+		var thickness: µm
 		var copper: Bool
 		var components: Bool
 	}
@@ -156,7 +156,7 @@ extension Model {
 extension Board {
 
 	func model(_ shape: Finish.Shape) -> Model {
-		let thickness = Double(shape.thickness).mm
+		let thickness = Double.mm(shape.thickness)
 		let top = Side(up: true, z: 0.0, layer: stack.top)
 		let bottom = Side(up: false, z: -thickness, layer: stack.bottom)
 
@@ -174,11 +174,11 @@ extension Board {
 		return model
 	}
 
-	func standing(on underside: Bool) -> Double {
+	func standing(on underside: Bool) -> µm {
 		footprints
 			.filter { footprint in footprint.flipped == underside && footprint.appearance.stands }
-			.map { footprint in Double(footprint.appearance.height + footprint.appearance.standoff).mm }
-			.max() ?? 0.0
+			.map { footprint in footprint.appearance.height + footprint.appearance.standoff }
+			.max() ?? 0
 	}
 
 	private var barrels: [(figure: Figure, plated: Bool)] {
@@ -305,8 +305,8 @@ extension Board {
 		let package = footprint.appearance
 		guard package.stands else { return }
 
-		let standoff = Double(package.standoff).mm
-		let height = Double(package.height).mm
+		let standoff = Double.mm(package.standoff)
+		let height = Double.mm(package.height)
 		let placed = footprint.placedPads
 
 		if package.leads {
@@ -321,7 +321,7 @@ extension Board {
 			}
 		}
 		for pad in placed where pad.isThrough {
-			let width = max(Int(Nm.mm(0.4)), Int(Double(pad.drill) * 0.7))
+			let width = max(400, pad.drill * 7 / 10)
 			let post = Rect(center: pad.at, size: Size(width: width, height: width)).corners
 			if package.posts {
 				model.add(
@@ -386,7 +386,7 @@ extension Board {
 		side: Side,
 		into model: inout Model
 	) {
-		let radius = Double(diameter).mm / 2.0
+		let radius = Double.mm(diameter) / 2.0
 		let shoulder = max(0.0, height - radius)
 		let bands = 4
 		let shoulderZ = side.up ? base + shoulder : base - shoulder

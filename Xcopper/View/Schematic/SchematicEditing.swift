@@ -7,9 +7,9 @@ extension SchematicView {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
-	var snapRadius: Int { max(Int(state.snap), Int(Nm.mm(0.8))) }
+	var snapRadius: µm { max(state.snap, 800) }
 
-	var hitTolerance: Int { Int(Nm.mm(1.2) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
+	var hitTolerance: µm { 1_200 / max(1, Int(state.viewport.magnification / 4)) }
 
 	func snapped(_ point: Point) -> Point {
 		if !modifierFlags.contains(.control),

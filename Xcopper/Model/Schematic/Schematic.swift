@@ -3,27 +3,27 @@ import Foundation
 struct Pin: Hashable, Codable {
 	var at: Point
 	var direction: Rotation
-	var length: Nm
+	var length: µm
 	var name: String
 	var number: String
 }
 
 enum PinText {
-	static let nameHeight = Int.mm(1.27)
-	static let numberHeight = Int.mm(1.016)
-	static let inset = Int.mm(0.762)
-	static let gap = Int.mm(0.254)
-	static let advance = 0.62
+	static let nameHeight = 1_270
+	static let numberHeight = 1_016
+	static let inset = 762
+	static let gap = 254
+	static let advance = 62
 
 	static func width(_ text: String, height: Int = nameHeight) -> Int {
-		Int((Double(text.count) * Double(height) * advance).rounded())
+		(text.count * height * advance + 50) / 100
 	}
 }
 
 enum Glyph: Hashable, Codable {
 	case path([Point], closed: Bool, filled: Bool)
 	case rect(Rect)
-	case circle(Point, Nm)
+	case circle(Point, µm)
 }
 
 struct Symbol: Hashable, Codable {
@@ -85,7 +85,7 @@ extension Schematic {
 		static func order(_ lhs: Ref, _ rhs: Ref) -> Bool { lhs.index < rhs.index }
 	}
 
-	init(size: Size = .init(width: .mm(297), height: .mm(210))) {
+	init(size: Size = .init(width: 297 * .mm, height: 210 * .mm)) {
 		self.size = size
 		symbols = []
 		wires = []
@@ -160,24 +160,24 @@ extension Pin {
 
 	var root: Point { at + Point(x: -Int(length), y: 0).rotated(direction) }
 
-	var figure: Figure { .segment(at, root, .mm(0.2)) }
+	var figure: Figure { .segment(at, root, 200) }
 
 	var isNamed: Bool { !name.isEmpty && name != number }
 }
 
 extension Wire {
-	var figure: Figure { .segment(start, end, .mm(0.2)) }
+	var figure: Figure { .segment(start, end, 200) }
 }
 
 extension NetLabel {
 
-	static let height = Int.mm(1.8)
-	static let anchor = Int.mm(0.5)
+	static let height = 1_800
+	static let anchor = 500
 
 	var bounds: Rect {
 		Rect(
 			origin: Point(x: at.x, y: at.y - Self.height),
-			size: Size(width: max(1, text.count) * .mm(1.1) + .mm(0.8), height: Self.height)
+			size: Size(width: max(1, text.count) * 1_100 + 800, height: Self.height)
 		)
 	}
 }

@@ -3,7 +3,7 @@ import Foundation
 struct Gerber {
 
 	enum Aperture: Hashable {
-		case circle(Nm)
+		case circle(µm)
 		case rect(Size)
 	}
 
@@ -31,9 +31,8 @@ struct Gerber {
 }
 
 extension Gerber {
-
-	static var outlineWidth: Nm { .mm(0.1) }
-	static var maskExpansion: Nm { .mm(0.05) }
+	static var outlineWidth: µm { 100 }
+	static var maskExpansion: µm { 50 }
 }
 
 extension Gerber {
@@ -50,7 +49,7 @@ extension Gerber {
 		}
 	}
 
-	mutating func stroke(_ rect: Rect, width: Nm) {
+	mutating func stroke(_ rect: Rect, width: µm) {
 		draw(rect.corners + [rect.corners[0]], width: width)
 	}
 
@@ -99,7 +98,7 @@ private extension Gerber {
 		lines.append("\(coordinate(point))D03*")
 	}
 
-	mutating func draw(_ points: [Point], width: Nm) {
+	mutating func draw(_ points: [Point], width: µm) {
 		guard points.count > 1, width > 0 else { return }
 		select(.circle(width))
 		lines.append("\(coordinate(points[0]))D02*")
@@ -132,7 +131,7 @@ private extension Gerber {
 	}
 
 	func coordinate(_ point: Point) -> String {
-		"X\(point.x)Y\(height - point.y)"
+		"X\(point.x * 1_000)Y\((height - point.y) * 1_000)"
 	}
 
 	static func escaped(_ name: String) -> String {
@@ -145,9 +144,9 @@ extension Gerber.Aperture {
 	var definition: String {
 		switch self {
 		case let .circle(diameter):
-			"C,\(millimeters(Int(diameter)))"
+			"C,\(mm(Int(diameter)))"
 		case let .rect(size):
-			"R,\(millimeters(size.width))X\(millimeters(size.height))"
+			"R,\(mm(size.width))X\(mm(size.height))"
 		}
 	}
 
@@ -159,6 +158,6 @@ extension Gerber.Aperture {
 	}
 }
 
-func millimeters(_ value: Int, decimals: Int = 6) -> String {
-	String(format: "%.\(decimals)f", Double(value) / 1_000_000.0)
+private func mm(_ value: µm) -> String {
+	.mm(value, decimals: 6)
 }

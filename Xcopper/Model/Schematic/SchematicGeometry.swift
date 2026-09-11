@@ -109,7 +109,7 @@ extension Schematic {
 	}
 
 	@discardableResult
-	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: Nm = .mil(100)) -> Set<Ref>? {
+	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: µm = 2_540) -> Set<Ref>? {
 		guard delta != .zero else { return refs }
 		var route = routing(moving: refs)
 		let points = Set(wires.flatMap { [$0.start, $0.end] }

@@ -33,7 +33,7 @@ extension Design {
 
 	mutating func positionModule(_ id: UUID, at point: Point, layout: Bool) {
 		guard let module = modules.first(where: { $0.id == id }) else { return }
-		if layout { _ = moveLayout([.module(id)], by: point - module.layoutAt, grid: .mm(0.5)) }
+		if layout { _ = moveLayout([.module(id)], by: point - module.layoutAt, grid: 500) }
 		else { _ = moveSchematic([.module(id)], by: point - module.schematicAt) }
 	}
 
@@ -152,7 +152,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func moveLayout(_ refs: Set<Ref>, by delta: Point, grid: Nm) -> Set<Ref>? {
+	mutating func moveLayout(_ refs: Set<Ref>, by delta: Point, grid: µm) -> Set<Ref>? {
 		guard !modules.isEmpty else { return board.move(refs, by: delta, grid: grid) }
 		let projection = moduleProjection()
 		let selection = Set(refs.map { projection.owner($0) })
@@ -183,7 +183,7 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point, grid: Nm = .mil(100)) -> Set<Schematic.Ref>? {
+	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point, grid: µm = 2_540) -> Set<Schematic.Ref>? {
 		var repair = schematic
 		var moving = refs
 		for module in modules {

@@ -98,7 +98,7 @@ struct WiresInspector: View {
 		)
 		ValueRow(
 			title: "Length",
-			value: millimeters(wires.reduce(0.0) { $0 + length(from: $1.start, to: $1.end) })
+			value: String.millimeters(wires.reduce(0.0) { $0 + length(from: $1.start, to: $1.end) })
 		)
 	}
 }

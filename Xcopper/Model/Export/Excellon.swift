@@ -4,7 +4,7 @@ struct Excellon {
 	private let height: Int
 	private let layers: Int
 	private let plated: Bool
-	private var tools: [Nm: [Point]] = [:]
+	private var tools: [µm: [Point]] = [:]
 
 	init(height: Int, layers: Int, plated: Bool) {
 		self.height = height
@@ -12,7 +12,7 @@ struct Excellon {
 		self.plated = plated
 	}
 
-	mutating func drill(_ diameter: Nm, at point: Point) {
+	mutating func drill(_ diameter: µm, at point: Point) {
 		guard diameter > 0 else { return }
 		tools[diameter, default: []].append(point)
 	}
@@ -30,14 +30,14 @@ struct Excellon {
 			"METRIC",
 		]
 		out += diameters.enumerated().map { index, diameter in
-			"T\(index + 1)C\(millimeters(Int(diameter), decimals: 3))"
+			"T\(index + 1)C\(String.mm(diameter, decimals: 3))"
 		}
 		out += ["%", "G90", "G05"]
 
 		for (index, diameter) in diameters.enumerated() {
 			out.append("T\(index + 1)")
 			out += (tools[diameter] ?? []).map { point in
-				"X\(millimeters(point.x, decimals: 4))Y\(millimeters(height - point.y, decimals: 4))"
+				"X\(String.mm(point.x, decimals: 4))Y\(String.mm(height - point.y, decimals: 4))"
 			}
 		}
 		out += ["T0", "M30"]

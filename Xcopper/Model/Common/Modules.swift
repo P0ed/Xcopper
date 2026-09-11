@@ -25,7 +25,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var layoutAt: Point = .zero
 	var layoutRotation: Rotation = .r0
 	var interface: [String] = []
-	var size = Size(width: .mm(20), height: .mm(20))
+	var size = Size(width: 20 * .mm, height: 20 * .mm)
 	var layerCount: Int = 2
 
 	var symbol: Symbol {

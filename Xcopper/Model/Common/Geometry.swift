@@ -2,8 +2,8 @@ import Foundation
 
 enum Figure: Hashable {
 	case rect(Rect)
-	case round(Point, Nm)
-	case segment(Point, Point, Nm)
+	case round(Point, µm)
+	case segment(Point, Point, µm)
 }
 
 extension Figure {
@@ -11,8 +11,8 @@ extension Figure {
 	func outset(_ amount: Int) -> Figure {
 		switch self {
 		case let .rect(rect): .rect(rect.outset(amount))
-		case let .round(center, diameter): .round(center, Nm(clamping: Int(diameter) + amount * 2))
-		case let .segment(start, end, width): .segment(start, end, Nm(clamping: Int(width) + amount * 2))
+		case let .round(center, diameter): .round(center, µm(clamping: Int(diameter) + amount * 2))
+		case let .segment(start, end, width): .segment(start, end, µm(clamping: Int(width) + amount * 2))
 		}
 	}
 
@@ -58,7 +58,7 @@ func distance(from point: Point, to start: Point, _ end: Point) -> Double {
 	return (ox * ox + oy * oy).squareRoot()
 }
 
-private let parkingPitch = Int.mil(100)
+private let parkingPitch = 2_540
 
 func parking(_ extent: Rect, in bounds: Rect, clear taken: [Rect]) -> Point {
 	var fallback: Point?
@@ -175,7 +175,7 @@ func crossing(line a: Point, _ da: Point, line b: Point, _ db: Point) -> Point? 
 
 	let steps = along / determinant
 	let reach = max(abs(da.x), abs(da.y))
-	guard abs(steps) <= Int(Nm.max) / reach else { return nil }
+	guard abs(steps) <= Int(µm.max) / reach else { return nil }
 	return a + da * steps
 }
 
@@ -287,18 +287,18 @@ extension Pad {
 		case .rect:
 			.rect(Rect(center: at, size: size))
 		case .oval where size.width == size.height:
-			.round(at, Nm(clamping: size.width))
+			.round(at, µm(clamping: size.width))
 		case .oval where size.width > size.height:
 			.segment(
 				Point(x: at.x - (size.width - size.height) / 2, y: at.y),
 				Point(x: at.x + (size.width - size.height) / 2, y: at.y),
-				Nm(clamping: size.height)
+				µm(clamping: size.height)
 			)
 		case .oval:
 			.segment(
 				Point(x: at.x, y: at.y - (size.height - size.width) / 2),
 				Point(x: at.x, y: at.y + (size.height - size.width) / 2),
-				Nm(clamping: size.width)
+				µm(clamping: size.width)
 			)
 		}
 	}
@@ -466,7 +466,7 @@ extension Figure {
 }
 
 func fineness(across width: Int) -> Int {
-	min(8, max(3, Int((3.0 * Double(width).mm.squareRoot()).rounded())))
+	min(8, max(3, Int((3.0 * Double.mm(width).squareRoot()).rounded())))
 }
 
 func circle(at center: Point, diameter: Int, arc: Int? = nil) -> [Point] {

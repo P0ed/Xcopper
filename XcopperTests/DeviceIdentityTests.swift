@@ -55,9 +55,9 @@ final class DeviceIdentityTests: XCTestCase {
 
 	func testNestedImportsRetainCapacitorAndLibraryAppearance() throws {
 		let parentURL = URL(fileURLWithPath: "/tmp/xcopper-identity-tests/Parent.xcb")
-		var leaf = Design(board: Board(size: Size(width: .mm(20), height: .mm(20)), stack: .classic))
-		leaf.place(Footprint.Spec(chip: .c0805, device: .capacitor), at: Point(x: .mm(5), y: .mm(5)))
-		leaf.place(Footprint.Spec(component: .hlmpWL02), at: Point(x: .mm(12), y: .mm(12)))
+		var leaf = Design(board: Board(size: Size(width: 20 * .mm, height: 20 * .mm), stack: .classic))
+		leaf.place(Footprint.Spec(chip: .c0805, device: .capacitor), at: Point(x: 5 * .mm, y: 5 * .mm))
+		leaf.place(Footprint.Spec(component: .hlmpWL02), at: Point(x: 12 * .mm, y: 12 * .mm))
 		leaf.schematic.labels = [NetLabel(at: leaf.schematic.symbols[0].placedPins[0].at, text: "#IN")]
 		let appearances = leaf.board.footprints.map(\.appearance)
 

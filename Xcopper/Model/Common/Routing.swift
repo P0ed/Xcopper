@@ -117,7 +117,7 @@ extension RouteGeometry {
 	}
 
 	@discardableResult
-	mutating func move(_ refs: Set<Int>, by delta: Point, grid: Nm) -> [Int: Int]? {
+	mutating func move(_ refs: Set<Int>, by delta: Point, grid: µm) -> [Int: Int]? {
 		let stored = self
 		let held = heldPoints()
 		let attached = attachedEnds(to: refs)
@@ -274,7 +274,7 @@ extension RouteGeometry {
 		return !angles.bends(arriving, to: self[point: second.other] - junction.point)
 	}
 
-	private mutating func chamfer(at junction: Junction, grid: Nm) -> Bool {
+	private mutating func chamfer(at junction: Junction, grid: µm) -> Bool {
 		guard let (first, second) = joint(at: junction) else { return true }
 
 		let point = junction.point
@@ -424,7 +424,7 @@ extension RouteGeometry {
 	private func isBranchInterior(_ point: Point, layer: Int) -> Bool {
 		angles == .orthogonal && segments.contains {
 			$0.layer == layer && $0.start != point && $0.end != point
-				&& distance(from: point, to: $0.start, $0.end) <= 1000
+				&& distance(from: point, to: $0.start, $0.end) <= 1.0
 		}
 	}
 

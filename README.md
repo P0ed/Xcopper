@@ -364,9 +364,9 @@ going ahead anyway is a button; turning back takes the layout to the first.
 
 Pads open the solder mask and vias do not, so vias come back tented.
 
-The Gerbers are RS-274X in millimeters at a 4.6 format, so a board nanometer is
-written as its own integer and nothing is rounded on the way out. Copper carries
-X2 net attributes, and each file states its own place in the stack. A plane goes
+The Gerbers are RS-274X in millimeters at a 4.6 format. Board coordinates are stored
+as integer micrometers and multiplied by 1,000 for export without rounding. Copper
+carries X2 net attributes, and each file states its own place in the stack. A plane goes
 out the way the layout draws it: poured over the board, cleared back around
 everything on another net, then the copper on that layer drawn over the top.
 
@@ -385,6 +385,7 @@ nor placed.
 ## File format
 
 Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
+All coordinates and lengths are stored as integer micrometers.
 The schematic stores parts in `symbols` and net names in `labels`.
 Library footprints store their component ID, placement, reference, value and BOM
 setting. Pads, body dimensions, device and package come from the current library

@@ -7,9 +7,9 @@ extension LayoutView {
 		Layout.point(location, scale: state.viewport.magnification)
 	}
 
-	var snapRadius: Int { max(Int(state.routingGrid), Int(Nm.mm(0.4))) }
+	var snapRadius: µm { max(state.routingGrid, 400) }
 
-	var hitTolerance: Int { Int(Nm.mm(0.6) / Nm(max(1, Int(state.viewport.magnification / 4)))) }
+	var hitTolerance: µm { 600 / max(1, Int(state.viewport.magnification / 4)) }
 
 	func snapped(_ point: Point, layer: Int) -> (Point, Net.ID?) {
 		if !modifierFlags.contains(.control),
@@ -162,7 +162,7 @@ private extension LayoutView {
 	func placeHole(at point: Point) {
 		board.holes.append(Hole(
 			at: point.snapped(to: state.placementGrid),
-			diameter: .mm(3.2)
+			diameter: 3_200
 		))
 	}
 

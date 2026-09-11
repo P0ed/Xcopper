@@ -37,34 +37,34 @@ extension Tool {
 	}
 }
 
-extension Nm {
+extension µm {
 
-	static var placementGrids: [Nm] {
-		[.mm(1.27), .mm(2.54), .mm(12.7)]
+	static var placementGrids: [µm] {
+		[1_270, 2_540, 12_700]
 	}
 
-	static var routingGrids: [Nm] {
-		[.mm(0.127), .mm(0.254), .mm(0.635)]
+	static var routingGrids: [µm] {
+		[127, 254, 635]
 	}
 
-	static var widths: [Nm] {
-		[.mm(0.4), .mm(1.2)]
+	static var widths: [µm] {
+		[400, 1_200]
 	}
 
-	static var clearances: [Nm] {
-		[.mm(0.3), .mm(0.6)]
+	static var clearances: [µm] {
+		[300, 600]
 	}
 
-	static var sheetSnapGrids: [Nm] {
-		[.mil(50), .mil(100)]
+	static var sheetSnapGrids: [µm] {
+		[1_270, 2_540]
 	}
 
-	static var displayGrids: [Nm] {
-		[.mil(100), .inches(1)]
+	static var displayGrids: [µm] {
+		[2_540, 1 * .inch]
 	}
 
 	var label: String {
-		let mm = mm
+		let mm: Double = .mm(self)
 		return mm < 0.1
 			? String(format: "%.3f", mm)
 			: String(format: "%.3g", mm)
@@ -80,10 +80,10 @@ struct LayoutState: Equatable, SelectionState {
 	}
 	var layer: Int = 0
 	var net: Net.ID?
-	var placementGrid: Nm = .placementGrids.first!
-	var routingGrid: Nm = .routingGrids.last!
-	var grid: Nm = .displayGrids.first!
-	var traceWidth: Nm = .widths.first!
+	var placementGrid: µm = .placementGrids.first!
+	var routingGrid: µm = .routingGrids.last!
+	var grid: µm = .displayGrids.first!
+	var traceWidth: µm = .widths.first!
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []
 	var traceSession: TraceSession?
@@ -102,7 +102,7 @@ extension LayoutState {
 		}
 	}
 
-	var activeGrid: Nm {
+	var activeGrid: µm {
 		get { usesPlacementGrid ? placementGrid : routingGrid }
 		set {
 			if usesPlacementGrid { placementGrid = newValue }
@@ -110,8 +110,8 @@ extension LayoutState {
 		}
 	}
 
-	var activeGridOptions: [Nm] { usesPlacementGrid ? Nm.placementGrids : Nm.routingGrids }
-	var selectionGrid: Nm { selection.usesPlacementGrid ? placementGrid : routingGrid }
+	var activeGridOptions: [µm] { usesPlacementGrid ? µm.placementGrids : µm.routingGrids }
+	var selectionGrid: µm { selection.usesPlacementGrid ? placementGrid : routingGrid }
 
 	mutating func cancelSessions() {
 		traceSession = nil

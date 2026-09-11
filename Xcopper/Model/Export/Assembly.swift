@@ -66,8 +66,8 @@ extension Design {
 			+ fitted.map { footprint in
 				[
 					footprint.reference,
-					millimetres(footprint.at.x),
-					millimetres(board.size.height - footprint.at.y),
+					mm(footprint.at.x),
+					mm(board.size.height - footprint.at.y),
 					footprint.flipped ? "bottom" : "top",
 					"\(footprint.placementRotation)",
 				]
@@ -76,7 +76,7 @@ extension Design {
 	}
 }
 
-private func millimetres(_ value: Nm) -> String { "\(millimeters(value, decimals: 4))mm" }
+private func mm(_ value: µm) -> String { "\(String.mm(value, decimals: 4))mm" }
 
 extension Footprint {
 

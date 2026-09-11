@@ -6,7 +6,7 @@ struct Net: Hashable, Codable, Identifiable {
 struct Trace: Hashable, Codable {
 	var start: Point
 	var end: Point
-	var width: Nm
+	var width: µm
 	var layer: Int
 	var net: Net.ID?
 }
@@ -18,7 +18,7 @@ struct Via: Hashable, Codable {
 
 struct Hole: Hashable, Codable {
 	var at: Point
-	var diameter: Nm
+	var diameter: µm
 }
 
 struct Pad: Hashable, Codable {
@@ -27,7 +27,7 @@ struct Pad: Hashable, Codable {
 	var at: Point
 	var size: Size
 	var shape: Shape
-	var drill: Nm
+	var drill: µm
 	var layer: Int
 	var name: String
 	var net: Net.ID?
@@ -101,17 +101,17 @@ extension Footprint {
 }
 
 struct Rules: Hashable, Codable {
-	var clearance: Nm
-	var traceWidth: Nm
-	var viaDrill: Nm
-	var viaPad: Nm
+	var clearance: µm
+	var traceWidth: µm
+	var viaDrill: µm
+	var viaPad: µm
 
 	static var `default`: Rules {
 		Rules(
-			clearance: .mm(0.3),
-			traceWidth: .mm(0.4),
-			viaDrill: .mm(0.5),
-			viaPad: .mm(0.9)
+			clearance: 300,
+			traceWidth: 400,
+			viaDrill: 500,
+			viaPad: 900
 		)
 	}
 }
@@ -128,7 +128,7 @@ struct Board: Equatable, Codable {
 
 extension Board {
 
-	init(size: Size = .init(width: .inches(4), height: .inches(6)), stack: Stack = .analog) {
+	init(size: Size = .init(width: 4 * .inch, height: 6 * .inch), stack: Stack = .analog) {
 		self.size = size
 		self.stack = stack
 		traces = []
@@ -278,7 +278,7 @@ extension Board {
 	func turn(at junction: Junction) -> Int? { routing().turn(at: junction) }
 
 	@discardableResult
-	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: Nm) -> Set<Ref>? {
+	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: µm) -> Set<Ref>? {
 		var route = routing(moving: refs)
 		let selected = Set(refs.compactMap { if case let .trace(index) = $0 { index } else { nil } })
 		guard let mapped = route.move(selected, by: delta, grid: grid) else { return nil }

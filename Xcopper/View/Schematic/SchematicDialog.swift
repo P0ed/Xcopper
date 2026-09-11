@@ -15,7 +15,7 @@ struct SchematicDialog: View {
 				if let chosen { confirm(chosen) }
 			}
 		) {
-			SizeFields(size: size, limit: .mm(2_000), value: $chosen)
+			SizeFields(size: size, limit: 2_000 * .mm, value: $chosen)
 				.frame(width: 240.0)
 		}
 	}

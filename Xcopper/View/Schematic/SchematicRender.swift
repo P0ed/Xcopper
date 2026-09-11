@@ -87,7 +87,7 @@ extension SchematicView {
 		for point in schematic.junctions {
 			path.addEllipse(in: CGRect(
 				center: point.cg(scale, origin: origin),
-				radius: max(1.5, Double(Nm.mm(0.4)).mm * scale / 2.0)
+				radius: max(1.5, Double.mm(400) * scale / 2.0)
 			))
 		}
 		context.fill(path, with: .color(Palette.junction))
@@ -164,12 +164,12 @@ extension SchematicView {
 		origin: CGPoint,
 		visible: CGRect
 	) {
-		let numberSize = Double(PinText.numberHeight).mm * scale
+		let numberSize = Double.mm(PinText.numberHeight) * scale
 		guard numberSize >= 4.5 else { return }
 
-		let nameSize = Double(PinText.nameHeight).mm * scale
-		let gap = Double(PinText.gap).mm * scale
-		let inset = Double(PinText.inset).mm * scale
+		let nameSize = Double.mm(PinText.nameHeight) * scale
+		let gap = Double.mm(PinText.gap) * scale
+		let inset = Double.mm(PinText.inset) * scale
 
 		for (index, symbol) in projection.design.schematic.symbols.enumerated() {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
@@ -249,7 +249,7 @@ extension SchematicView {
 		origin: CGPoint
 	) {
 		let size = max(7.0, min(15.0, scale * 2.2))
-		let radius = max(1.5, Double(NetLabel.anchor).mm * scale / 2.0)
+		let radius = max(1.5, Double.mm(NetLabel.anchor) * scale / 2.0)
 
 		for (index, label) in schematic.labels.enumerated() {
 			let anchor = label.at.cg(scale, origin: origin)

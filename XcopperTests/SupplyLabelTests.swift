@@ -3,13 +3,13 @@ import XCTest
 
 final class SupplyLabelTests: XCTestCase {
 
-	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
 
 	func testEverySymbolKindBringsExactlyOneFootprintToTheBoard() {
 		var design = Design()
 		for kind in Symbol.Kind.allCases {
 			let before = design.board.footprints.count
-			let ref = design.place(Symbol.Spec(kind: kind), at: point(20, 20))
+			let ref = design.place(Symbol.Spec(kind: kind), at: point(20 * .mm, 20 * .mm))
 			XCTAssertEqual(design.board.footprints.count, before + 1, kind.name)
 			XCTAssertEqual(design.footprints(for: [ref]), [.footprint(before)], kind.name)
 			XCTAssertEqual(design.schematic.symbols.last?.reference, design.board.footprints.last?.reference)
@@ -21,8 +21,8 @@ final class SupplyLabelTests: XCTestCase {
 		for kind in ["power", "ground"] {
 			for rotation in Rotation.allCases {
 				var design = Design()
-				design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: point(20, 20))
-				design.place(Symbol.Spec(kind: .capacitor, value: "100n"), at: point(40, 20))
+				design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: point(20 * .mm, 20 * .mm))
+				design.place(Symbol.Spec(kind: .capacitor, value: "100n"), at: point(40 * .mm, 20 * .mm))
 				let at = design.schematic.symbols[0].placedPins[0].at
 				let expected = NetLabel(at: at, text: "SUPPLY")
 				var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
@@ -55,7 +55,7 @@ final class SupplyLabelTests: XCTestCase {
 
 	func testADocumentWrittenBeforeFlagsExistedStillOpens() throws {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: point(20, 20))
+		design.place(Symbol.Spec(kind: .resistor), at: point(20 * .mm, 20 * .mm))
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
 		var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
 		sheet.removeValue(forKey: "flags")
@@ -67,11 +67,11 @@ final class SupplyLabelTests: XCTestCase {
 		let design = Design()
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
 		var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-		sheet["flags"] = [["kind": "power", "at": ["x": 30000000, "y": 30000000], "rotation": 3, "net": "VEE"]]
+		sheet["flags"] = [["kind": "power", "at": ["x": 30 * .mm, "y": 30 * .mm], "rotation": 3, "net": "VEE"]]
 		sheet["symbols"] = [["kind": "ground", "at": ["x": 0, "y": 0], "rotation": 0, "value": "GND"]]
 		json["schematic"] = sheet
 		let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-		XCTAssertEqual(decoded.schematic.labels, [NetLabel(at: point(30, 30), text: "VEE"), NetLabel(at: .zero, text: "GND")])
+		XCTAssertEqual(decoded.schematic.labels, [NetLabel(at: point(30 * .mm, 30 * .mm), text: "VEE"), NetLabel(at: .zero, text: "GND")])
 		XCTAssertTrue(decoded.schematic.symbols.isEmpty)
 		let encoded = try Document(design: decoded).encoded()
 		let written = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
@@ -83,24 +83,24 @@ final class SupplyLabelTests: XCTestCase {
 	func testMigratingAFlagKeepsTheLabelThatOverrodeItsNetName() throws {
 		for legacySymbol in [false, true] {
 			var design = Design()
-			design.schematic.wires = [Wire(start: .zero, end: point(10, 0))]
+			design.schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
 			design.schematic.labels = [NetLabel(at: .zero, text: "SIGNAL")]
 			var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
 			var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
 			sheet[legacySymbol ? "symbols" : "flags"] = [[
-				"kind": "ground", "at": ["x": 5000000, "y": 0], "rotation": 0,
+				"kind": "ground", "at": ["x": 5 * .mm, "y": 0], "rotation": 0,
 				legacySymbol ? "value" : "net": "GND",
 			]]
 			json["schematic"] = sheet
 			let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-			XCTAssertEqual(decoded.schematic.labels, design.schematic.labels + [NetLabel(at: point(5, 0), text: "SIGNAL")])
-			XCTAssertEqual(Netlist(decoded.schematic).name(at: point(10, 0)), "SIGNAL")
+			XCTAssertEqual(decoded.schematic.labels, design.schematic.labels + [NetLabel(at: point(5 * .mm, 0), text: "SIGNAL")])
+			XCTAssertEqual(Netlist(decoded.schematic).name(at: point(10 * .mm, 0)), "SIGNAL")
 		}
 	}
 
 	func testMigratingAFlagAtAModulePortKeepsItsSupplyAssignment() throws {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: point(20, 20))
+		design.place(Symbol.Spec(kind: .resistor), at: point(20 * .mm, 20 * .mm))
 		let at = design.schematic.symbols[0].placedPins[0].at
 		design.schematic.labels = [NetLabel(at: at, text: "#SUPPLY")]
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
@@ -116,29 +116,29 @@ final class SupplyLabelTests: XCTestCase {
 
 	func testALabelAtACrossingMakesAJunction() {
 		var schematic = Schematic()
-		schematic.wires = [Wire(start: .zero, end: point(10, 0)), Wire(start: point(5, -5), end: point(5, 5))]
+		schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0)), Wire(start: point(5 * .mm, -5 * .mm), end: point(5 * .mm, 5 * .mm))]
 		XCTAssertEqual(schematic.junctions, [])
-		schematic.labels = [NetLabel(at: point(5, 0), text: "GND")]
-		XCTAssertEqual(schematic.junctions, [point(5, 0)])
-		XCTAssertEqual(Netlist(schematic).name(at: point(5, 5)), "GND")
+		schematic.labels = [NetLabel(at: point(5 * .mm, 0), text: "GND")]
+		XCTAssertEqual(schematic.junctions, [point(5 * .mm, 0)])
+		XCTAssertEqual(Netlist(schematic).name(at: point(5 * .mm, 5 * .mm)), "GND")
 	}
 
 	func testALabelNamesAnIsolatedTerminalWithoutInventingAPart() {
 		var schematic = Schematic()
-		schematic.labels = [NetLabel(at: point(20, 20), text: " VCC \n")]
-		let group = Netlist(schematic).group(at: point(20, 20))
+		schematic.labels = [NetLabel(at: point(20 * .mm, 20 * .mm), text: " VCC \n")]
+		let group = Netlist(schematic).group(at: point(20 * .mm, 20 * .mm))
 		XCTAssertEqual(group?.name, "VCC")
 		XCTAssertEqual(group?.nodes, [])
 		schematic.labels[0].text = " \n"
-		XCTAssertNil(Netlist(schematic).name(at: point(20, 20)))
+		XCTAssertNil(Netlist(schematic).name(at: point(20 * .mm, 20 * .mm)))
 	}
 
 	func testFindingANetPicksEveryMatchingLabelOnTheSheet() {
 		var design = Design()
 		design.schematic.labels = [
-			NetLabel(at: point(20, 20), text: "GND"),
-			NetLabel(at: point(40, 20), text: "GND"),
-			NetLabel(at: point(60, 20), text: "VCC"),
+			NetLabel(at: point(20 * .mm, 20 * .mm), text: "GND"),
+			NetLabel(at: point(40 * .mm, 20 * .mm), text: "GND"),
+			NetLabel(at: point(60 * .mm, 20 * .mm), text: "VCC"),
 		]
 		XCTAssertEqual(design.schematicRefs(matching: "gnd"), [.label(0), .label(1)])
 		XCTAssertTrue(design.layoutRefs(matching: "gnd").isEmpty)
@@ -147,10 +147,10 @@ final class SupplyLabelTests: XCTestCase {
 
 	func testAParkedSymbolKeepsClearOfALabelAlreadyDrawn() {
 		var baseline = Design()
-		baseline.place(Footprint.Spec(kind: .chip), at: point(20, 20))
+		baseline.place(Footprint.Spec(kind: .chip), at: point(20 * .mm, 20 * .mm))
 		var design = Design()
 		design.schematic.labels = [NetLabel(at: baseline.schematic.symbols[0].at, text: "GND")]
-		design.place(Footprint.Spec(kind: .chip), at: point(20, 20))
+		design.place(Footprint.Spec(kind: .chip), at: point(20 * .mm, 20 * .mm))
 		XCTAssertFalse(design.schematic.symbols[0].placedExtent.intersects(design.schematic.labels[0].bounds))
 	}
 }

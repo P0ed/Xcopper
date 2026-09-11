@@ -37,10 +37,10 @@ extension Footprint {
 
 		var metrics: (pad: Size, offset: Int, body: Size) {
 			switch self {
-			case .c0402: (Size(width: .mm(0.6), height: .mm(0.6)), .mm(0.5), Size(width: .mm(1.0), height: .mm(0.5)))
-			case .c0603: (Size(width: .mm(0.9), height: .mm(0.95)), .mm(0.8), Size(width: .mm(1.6), height: .mm(0.8)))
-			case .c0805: (Size(width: .mm(1.15), height: .mm(1.4)), .mm(1.0), Size(width: .mm(2.0), height: .mm(1.25)))
-			case .c1206: (Size(width: .mm(1.15), height: .mm(1.75)), .mm(1.5), Size(width: .mm(3.2), height: .mm(1.6)))
+			case .c0402: (Size(width: 600, height: 600), 500, Size(width: 1 * .mm, height: 500))
+			case .c0603: (Size(width: 900, height: 950), 800, Size(width: 1_600, height: 800))
+			case .c0805: (Size(width: 1_150, height: 1_400), 1 * .mm, Size(width: 2 * .mm, height: 1_250))
+			case .c1206: (Size(width: 1_150, height: 1_750), 1_500, Size(width: 3_200, height: 1_600))
 			}
 		}
 	}
@@ -124,7 +124,7 @@ extension Footprint {
 		)
 	}
 
-	private static func through(_ name: Int, _ x: Int, _ y: Int, drill: Nm, pad: Nm) -> Pad {
+	private static func through(_ name: Int, _ x: Int, _ y: Int, drill: µm, pad: µm) -> Pad {
 		Pad(
 			at: Point(x: x, y: y),
 			size: Size(width: Int(pad), height: Int(pad)),
@@ -149,9 +149,9 @@ extension Footprint {
 	}
 
 	static func soic(pins: Int) -> Footprint {
-		let pitch = Int.mm(1.27)
-		let span = Int.mm(5.2)
-		let size = Size(width: .mm(1.55), height: .mm(0.6))
+		let pitch = 1_270
+		let span = 5_200
+		let size = Size(width: 1_550, height: 600)
 		let perSide = pins / 2
 		let first = -(perSide - 1) * pitch / 2
 
@@ -164,14 +164,14 @@ extension Footprint {
 		return make(
 			.soic(pins),
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
-			body: Size(width: .mm(3.9), height: (perSide - 1) * pitch + .mm(1.2))
+			body: Size(width: 3_900, height: (perSide - 1) * pitch + 1_200)
 		)
 	}
 
 	static func sot23() -> Footprint {
-		let size = Size(width: .mm(1.0), height: .mm(0.6))
-		let span = Int.mm(2.6)
-		let pitch = Int.mm(0.95)
+		let size = Size(width: 1 * .mm, height: 600)
+		let span = 2_600
+		let pitch = 950
 		return make(
 			.sot23,
 			pads: [
@@ -179,31 +179,31 @@ extension Footprint {
 				smd(2, -span / 2, pitch, size),
 				smd(3, span / 2, 0, size),
 			],
-			body: Size(width: .mm(1.3), height: .mm(2.9))
+			body: Size(width: 1_300, height: 2_900)
 		)
 	}
 
 	static func dip(pins: Int) -> Footprint {
-		let pitch = Int.mm(2.54)
-		let span = Int.mm(7.62)
+		let pitch = 2_540
+		let span = 7_620
 		let perSide = pins / 2
 		let first = -(perSide - 1) * pitch / 2
 
 		let pads = (0 ..< perSide).flatMap { index in
 			[
-				through(index + 1, -span / 2, first + index * pitch, drill: .mm(0.8), pad: .mm(1.6)),
-				through(pins - index, span / 2, first + index * pitch, drill: .mm(0.8), pad: .mm(1.6)),
+				through(index + 1, -span / 2, first + index * pitch, drill: 800, pad: 1_600),
+				through(pins - index, span / 2, first + index * pitch, drill: 800, pad: 1_600),
 			]
 		}
 		return make(
 			.dip(pins),
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
-			body: Size(width: .mm(6.4), height: (perSide - 1) * pitch + .mm(2.54))
+			body: Size(width: 6_400, height: (perSide - 1) * pitch + 2_540)
 		)
 	}
 
 	static func header(pins: Int, rows: Int) -> Footprint {
-		let pitch = Int.mm(2.54)
+		let pitch = 2_540
 		let first = -(pins - 1) * pitch / 2
 		let column = (rows - 1) * pitch / 2
 
@@ -213,8 +213,8 @@ extension Footprint {
 					index * rows + row + 1,
 					-column + row * pitch,
 					first + index * pitch,
-					drill: .mm(1.0),
-					pad: .mm(1.7)
+					drill: 1 * .mm,
+					pad: 1_700
 				)
 			}
 		}
@@ -226,9 +226,9 @@ extension Footprint {
 	}
 
 	static func ssop10() -> Footprint {
-		let pitch = Int.mm(1.0)
-		let span = Int.mm(5.2)
-		let size = Size(width: .mm(1.55), height: .mm(0.55))
+		let pitch = 1 * .mm
+		let span = 5_200
+		let size = Size(width: 1_550, height: 550)
 		let first = -2 * pitch
 		let pads = (0 ..< 5).flatMap { index in
 			[
@@ -239,31 +239,31 @@ extension Footprint {
 		return make(
 			.ssop10,
 			pads: pads.sorted { Int($0.name) ?? 0 < Int($1.name) ?? 0 },
-			body: Size(width: .mm(3.9), height: .mm(4.9))
+			body: Size(width: 3_900, height: 4_900)
 		)
 	}
 
 	static func sip(pins: Int) -> Footprint {
-		let pitch = Int.mm(2.54)
+		let pitch = 2_540
 		let first = -(pins - 1) * pitch / 2
 		return make(
 			.sip(pins),
 			pads: (0 ..< pins).map { index in
-				through(index + 1, 0, first + index * pitch, drill: .mm(0.9), pad: .mm(1.7))
+				through(index + 1, 0, first + index * pitch, drill: 900, pad: 1_700)
 			},
-			body: Size(width: .mm(2.8), height: max(.mm(5.8), (pins - 1) * pitch + .mm(1.7)))
+			body: Size(width: 2_800, height: max(5_800, (pins - 1) * pitch + 1_700))
 		)
 	}
 
 	static func mta156(pins: Int) -> Footprint {
-		let pitch = Int.mm(3.96)
+		let pitch = 3_960
 		let first = -(pins - 1) * pitch / 2
 		return make(
 			.mta156(pins),
 			pads: (0 ..< pins).map { index in
-				through(index + 1, 0, first + index * pitch, drill: .mm(1.8), pad: .mm(2.8))
+				through(index + 1, 0, first + index * pitch, drill: 1_800, pad: 2_800)
 			},
-			body: Size(width: .mm(9.0), height: pins * pitch)
+			body: Size(width: 9 * .mm, height: pins * pitch)
 		)
 	}
 
@@ -271,10 +271,10 @@ extension Footprint {
 		make(
 			.led5mm,
 			pads: [
-				through(1, 0, -.mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
-				through(2, 0, .mm(1.27), drill: .mm(0.8), pad: .mm(1.7)),
+				through(1, 0, -1_270, drill: 800, pad: 1_700),
+				through(2, 0, 1_270, drill: 800, pad: 1_700),
 			],
-			body: Size(width: .mm(5.8), height: .mm(5.8))
+			body: Size(width: 5_800, height: 5_800)
 		)
 	}
 
@@ -282,17 +282,17 @@ extension Footprint {
 		make(
 			.sod123,
 			pads: [
-				smd(1, -.mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
-				smd(2, .mm(1.65), 0, Size(width: .mm(1.2), height: .mm(1.2))),
+				smd(1, -1_650, 0, Size(width: 1_200, height: 1_200)),
+				smd(2, 1_650, 0, Size(width: 1_200, height: 1_200)),
 			],
-			body: Size(width: .mm(2.7), height: .mm(1.6))
+			body: Size(width: 2_700, height: 1_600)
 		)
 	}
 
 	static func sot457() -> Footprint {
-		let size = Size(width: .mm(0.9), height: .mm(0.55))
-		let span = Int.mm(2.6)
-		let pitch = Int.mm(0.95)
+		let size = Size(width: 900, height: 550)
+		let span = 2_600
+		let pitch = 950
 		return make(
 			.sot457,
 			pads: [
@@ -303,31 +303,31 @@ extension Footprint {
 				smd(5, span / 2, 0, size),
 				smd(6, span / 2, -pitch, size),
 			],
-			body: Size(width: .mm(1.7), height: .mm(3.0))
+			body: Size(width: 1_700, height: 3 * .mm)
 		)
 	}
 
 	static func bourns51() -> Footprint {
-		let pitch = Int.mm(2.54)
+		let pitch = 2_540
 		return make(
 			.bourns51,
 			pads: (0 ..< 3).map { index in
 				through(
 					index + 1,
 					(index - 1) * pitch,
-					-.mm(7.5),
-					drill: .mm(0.9),
-					pad: .mm(1.8)
+					-7_500,
+					drill: 900,
+					pad: 1_800
 				)
 			},
-			body: Size(width: .mm(12.5), height: .mm(14.0))
+			body: Size(width: 12_500, height: 14 * .mm)
 		)
 	}
 
 	func copper(in stack: Stack) -> [Trace] {
 		guard package == .pomona1581, pads.count >= 2 else { return [] }
 		return [stack.top, stack.bottom].map { layer in
-			Trace(start: place(pads[0].at), end: place(pads[1].at), width: .mm(2.0), layer: layer, net: pads[0].net)
+			Trace(start: place(pads[0].at), end: place(pads[1].at), width: 2 * .mm, layer: layer, net: pads[0].net)
 		}
 	}
 
@@ -337,35 +337,35 @@ extension Footprint {
 			pads: [
 				Pad(
 					at: .zero,
-					size: Size(width: .mm(10.0), height: .mm(10.0)),
+					size: Size(width: 10 * .mm, height: 10 * .mm),
 					shape: .oval,
-					drill: .mm(6.35),
+					drill: 6_350,
 					layer: 0,
 					name: "1",
 					net: nil
 				),
 				Pad(
-					at: Point(x: 0, y: .mm(6.35)),
-					size: Size(width: .mm(2.0), height: .mm(2.0)),
+					at: Point(x: 0, y: 6_350),
+					size: Size(width: 2 * .mm, height: 2 * .mm),
 					shape: .oval,
-					drill: .mm(1.0),
+					drill: 1 * .mm,
 					layer: 0,
 					name: "1",
 					net: nil
 				),
 			],
-			body: Size(width: .mm(10.0), height: .mm(12.0))
+			body: Size(width: 10 * .mm, height: 12 * .mm)
 		)
 	}
 
 	static func nkkMNPC() -> Footprint {
-		let pitch = Int.mm(4.7)
+		let pitch = 4_700
 		return make(
 			.nkkMNPC,
 			pads: (0 ..< 3).map { index in
-				through(index + 1, 0, (index - 1) * pitch, drill: .mm(1.6), pad: .mm(2.8))
+				through(index + 1, 0, (index - 1) * pitch, drill: 1_600, pad: 2_800)
 			},
-			body: Size(width: .mm(7.9), height: .mm(13.0))
+			body: Size(width: 7_900, height: 13 * .mm)
 		)
 	}
 }

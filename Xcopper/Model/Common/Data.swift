@@ -1,25 +1,22 @@
 import CoreGraphics
 import Foundation
 
-typealias Nm = Int
+typealias µm = Int
 
-extension Nm {
-	static var mm: Nm { 1_000_000 }
-	static var mil: Nm { 25_400 }
-	static var inch: Nm { 25_400_000 }
+extension µm {
+	static var mm: µm { 1_000 }
+	static var inch: µm { 25_400 }
+}
 
-	static func mm(_ value: Double) -> Nm { Nm(clamping: Int((value * 1_000_000.0).rounded())) }
-	static func mil(_ value: Double) -> Nm { Nm(clamping: Int((value * 25_400.0).rounded())) }
-	static func inches(_ value: Double) -> Nm { Nm(clamping: Int((value * 25_400_000.0).rounded())) }
-
-	var mm: Double { Double(self) / 1_000_000.0 }
-	var mil: Double { Double(self) / 25_400.0 }
-	var inches: Double { Double(self) / 25_400_000.0 }
+extension Double {
+	static func mm(_ value: µm) -> Double { Double(value) / 1_000.0 }
+	static func mil(_ value: µm) -> Double { Double(value) / 25.4 }
+	static func inch(_ value: µm) -> Double { Double(value) / 25_400 }
 }
 
 struct Point: Hashable, Codable {
-	var x: Nm
-	var y: Nm
+	var x: µm
+	var y: µm
 
 	static var zero: Point { Point(x: 0, y: 0) }
 
@@ -32,7 +29,7 @@ struct Point: Hashable, Codable {
 
 extension Point {
 
-	func snapped(to grid: Nm) -> Point {
+	func snapped(to grid: µm) -> Point {
 		let step = Int(grid)
 		guard step > 0 else { return self }
 		func round(_ value: Int) -> Int {
@@ -65,8 +62,8 @@ extension Point {
 }
 
 struct Size: Hashable, Codable {
-	var width: Nm
-	var height: Nm
+	var width: µm
+	var height: µm
 
 	static var zero: Size { Size(width: 0, height: 0) }
 

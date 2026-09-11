@@ -3,34 +3,34 @@ import XCTest
 @testable import Xcopper
 
 final class BoardViaTests: XCTestCase {
-	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
 
 	private func design() -> Design {
 		var design = Design(board: Board(stack: .classic))
-		design.board.rules.viaDrill = .mm(0.3)
-		design.board.rules.viaPad = .mm(0.6)
+		design.board.rules.viaDrill = 300
+		design.board.rules.viaPad = 600
 		design.board.vias = [
-			Via(at: point(10, 10), net: 0),
-			Via(at: point(20, 10), net: 0),
+			Via(at: point(10 * .mm, 10 * .mm), net: 0),
+			Via(at: point(20 * .mm, 10 * .mm), net: 0),
 		]
 		return design
 	}
 
 	func testChangingBoardSizesUpdatesCopperDrillsSelectionAndRouting() {
 		var board = design().board
-		let edge = point(10.6, 10)
+		let edge = point(10_600, 10 * .mm)
 		XCTAssertNil(board.hitTest(at: edge, layer: 0, tolerance: 0))
 		XCTAssertFalse(board.isTerminal(edge, layer: 0))
 
-		board.rules.viaDrill = .mm(0.8)
-		board.rules.viaPad = .mm(1.4)
-		let copper = [Figure.round(point(10, 10), .mm(1.4)), .round(point(20, 10), .mm(1.4))]
+		board.rules.viaDrill = 800
+		board.rules.viaPad = 1_400
+		let copper = [Figure.round(point(10 * .mm, 10 * .mm), 1_400), .round(point(20 * .mm, 10 * .mm), 1_400)]
 		for layer in board.stack.copper {
 			XCTAssertEqual(board.figures(on: layer).map { $0.0 }, copper)
 			XCTAssertEqual(board.figures(on: layer, of: [.via(0)]), [copper[0]])
-			XCTAssertEqual(board.clearances(on: layer, net: 1), copper.map { $0.outset(.mm(0.3)) })
+			XCTAssertEqual(board.clearances(on: layer, net: 1), copper.map { $0.outset(300) })
 		}
-		XCTAssertEqual(board.drills, [.round(point(10, 10), .mm(0.8)), .round(point(20, 10), .mm(0.8))])
+		XCTAssertEqual(board.drills, [.round(point(10 * .mm, 10 * .mm), 800), .round(point(20 * .mm, 10 * .mm), 800)])
 		XCTAssertEqual(board.hitTest(at: edge, layer: 0, tolerance: 0), .via(0))
 		XCTAssertTrue(board.isTerminal(edge, layer: 0))
 		XCTAssertEqual(board.bounds(of: [.via(0)]), copper[0].bounds)
@@ -43,12 +43,12 @@ final class BoardViaTests: XCTestCase {
 	func testBoardSettingsUndoAndRedoSizesAndNewConnectionsTogether() {
 		var design = design()
 		design.board.vias[0].net = nil
-		design.board.traces = [Trace(start: point(10, 10.8), end: point(15, 10.8), width: .mm(0.2), layer: 0, net: 1)]
+		design.board.traces = [Trace(start: point(10 * .mm, 10_800), end: point(15 * .mm, 10_800), width: 200, layer: 0, net: 1)]
 		let harness = EditorHarness(design: design)
 		var rules = design.board.rules
-		rules.viaDrill = .mm(0.7)
-		rules.viaPad = .mm(1.6)
-		let size = Size(width: .mm(80), height: .mm(60))
+		rules.viaDrill = 700
+		rules.viaPad = 1_600
+		let size = Size(width: 80 * .mm, height: 60 * .mm)
 		harness.perform { $0.configureBoard(size: size, stack: .digital, rules: rules) }
 		let changed = harness.design
 		XCTAssertEqual(changed.board.rules, rules)
@@ -72,15 +72,15 @@ final class BoardViaTests: XCTestCase {
 		source.operations.copy()
 		var design = design()
 		design.restack(.analog)
-		design.board.rules.viaDrill = .mm(0.7)
-		design.board.rules.viaPad = .mm(1.3)
+		design.board.rules.viaDrill = 700
+		design.board.rules.viaPad = 1_300
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .layout
 		harness.clipboard = source.clipboard
 		harness.perform { $0.paste() }
 		XCTAssertEqual(harness.design.board.vias.count, 3)
-		XCTAssertEqual(harness.design.board.drills.map { $0.bounds.size.width }, Array(repeating: .mm(0.7), count: 3))
-		XCTAssertEqual(harness.design.board.figures(on: 0).map { $0.0.bounds.size.width }, Array(repeating: .mm(1.3), count: 3))
+		XCTAssertEqual(harness.design.board.drills.map { $0.bounds.size.width }, Array(repeating: 700, count: 3))
+		XCTAssertEqual(harness.design.board.figures(on: 0).map { $0.0.bounds.size.width }, Array(repeating: 1_300, count: 3))
 		for layer in harness.design.board.stack.copper {
 			XCTAssertEqual(harness.design.board.figures(on: layer, of: [.via(2)]).count, 1)
 		}
@@ -133,21 +133,21 @@ final class BoardViaTests: XCTestCase {
 
 	func testLegacyViaOverridesUseSavedBoardSizesAndAreNoLongerWritten() throws {
 		var design = design()
-		design.board.rules.viaDrill = .mm(0.4)
-		design.board.rules.viaPad = .mm(0.8)
+		design.board.rules.viaDrill = 400
+		design.board.rules.viaPad = 800
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
 		var board = try XCTUnwrap(json["board"] as? [String: Any])
 		var vias = try XCTUnwrap(board["vias"] as? [[String: Any]])
-		vias[0]["drill"] = Nm.mm(0.2)
-		vias[0]["pad"] = Nm.mm(0.5)
-		vias[1]["drill"] = Nm.mm(0.9)
-		vias[1]["pad"] = Nm.mm(1.5)
+		vias[0]["drill"] = 200
+		vias[0]["pad"] = 500
+		vias[1]["drill"] = 900
+		vias[1]["pad"] = 1_500
 		board["vias"] = vias
 		json["board"] = board
 
 		let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
 		XCTAssertEqual(decoded, design)
-		XCTAssertEqual(decoded.board.drills.map { $0.bounds.size.width }, [.mm(0.4), .mm(0.4)])
+		XCTAssertEqual(decoded.board.drills.map { $0.bounds.size.width }, [400, 400])
 		let saved = try Document(design: decoded).encoded()
 		let savedJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: saved) as? [String: Any])
 		let savedBoard = try XCTUnwrap(savedJSON["board"] as? [String: Any])
@@ -158,17 +158,17 @@ final class BoardViaTests: XCTestCase {
 
 	func testEveryViaExportsWithTheCurrentBoardDrillAndPad() throws {
 		var design = design()
-		for (drill, pad) in [(0.3, 0.6), (0.7, 1.4)] {
-			design.board.rules.viaDrill = .mm(drill)
-			design.board.rules.viaPad = .mm(pad)
+		for (drill, pad) in [(300, 600), (700, 1_400)] {
+			design.board.rules.viaDrill = drill
+			design.board.rules.viaPad = pad
 			let files = design.fabrication(named: "Board")
 			for suffix in ["GTL", "GBL"] {
 				let copper = try XCTUnwrap(files.first { $0.name == "Board." + suffix }?.text)
-				XCTAssertTrue(copper.contains(String(format: "%%ADD10C,%.6f*%%", pad)))
+				XCTAssertTrue(copper.contains(String(format: "%%ADD10C,%.6f*%%", Double.mm(pad))))
 				XCTAssertEqual(copper.components(separatedBy: "D03*").count - 1, 2)
 			}
 			let drills = try XCTUnwrap(files.first { $0.name == "Board-PTH.DRL" }?.text)
-			XCTAssertTrue(drills.contains(String(format: "T1C%.3f", drill)))
+			XCTAssertTrue(drills.contains(String(format: "T1C%.3f", Double.mm(drill))))
 			XCTAssertFalse(drills.contains("T2"))
 			XCTAssertEqual(drills.split(separator: "\n").count { $0.hasPrefix("X") }, 2)
 		}

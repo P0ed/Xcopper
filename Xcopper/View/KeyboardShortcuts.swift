@@ -56,12 +56,12 @@ extension EditorView {
 		case .layout:
 			let options = layout.activeGridOptions
 			cycle(&layout.activeGrid, options, back: back)
-		case .schematic: cycle(&schematic.snap, Nm.sheetSnapGrids, back: back)
+		case .schematic: cycle(&schematic.snap, µm.sheetSnapGrids, back: back)
 		case .preview: break
 		}
 	}
 
-	private func cycle(_ value: inout Nm, _ options: [Nm], back: Bool) {
+	private func cycle(_ value: inout µm, _ options: [µm], back: Bool) {
 		guard let index = options.firstIndex(of: value) else {
 			value = options[0]
 			return

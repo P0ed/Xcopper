@@ -4,19 +4,19 @@ import XCTest
 
 final class ModuleTests: XCTestCase {
 	private let parentURL = URL(fileURLWithPath: "/tmp/xcopper-module-tests/Parent.xcb")
-	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
 	private func source(_ stack: Stack = .classic) -> Design {
-		var design = Design(board: Board(size: Size(width: .mm(20), height: .mm(20)), stack: stack))
+		var design = Design(board: Board(size: Size(width: 20 * .mm, height: 20 * .mm), stack: stack))
 		design.nets += [Net(id: 3, name: "INPUT"), Net(id: 4, name: "PRIVATE")]
-		design.place(Symbol.Spec(kind: .resistor), at: point(10, 10))
-		design.board.footprints[0].at = point(5, 5)
+		design.place(Symbol.Spec(kind: .resistor), at: point(10 * .mm, 10 * .mm))
+		design.board.footprints[0].at = point(5 * .mm, 5 * .mm)
 		design.board.footprints[0].pads[0].net = 3
 		design.board.footprints[0].pads[1].net = 4
 		design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "#IN")]
-		design.board.traces = [Trace(start: point(5, 5), end: point(10, 5), width: .mm(0.4), layer: stack.bottom, net: 3)]
-		design.board.vias = [Via(at: point(10, 5), net: 3),
-			Via(at: point(15, 15), net: 0)]
-		design.board.holes = [Hole(at: point(10, 15), diameter: .mm(2))]
+		design.board.traces = [Trace(start: point(5 * .mm, 5 * .mm), end: point(10 * .mm, 5 * .mm), width: 400, layer: stack.bottom, net: 3)]
+		design.board.vias = [Via(at: point(10 * .mm, 5 * .mm), net: 3),
+			Via(at: point(15 * .mm, 15 * .mm), net: 0)]
+		design.board.holes = [Hole(at: point(10 * .mm, 15 * .mm), diameter: 2 * .mm)]
 		return design
 	}
 	private func reader(_ sources: [String: Design]) throws -> (URL) throws -> Data {
@@ -24,7 +24,7 @@ final class ModuleTests: XCTestCase {
 		return { url in try data[url.lastPathComponent].throwing("Missing \(url.lastPathComponent)") }
 	}
 	private func imported(_ sources: [String: Design], filenames: [String] = ["Part.xcb"], stack: Stack = .analog) throws -> Design {
-		var design = Design(board: Board(size: Size(width: .mm(100), height: .mm(100)), stack: stack))
+		var design = Design(board: Board(size: Size(width: 100 * .mm, height: 100 * .mm), stack: stack))
 		let read = try reader(sources)
 		for filename in filenames { try design.importModule(filename: filename, documentURL: parentURL, read: read) }
 		return design
@@ -71,28 +71,28 @@ final class ModuleTests: XCTestCase {
 
 	func testImportedViasUseParentSizesAndFollowChangesAfterProjectionIsCached() throws {
 		var source = source()
-		source.board.rules.viaDrill = .mm(0.2)
-		source.board.rules.viaPad = .mm(0.5)
+		source.board.rules.viaDrill = 200
+		source.board.rules.viaPad = 500
 		var parent = try imported(["Part.xcb": source])
-		parent.board.vias = [Via(at: point(80, 80), net: 0)]
+		parent.board.vias = [Via(at: point(80 * .mm, 80 * .mm), net: 0)]
 		let before = parent.resolved
-		parent.board.rules.viaDrill = .mm(0.7)
-		parent.board.rules.viaPad = .mm(1.4)
+		parent.board.rules.viaDrill = 700
+		parent.board.rules.viaPad = 1_400
 		let resolved = parent.resolved.board
 		XCTAssertEqual(resolved.vias.count, 3)
 		for index in resolved.vias.indices {
-			XCTAssertEqual(resolved.figures(on: 0, of: [.via(index)]), [.round(resolved.vias[index].at, .mm(1.4))])
-			XCTAssertEqual(resolved.drills[index], .round(resolved.vias[index].at, .mm(0.7)))
+			XCTAssertEqual(resolved.figures(on: 0, of: [.via(index)]), [.round(resolved.vias[index].at, 1_400)])
+			XCTAssertEqual(resolved.drills[index], .round(resolved.vias[index].at, 700))
 		}
 		XCTAssertNotEqual(resolved.drills, before.board.drills)
 		XCTAssertEqual(parent.moduleCache.contents[parent.modules[0].id]?.board.rules, source.board.rules)
 	}
 
 	func testBufferSupplyLabelsReachTheParentInletThroughViasAndPlanes() throws {
-		var buffer = Design(board: Board(size: Size(width: .mm(40), height: .mm(40)), stack: .classic))
-		buffer.place(Symbol.Spec(component: .ad823a), at: point(40, 40))
-		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20, 15))
-		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20, 65))
+		var buffer = Design(board: Board(size: Size(width: 40 * .mm, height: 40 * .mm), stack: .classic))
+		buffer.place(Symbol.Spec(component: .ad823a), at: point(40 * .mm, 40 * .mm))
+		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20 * .mm, 15 * .mm))
+		buffer.place(Symbol.Spec(kind: .capacitor, value: "2u2"), at: point(20 * .mm, 65 * .mm))
 		let names = [
 			["1": "#OUT1", "3": "#IN1", "4": "VEE", "5": "#IN2", "7": "#OUT2", "8": "VCC"],
 			["1": "GND", "2": "VCC"],
@@ -112,13 +112,13 @@ final class ModuleTests: XCTestCase {
 		}
 		XCTAssertEqual(pads.count, 6)
 		for pad in pads {
-			let via = pad.at + point(0, 2)
+			let via = pad.at + point(0, 2 * .mm)
 			buffer.board.vias.append(Via(at: via, net: pad.net))
-			buffer.board.traces.append(Trace(start: pad.at, end: via, width: .mm(0.25), layer: 0, net: pad.net))
+			buffer.board.traces.append(Trace(start: pad.at, end: via, width: 250, layer: 0, net: pad.net))
 		}
 
 		var parent = try imported(["Buffer.xcb": buffer], filenames: ["Buffer.xcb"])
-		parent.place(Symbol.Spec(component: .mta1563), at: point(100, 100))
+		parent.place(Symbol.Spec(component: .mta1563), at: point(100 * .mm, 100 * .mm))
 		let rails = ["GND", "VCC", "VEE"]
 		for (pin, name) in zip(parent.schematic.symbols[0].placedPins, rails) {
 			parent.schematic.labels.append(NetLabel(at: pin.at, text: name))
@@ -162,7 +162,7 @@ final class ModuleTests: XCTestCase {
 	@MainActor
 	func testParentWireAutomaticallyMapsIOToPadsTracesViasAndLeavesPrivateNetsAlone() throws {
 		var design = try imported(["Part.xcb": source()])
-		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		let modulePin = design.modules[0].symbol.placedPins[0].at
 		let parentPin = design.schematic.symbols[0].placedPins[0].at
 		let before = design.moduleCache
@@ -193,8 +193,8 @@ final class ModuleTests: XCTestCase {
 		let pad = design.resolved.board.footprints[0].placedPads[0]
 		let harness = EditorHarness(design: design)
 		harness.perform {
-			$0.design.board.traces.append(Trace(start: pad.at, end: pad.at + point(0, 10),
-				width: .mm(0.3), layer: 0, net: nil))
+			$0.design.board.traces.append(Trace(start: pad.at, end: pad.at + point(0, 10 * .mm),
+				width: 300, layer: 0, net: nil))
 		}
 		XCTAssertNotNil(pad.net)
 		XCTAssertEqual(harness.design.board.traces[0].net, pad.net)
@@ -245,7 +245,7 @@ final class ModuleTests: XCTestCase {
 		var design = try imported(["Part.xcb": source])
 		let metadata = design.modules[0]
 		let old = design.resolved
-		let wire = Wire(start: metadata.symbol.placedPins[0].at, end: point(70, 70))
+		let wire = Wire(start: metadata.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
 		design.schematic.wires = [wire]
 		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: { _ in throw Err("Missing file") })
 		resolver.reload(&design, documentURL: parentURL)
@@ -269,9 +269,9 @@ final class ModuleTests: XCTestCase {
 		var design = try imported(["Part.xcb": source()])
 		let id = design.modules[0].id
 		let before = design.resolved.board
-		let delta = point(5, 4)
+		let delta = point(5 * .mm, 4 * .mm)
 		let originalSchematic = design.modules[0].schematicAt
-		XCTAssertNotNil(design.moveLayout([.module(id)], by: delta, grid: .mm(1)))
+		XCTAssertNotNil(design.moveLayout([.module(id)], by: delta, grid: 1 * .mm))
 		let moved = design.resolved.board
 		XCTAssertEqual(moved.traces[0].start, before.traces[0].start + delta)
 		XCTAssertEqual(moved.traces[0].end, before.traces[0].end + delta)
@@ -280,7 +280,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.modules[0].schematicAt, originalSchematic)
 		XCTAssertEqual(design.layoutRefs(at: moved.footprints[0].placedPads[0].at, layer: 0, tolerance: 1), [.module(id)])
 		let pad = moved.footprints[0].placedPads[0]
-		XCTAssertEqual(design.layoutRefs(in: Rect(center: pad.at, size: Size(width: .mm(0.1), height: .mm(0.1))), layer: 0), [.module(id)])
+		XCTAssertEqual(design.layoutRefs(in: Rect(center: pad.at, size: Size(width: 100, height: 100)), layer: 0), [.module(id)])
 		XCTAssertEqual(design.schematicRef(at: design.modules[0].symbol.at, tolerance: 1), .module(id))
 		XCTAssertEqual(design.footprints(for: [.module(id)]), [.module(id)])
 		XCTAssertEqual(design.symbols(for: [.module(id)]), [.module(id)])
@@ -295,13 +295,13 @@ final class ModuleTests: XCTestCase {
 		var design = try imported(["Part.xcb": source()])
 		let id = design.modules[0].id
 		let pin = design.modules[0].symbol.placedPins[0].at
-		let anchor = pin + point(20, 0)
+		let anchor = pin + point(20 * .mm, 0)
 		design.schematic.wires = [Wire(start: pin, end: anchor)]
 		design.schematic.labels = [NetLabel(at: anchor, text: "SIGNAL")]
 		let layout = design.resolved.board
-		let selection = try XCTUnwrap(design.moveSchematic([.module(id)], by: point(2, 3)))
+		let selection = try XCTUnwrap(design.moveSchematic([.module(id)], by: point(2 * .mm, 3 * .mm)))
 		let movedPin = design.modules[0].symbol.placedPins[0].at
-		XCTAssertEqual(movedPin, pin + point(2, 3))
+		XCTAssertEqual(movedPin, pin + point(2 * .mm, 3 * .mm))
 		XCTAssertEqual(selection, [.module(id)])
 		XCTAssertEqual(Netlist(design.resolved.schematic).name(at: movedPin), "SIGNAL")
 		XCTAssertEqual(design.resolved.board, layout)
@@ -314,10 +314,10 @@ final class ModuleTests: XCTestCase {
 			let id = design.modules[0].id
 			let imported = design.resolved.board
 			let start = terminal == 0 ? imported.footprints[0].placedPads[0].at : imported.vias[0].at
-			let end = start + point(20, 0)
-			design.board.traces = [Trace(start: start, end: end, width: .mm(0.4), layer: 0, net: nil)]
-			let delta = point(1, 0)
-			XCTAssertNotNil(design.moveLayout([.module(id)], by: delta, grid: .mm(1)))
+			let end = start + point(20 * .mm, 0)
+			design.board.traces = [Trace(start: start, end: end, width: 400, layer: 0, net: nil)]
+			let delta = point(1 * .mm, 0)
+			XCTAssertNotNil(design.moveLayout([.module(id)], by: delta, grid: 1 * .mm))
 			XCTAssertEqual(design.board.traces.first?.start, start + delta)
 			XCTAssertEqual(design.board.traces.last?.end, end)
 			XCTAssertEqual(design.resolved.board.traces.last?.start, imported.traces[0].start + delta)
@@ -330,7 +330,7 @@ final class ModuleTests: XCTestCase {
 	func testDuplicationAndPairedDeletionKeepSnapshotsIndependent() throws {
 		var design = try imported(["Part.xcb": source()])
 		let old = design
-		let ids = design.duplicateModules([design.modules[0].id], by: point(25, 0))
+		let ids = design.duplicateModules([design.modules[0].id], by: point(25 * .mm, 0))
 		XCTAssertEqual(ids.count, 1)
 		XCTAssertEqual(design.modules.count, 2)
 		XCTAssertNotEqual(design.modules[0].id, design.modules[1].id)
@@ -344,10 +344,10 @@ final class ModuleTests: XCTestCase {
 		var module = source()
 		var bottom = module.board.footprints[0]
 		bottom.reference = "R2"
-		bottom.at = point(12, 8)
+		bottom.at = point(12 * .mm, 8 * .mm)
 		bottom.flipped = true
 		module.board.footprints.append(bottom)
-		module.board.footprints.append(Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: point(5, 12)))
+		module.board.footprints.append(Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: point(5 * .mm, 12 * .mm)))
 		var design = try imported(["Part.xcb": module])
 		let files = design.fabrication(named: "Parent")
 		func file(_ suffix: String) -> String { files.first { $0.name.hasSuffix(suffix) }?.text ?? "" }
@@ -357,7 +357,7 @@ final class ModuleTests: XCTestCase {
 			XCTAssertNotEqual(file(suffix), empty.first { $0.name.hasSuffix(suffix) }?.text, suffix)
 		}
 		XCTAssertGreaterThan(design.resolved.board.model(Finish().shape).pieces.count, design.board.model(Finish().shape).pieces.count)
-		design.modules[0].layoutAt = point(-100, -100)
+		design.modules[0].layoutAt = point(-100 * .mm, -100 * .mm)
 		XCTAssertTrue(design.check().contains { $0.kind == .edge && $0.refs.contains(.module(design.modules[0].id)) })
 		XCTAssertTrue(design.check().allSatisfy { $0.refs.allSatisfy { if case .module = $0 { true } else { false } } })
 	}
@@ -369,7 +369,7 @@ extension ModuleTests {
 		for mode in [Mode.layout, .schematic] {
 			var design = try imported(["Part.xcb": source()])
 			design.modules[0].reference = "R2"
-			design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+			design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 			let harness = EditorHarness(design: design)
 			harness.editor.mode = mode
 			harness.layout.selection = [.footprint(0), .module(design.modules[0].id)]
@@ -384,7 +384,7 @@ extension ModuleTests {
 
 	func testInspectorReferenceEditsPreserveModuleUniquenessAndNativePairing() throws {
 		var design = try imported(["Part.xcb": source()])
-		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		let before = design
 		design.renameReference(Ref.footprint(0), to: "M1")
 		design.renameReference(Schematic.Ref.symbol(0), to: "M1")
@@ -403,10 +403,10 @@ extension ModuleTests {
 		let second = design.modules[1].id
 		design.removeModules([first])
 		design.renameReference(Ref.module(second), to: "M3")
-		design.positionModule(second, at: point(50, 50), layout: true)
-		design.positionModule(second, at: point(60, 60), layout: true)
+		design.positionModule(second, at: point(50 * .mm, 50 * .mm), layout: true)
+		design.positionModule(second, at: point(60 * .mm, 60 * .mm), layout: true)
 		XCTAssertEqual(design.modules[0].reference, "M3")
-		XCTAssertEqual(design.modules[0].layoutAt, point(60, 60))
+		XCTAssertEqual(design.modules[0].layoutAt, point(60 * .mm, 60 * .mm))
 		let center = design.modules[0].bounds.center
 		design.turnModule(second, to: .r90, layout: true)
 		XCTAssertEqual(design.modules[0].bounds.center, center)
@@ -424,15 +424,15 @@ extension ModuleTests {
 	func testLayoutMarqueeHonorsWholeRunsWithAndWithoutModules() throws {
 		for withModules in [false, true] {
 			var design = withModules ? try imported(["Part.xcb": source()]) : Design()
-			if withModules { design.modules[0].layoutAt = point(60, 60) }
+			if withModules { design.modules[0].layoutAt = point(60 * .mm, 60 * .mm) }
 			design.board.traces = [
-				Trace(start: point(5, 5), end: point(10, 5), width: .mm(0.3), layer: 0, net: nil),
-				Trace(start: point(10, 5), end: point(20, 5), width: .mm(0.3), layer: 0, net: nil),
+				Trace(start: point(5 * .mm, 5 * .mm), end: point(10 * .mm, 5 * .mm), width: 300, layer: 0, net: nil),
+				Trace(start: point(10 * .mm, 5 * .mm), end: point(20 * .mm, 5 * .mm), width: 300, layer: 0, net: nil),
 			]
-			let partial = Rect(from: .zero, to: point(12, 10))
+			let partial = Rect(from: .zero, to: point(12 * .mm, 10 * .mm))
 			XCTAssertEqual(design.layoutRefs(in: partial, layer: 0), [.trace(0)])
 			XCTAssertEqual(design.layoutRefs(in: partial, layer: 0, whole: true), [])
-			XCTAssertEqual(design.layoutRefs(in: Rect(from: .zero, to: point(25, 10)), layer: 0, whole: true), [.trace(0), .trace(1)])
+			XCTAssertEqual(design.layoutRefs(in: Rect(from: .zero, to: point(25 * .mm, 10 * .mm)), layer: 0, whole: true), [.trace(0), .trace(1)])
 		}
 	}
 
@@ -442,7 +442,7 @@ extension ModuleTests {
 		module.board.traces[0].net = 0
 		var design = try imported(["Part.xcb": module])
 		let vbat = design.addNet(name: "VBAT")
-		design.place(Symbol.Spec(kind: .resistor), at: point(60, 50))
+		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		design.board.footprints[0].pads[0].net = vbat
 		let pin = design.schematic.symbols[0].placedPins[0].at
 		design.schematic.wires = [Wire(start: pin, end: design.modules[0].symbol.placedPins[0].at)]
@@ -465,16 +465,16 @@ extension ModuleTests {
 		let original = design
 		let before = design.resolved
 		let id = design.modules[0].id
-		design.modules[0].layoutAt = design.modules[0].layoutAt + point(10, 0)
-		XCTAssertEqual(design.resolved.board.footprints[0].at, before.board.footprints[0].at + point(10, 0))
-		design.board.holes.append(Hole(at: point(90, 90), diameter: .mm(3)))
+		design.modules[0].layoutAt = design.modules[0].layoutAt + point(10 * .mm, 0)
+		XCTAssertEqual(design.resolved.board.footprints[0].at, before.board.footprints[0].at + point(10 * .mm, 0))
+		design.board.holes.append(Hole(at: point(90 * .mm, 90 * .mm), diameter: 3 * .mm))
 		XCTAssertEqual(design.resolved.board.holes.count, before.board.holes.count + 1)
 		design.schematic.labels = [NetLabel(at: design.modules[0].symbol.placedPins[0].at, text: "NEW")]
 		let named = try XCTUnwrap(design.resolved.nets.first { $0.name == "NEW" })
 		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, named.id)
 		let explicit = design.addNet(name: "NEW")
 		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, explicit)
-		design.moduleCache.contents[id]?.board.holes.append(Hole(at: point(8, 8), diameter: .mm(1)))
+		design.moduleCache.contents[id]?.board.holes.append(Hole(at: point(8 * .mm, 8 * .mm), diameter: 1 * .mm))
 		XCTAssertEqual(design.resolved.board.holes.count, before.board.holes.count + 2)
 		XCTAssertEqual(original.resolved, before)
 		XCTAssertEqual(try Document.decode(Document(design: original).encoded()).modules, original.modules)
@@ -489,7 +489,7 @@ extension ModuleTests {
 		var design = Design(board: Board(stack: .classic))
 		design.modules = [ModuleInstance(reference: "M1", filename: "Missing.xcb", layerCount: 4)]
 		let harness = EditorHarness(design: design)
-		let size = Size(width: .mm(120), height: .mm(80))
+		let size = Size(width: 120 * .mm, height: 80 * .mm)
 		harness.perform { $0.configureBoard(size: size, stack: .classic, rules: design.board.rules) }
 		XCTAssertEqual(harness.design.board.size, size)
 		XCTAssertEqual(harness.design.board.stack, .classic)
@@ -518,13 +518,13 @@ extension ModuleTests {
 		var changed = source()
 		changed.schematic.labels[0].text = "#CHANGED"
 		let read = try reader(["Part.xcb": changed])
-		let pasted = try destination.pasteModules(original.modules, by: point(30, 0), documentURL: parentURL, read: read)
+		let pasted = try destination.pasteModules(original.modules, by: point(30 * .mm, 0), documentURL: parentURL, read: read)
 		XCTAssertEqual(destination.modules[0], original.modules[0])
 		XCTAssertEqual(destination.moduleCache.contents[original.modules[0].id], original.moduleCache.contents[original.modules[0].id])
 		XCTAssertEqual(destination.modules[1].interface, ["CHANGED"])
 		XCTAssertTrue(pasted.contains(destination.modules[1].id))
 		XCTAssertNotEqual(destination.modules[0].id, destination.modules[1].id)
-		XCTAssertEqual(destination.modules[1].layoutAt, original.modules[0].layoutAt + point(30, 0))
+		XCTAssertEqual(destination.modules[1].layoutAt, original.modules[0].layoutAt + point(30 * .mm, 0))
 		let before = destination
 		XCTAssertThrowsError(try destination.pasteModules(original.modules, by: .zero, documentURL: parentURL, read: { _ in throw Err("Missing in destination") }))
 		XCTAssertEqual(destination, before)
@@ -553,7 +553,7 @@ extension ModuleTests {
 		resolver.reload(&reopened, documentURL: url)
 		XCTAssertEqual(reopened.resolved.board, parent.resolved.board)
 		let id = parent.modules[0].id
-		parent.moveLayout([.module(id)], by: point(10, 10), grid: .mm(1))
+		parent.moveLayout([.module(id)], by: point(10 * .mm, 10 * .mm), grid: 1 * .mm)
 		_ = parent.updateBoardFromSchematic()
 		XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("Part.xcb")), originalData)
 		let movedURL = movedFolder.appendingPathComponent("Parent.xcb")
@@ -618,7 +618,7 @@ extension ModuleTests {
 		harness.url = parentURL
 		var changed = source()
 		changed.schematic.labels[0].text = "#NEW"
-		changed.board.traces[0].end = point(14, 5)
+		changed.board.traces[0].end = point(14 * .mm, 5 * .mm)
 		try Document(design: changed).encoded().write(to: sourceURL)
 		harness.perform { $0.reloadModules(automatic: true) }
 		let reloaded = harness.design

@@ -27,7 +27,7 @@ extension Figure {
 		case let .round(center, diameter):
 			Path(ellipseIn: CGRect(
 				center: center.cg(scale, origin: origin),
-				radius: Double(diameter).mm * scale / 2.0
+				radius: Double.mm(diameter) * scale / 2.0
 			))
 		case let .segment(start, end, width):
 			Path { path in
@@ -35,7 +35,7 @@ extension Figure {
 				path.addLine(to: end.cg(scale, origin: origin))
 			}
 			.strokedPath(StrokeStyle(
-				lineWidth: Double(width).mm * scale,
+				lineWidth: Double.mm(width) * scale,
 				lineCap: .round,
 				lineJoin: .round
 			))
@@ -61,7 +61,7 @@ extension Glyph {
 		case let .circle(center, diameter):
 			Path(ellipseIn: CGRect(
 				center: center.cg(scale, origin: origin),
-				radius: Double(diameter).mm * scale / 2.0
+				radius: Double.mm(diameter) * scale / 2.0
 			))
 		}
 	}

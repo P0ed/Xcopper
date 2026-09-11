@@ -30,7 +30,7 @@ struct BoardDialog: View {
 			}
 		) {
 			VStack(spacing: 12.0) {
-				SizeFields(size: size, limit: .mm(500), value: $chosen)
+				SizeFields(size: size, limit: 500 * .mm, value: $chosen)
 
 				Picker("Stackup", selection: Binding(get: { stackup }, set: { selected = $0 })) {
 					ForEach(Stack.allCases, id: \.self) { stack in

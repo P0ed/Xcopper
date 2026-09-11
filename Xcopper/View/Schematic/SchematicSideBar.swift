@@ -31,8 +31,8 @@ struct SchematicSideBar: View {
 				ModulePanel(operations: operations)
 
 				Panel(title: "Sheet") {
-					GridPicker(title: "Snap", value: $state.snap, options: Nm.sheetSnapGrids)
-					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
+					GridPicker(title: "Snap", value: $state.snap, options: µm.sheetSnapGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 				}
 
 				Panel(title: "Place") {

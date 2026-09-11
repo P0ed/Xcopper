@@ -11,52 +11,52 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(Tool.trace.shortcutCharacter, "W")
 	}
 
-	private func wire(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Wire {
-		Wire(start: Point(x: .mm(ax), y: .mm(ay)), end: Point(x: .mm(bx), y: .mm(by)))
+	private func wire(_ ax: µm, _ ay: µm, _ bx: µm, _ by: µm) -> Wire {
+		Wire(start: Point(x: ax, y: ay), end: Point(x: bx, y: by))
 	}
 
 	func testATJunctionConnectsButACrossingDoesNot() {
 		var schematic = Schematic()
 		schematic.wires = [
-			wire(0, 0, 10, 0),
-			wire(5, 0, 5, 10),
-			wire(0, 20, 10, 20),
-			wire(5, 15, 5, 25),
+			wire(0, 0, 10 * .mm, 0),
+			wire(5 * .mm, 0, 5 * .mm, 10 * .mm),
+			wire(0, 20 * .mm, 10 * .mm, 20 * .mm),
+			wire(5 * .mm, 15 * .mm, 5 * .mm, 25 * .mm),
 		]
 		let netlist = Netlist(schematic)
 
 		XCTAssertEqual(
 			netlist.group(at: Point(x: 0, y: 0))?.points,
-			netlist.group(at: Point(x: .mm(5), y: .mm(10)))?.points
+			netlist.group(at: Point(x: 5 * .mm, y: 10 * .mm))?.points
 		)
 		XCTAssertNotEqual(
-			netlist.group(at: Point(x: 0, y: .mm(20)))?.points,
-			netlist.group(at: Point(x: .mm(5), y: .mm(15)))?.points
+			netlist.group(at: Point(x: 0, y: 20 * .mm))?.points,
+			netlist.group(at: Point(x: 5 * .mm, y: 15 * .mm))?.points
 		)
 	}
 
 	func testJunctionDotsAppearOnlyWhereThreeConductorsMeet() {
 		var schematic = Schematic()
-		schematic.wires = [wire(0, 0, 10, 0), wire(5, 0, 5, 10)]
-		XCTAssertEqual(schematic.junctions, [Point(x: .mm(5), y: 0)])
+		schematic.wires = [wire(0, 0, 10 * .mm, 0), wire(5 * .mm, 0, 5 * .mm, 10 * .mm)]
+		XCTAssertEqual(schematic.junctions, [Point(x: 5 * .mm, y: 0)])
 
-		schematic.wires = [wire(0, 0, 5, 0), wire(5, 0, 10, 0)]
+		schematic.wires = [wire(0, 0, 5 * .mm, 0), wire(5 * .mm, 0, 10 * .mm, 0)]
 		XCTAssertEqual(schematic.junctions, [])
 	}
 
 	func testALabelNamesItsNet() {
 		var schematic = Schematic()
-		schematic.wires = [wire(0, 0, 10, 0)]
+		schematic.wires = [wire(0, 0, 10 * .mm, 0)]
 		XCTAssertNil(Netlist(schematic).name(at: .zero))
 
-		schematic.labels = [NetLabel(at: Point(x: .mm(4), y: 0), text: "SDA")]
-		XCTAssertEqual(Netlist(schematic).name(at: Point(x: .mm(10), y: 0)), "SDA")
+		schematic.labels = [NetLabel(at: Point(x: 4 * .mm, y: 0), text: "SDA")]
+		XCTAssertEqual(Netlist(schematic).name(at: Point(x: 10 * .mm, y: 0)), "SDA")
 	}
 
 	func testAGroundLabelNamesTheNetItTouches() {
 		var schematic = Schematic()
-		schematic.wires = [wire(0, 0, 10, 0)]
-		schematic.labels = [NetLabel(at: Point(x: .mm(10), y: 0), text: "GND")]
+		schematic.wires = [wire(0, 0, 10 * .mm, 0)]
+		schematic.labels = [NetLabel(at: Point(x: 10 * .mm, y: 0), text: "GND")]
 		XCTAssertEqual(schematic.labels[0].text, "GND")
 		XCTAssertEqual(Netlist(schematic).name(at: Point(x: 0, y: 0)), "GND")
 	}
@@ -65,7 +65,7 @@ final class SchematicTests: XCTestCase {
 		var schematic = Schematic()
 		schematic.symbols = [
 			Symbol(spec: .init(kind: .resistor), reference: "R1", at: .zero),
-			Symbol(spec: .init(kind: .resistor), reference: "R2", at: Point(x: .mm(20), y: 0)),
+			Symbol(spec: .init(kind: .resistor), reference: "R2", at: Point(x: 20 * .mm, y: 0)),
 		]
 		let right = schematic.symbols[0].placedPins[1].at
 		let left = schematic.symbols[1].placedPins[0].at
@@ -77,33 +77,33 @@ final class SchematicTests: XCTestCase {
 
 	func testOrthogonalSnapPicksTheDominantAxis() {
 		let origin = Point.zero
-		XCTAssertEqual(snapped90(from: origin, to: Point(x: .mm(10), y: .mm(2))), Point(x: .mm(10), y: 0))
-		XCTAssertEqual(snapped90(from: origin, to: Point(x: .mm(2), y: .mm(10))), Point(x: 0, y: .mm(10)))
-		XCTAssertEqual(snapped90(from: origin, to: Point(x: .mm(5), y: .mm(5))), Point(x: .mm(5), y: 0))
+		XCTAssertEqual(snapped90(from: origin, to: Point(x: 10 * .mm, y: 2 * .mm)), Point(x: 10 * .mm, y: 0))
+		XCTAssertEqual(snapped90(from: origin, to: Point(x: 2 * .mm, y: 10 * .mm)), Point(x: 0, y: 10 * .mm))
+		XCTAssertEqual(snapped90(from: origin, to: Point(x: 5 * .mm, y: 5 * .mm)), Point(x: 5 * .mm, y: 0))
 	}
 
 	func testSymbolRotationAndMirroringPlacePinsAbsolutely() {
-		let at = Point(x: .mm(10), y: .mm(20))
+		let at = Point(x: 10 * .mm, y: 20 * .mm)
 		var symbol = Symbol(spec: .init(kind: .resistor), reference: "R1", at: at)
 
 		XCTAssertEqual(symbol.placedPins.map(\.at), [
-			Point(x: .mm(4.92), y: .mm(20)),
-			Point(x: .mm(15.08), y: .mm(20)),
+			Point(x: 4_920, y: 20 * .mm),
+			Point(x: 15_080, y: 20 * .mm),
 		])
 		XCTAssertEqual(symbol.placedPins.map(\.direction), [.r180, .r0])
 
 		symbol.rotation = .r90
 		XCTAssertEqual(symbol.placedPins.map(\.at), [
-			Point(x: .mm(10), y: .mm(14.92)),
-			Point(x: .mm(10), y: .mm(25.08)),
+			Point(x: 10 * .mm, y: 14_920),
+			Point(x: 10 * .mm, y: 25_080),
 		])
 		XCTAssertEqual(symbol.placedPins.map(\.direction), [.r270, .r90])
 
 		symbol.rotation = .r0
 		symbol.mirrored = true
 		XCTAssertEqual(symbol.placedPins.map(\.at), [
-			Point(x: .mm(15.08), y: .mm(20)),
-			Point(x: .mm(4.92), y: .mm(20)),
+			Point(x: 15_080, y: 20 * .mm),
+			Point(x: 4_920, y: 20 * .mm),
 		])
 		XCTAssertEqual(symbol.placedPins.map(\.direction), [.r0, .r180])
 	}
@@ -112,8 +112,8 @@ final class SchematicTests: XCTestCase {
 		let symbol = Symbol(spec: .init(kind: .resistor), reference: "R1", at: .zero)
 		let pins = symbol.placedPins
 
-		XCTAssertEqual(pins[0].root, Point(x: -.mm(2.54), y: 0))
-		XCTAssertEqual(pins[1].root, Point(x: .mm(2.54), y: 0))
+		XCTAssertEqual(pins[0].root, Point(x: -2_540, y: 0))
+		XCTAssertEqual(pins[1].root, Point(x: 2_540, y: 0))
 	}
 
 	func testICPinsRunDownTheLeftSideAndBackUpTheRight() {
@@ -134,9 +134,9 @@ final class SchematicTests: XCTestCase {
 	}
 
 	func testAChipTakesItsNetsFromAPassiveThatWritesNoPinNumbers() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .classic))
 		design.place(Symbol.Spec(kind: .capacitor), at: .zero)
-		design.place(Symbol.Spec(kind: .resistor), at: Point(x: .mm(20), y: 0))
+		design.place(Symbol.Spec(kind: .resistor), at: Point(x: 20 * .mm, y: 0))
 
 		let from = design.schematic.symbols[0].placedPins[1].at
 		let to = design.schematic.symbols[1].placedPins[0].at
@@ -148,14 +148,14 @@ final class SchematicTests: XCTestCase {
 	}
 
 	func testPinNamesWidenTheICTheyAreWrittenInsideAndNumbersDoNot() {
-		XCTAssertEqual(Symbol.ic(pins: 8).body.size.width, .mm(12.7))
-		XCTAssertEqual(Symbol.ic(pins: 64).body.size.width, .mm(12.7))
+		XCTAssertEqual(Symbol.ic(pins: 8).body.size.width, 12_700)
+		XCTAssertEqual(Symbol.ic(pins: 64).body.size.width, 12_700)
 
 		XCTAssertGreaterThan(
 			Component.cd4029.makeSymbol().body.size.width,
 			Component.cd4013.makeSymbol().body.size.width
 		)
-		XCTAssertEqual(Component.cd4029.makeSymbol().body.size.width % .mm(2.54), 0)
+		XCTAssertEqual(Component.cd4029.makeSymbol().body.size.width % (2_540), 0)
 	}
 
 	func testEveryICIsWideEnoughToWriteItsPinNamesBetweenItsLegs() {
@@ -177,79 +177,79 @@ final class SchematicTests: XCTestCase {
 			}
 			XCTAssertLessThan(leftEnd, half, component.name)
 			XCTAssertGreaterThan(rightStart, -half, component.name)
-			XCTAssertGreaterThanOrEqual(rightStart - leftEnd, .mm(2.54), component.name)
+			XCTAssertGreaterThanOrEqual(rightStart - leftEnd, 2_540, component.name)
 		}
 	}
 
 	func testHitTestAndRubberBandSelectionCoverEveryKind() {
 		var schematic = Schematic()
-		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		schematic.wires = [wire(0, 30, 10, 30)]
-		schematic.labels = [NetLabel(at: Point(x: .mm(2), y: .mm(30)), text: "CLK")]
+		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm))]
+		schematic.wires = [wire(0, 30 * .mm, 10 * .mm, 30 * .mm)]
+		schematic.labels = [NetLabel(at: Point(x: 2 * .mm, y: 30 * .mm), text: "CLK")]
 
-		XCTAssertEqual(schematic.hitTest(at: Point(x: .mm(10), y: .mm(10)), tolerance: 0), .symbol(0))
-		XCTAssertEqual(schematic.hitTest(at: Point(x: .mm(8), y: .mm(30)), tolerance: 0), .wire(0))
-		XCTAssertNil(schematic.hitTest(at: Point(x: .mm(60), y: .mm(60)), tolerance: 0))
+		XCTAssertEqual(schematic.hitTest(at: Point(x: 10 * .mm, y: 10 * .mm), tolerance: 0), .symbol(0))
+		XCTAssertEqual(schematic.hitTest(at: Point(x: 8 * .mm, y: 30 * .mm), tolerance: 0), .wire(0))
+		XCTAssertNil(schematic.hitTest(at: Point(x: 60 * .mm, y: 60 * .mm), tolerance: 0))
 
-		let all = Rect(from: .zero, to: Point(x: .mm(50), y: .mm(50)))
+		let all = Rect(from: .zero, to: Point(x: 50 * .mm, y: 50 * .mm))
 		XCTAssertEqual(schematic.refs(in: all), [.symbol(0), .wire(0), .label(0)])
 	}
 
 	func testSnapTargetTakesLabelAnchorsAlongsidePinsAndWireEnds() {
 		var schematic = Schematic()
-		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		schematic.wires = [wire(0, 30, 10, 30)]
-		schematic.labels = [NetLabel(at: Point(x: .mm(2), y: .mm(40)), text: "CLK")]
+		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm))]
+		schematic.wires = [wire(0, 30 * .mm, 10 * .mm, 30 * .mm)]
+		schematic.labels = [NetLabel(at: Point(x: 2 * .mm, y: 40 * .mm), text: "CLK")]
 
-		let anchor = Point(x: .mm(2), y: .mm(40))
-		XCTAssertEqual(schematic.snapTarget(near: Point(x: .mm(2.3), y: .mm(40)), radius: .mm(0.8)), anchor)
-		XCTAssertNil(schematic.snapTarget(near: Point(x: .mm(4), y: .mm(40)), radius: .mm(0.8)))
+		let anchor = Point(x: 2 * .mm, y: 40 * .mm)
+		XCTAssertEqual(schematic.snapTarget(near: Point(x: 2_300, y: 40 * .mm), radius: 800), anchor)
+		XCTAssertNil(schematic.snapTarget(near: Point(x: 4 * .mm, y: 40 * .mm), radius: 800))
 
 		schematic.labels = []
-		XCTAssertNil(schematic.snapTarget(near: Point(x: .mm(2.3), y: .mm(40)), radius: .mm(0.8)))
+		XCTAssertNil(schematic.snapTarget(near: Point(x: 2_300, y: 40 * .mm), radius: 800))
 	}
 
 	func testDuplicateOffsetsCopiesOfSymbols() {
 		var schematic = Schematic()
-		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))]
-		let created = schematic.duplicate([.symbol(0)], by: Point(x: .mm(5), y: 0))
+		schematic.symbols = [Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm))]
+		let created = schematic.duplicate([.symbol(0)], by: Point(x: 5 * .mm, y: 0))
 
 		XCTAssertEqual(created, [.symbol(1)])
-		XCTAssertEqual(schematic.symbols[1].at, Point(x: .mm(15), y: .mm(10)))
+		XCTAssertEqual(schematic.symbols[1].at, Point(x: 15 * .mm, y: 10 * .mm))
 	}
 
 	func testMirroringASelectionFlipsAroundItsOwnCentre() {
 		var schematic = Schematic()
 		schematic.symbols = [
-			Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: .mm(10), y: 0)),
-			Symbol(spec: .init(kind: .resistor), reference: "R2", at: Point(x: .mm(30), y: 0)),
+			Symbol(spec: .init(kind: .resistor), reference: "R1", at: Point(x: 10 * .mm, y: 0)),
+			Symbol(spec: .init(kind: .resistor), reference: "R2", at: Point(x: 30 * .mm, y: 0)),
 		]
 		schematic.mirror([.symbol(0), .symbol(1)])
 
-		XCTAssertEqual(schematic.symbols[0].at.x, .mm(30))
-		XCTAssertEqual(schematic.symbols[1].at.x, .mm(10))
+		XCTAssertEqual(schematic.symbols[0].at.x, 30 * .mm)
+		XCTAssertEqual(schematic.symbols[1].at.x, 10 * .mm)
 		XCTAssertTrue(schematic.symbols.allSatisfy(\.mirrored))
 	}
 
 	func testPlacingASymbolStandsItsFootprintOnTheBoard() {
 		var design = Design()
-		let ref = design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: Point(x: .mm(50), y: .mm(50)))
+		let ref = design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: Point(x: 50 * .mm, y: 50 * .mm))
 
 		XCTAssertEqual(ref, .symbol(0))
 		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R1"])
 		XCTAssertEqual(design.board.footprints.map(\.reference), ["R1"])
-		XCTAssertEqual(design.schematic.symbols[0].at, Point(x: .mm(50), y: .mm(50)))
+		XCTAssertEqual(design.schematic.symbols[0].at, Point(x: 50 * .mm, y: 50 * .mm))
 		XCTAssertEqual(design.board.footprints[0].pads.map(\.name), ["1", "2"])
 	}
 
 	func testPlacingAFootprintDrawsItsSymbolOnTheSheet() {
 		var design = Design()
-		let ref = design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: .mm(20), y: .mm(20)))
+		let ref = design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: 20 * .mm, y: 20 * .mm))
 
 		XCTAssertEqual(ref, .footprint(0))
 		XCTAssertEqual(design.board.footprints.map(\.reference), ["U1"])
 		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["U1"])
-		XCTAssertEqual(design.board.footprints[0].at, Point(x: .mm(20), y: .mm(20)))
+		XCTAssertEqual(design.board.footprints[0].at, Point(x: 20 * .mm, y: 20 * .mm))
 		XCTAssertEqual(design.schematic.symbols[0].kind, .ic)
 		XCTAssertEqual(design.schematic.symbols[0].pins.count, 8)
 	}
@@ -257,7 +257,7 @@ final class SchematicTests: XCTestCase {
 	func testACapacitorChipIsDrawnAndDesignatedAsOneRatherThanAsAResistor() {
 		var design = Design()
 		design.place(Footprint.Spec(kind: .chip, chip: .c1206, device: .capacitor), at: .zero)
-		design.place(Footprint.Spec(kind: .chip, chip: .c1206), at: Point(x: .mm(10), y: 0))
+		design.place(Footprint.Spec(kind: .chip, chip: .c1206), at: Point(x: 10 * .mm, y: 0))
 
 		XCTAssertEqual(design.board.footprints.map(\.reference), ["C1", "R1"])
 		XCTAssertEqual(design.schematic.symbols.map(\.kind), [.capacitor, .resistor])
@@ -273,7 +273,7 @@ final class SchematicTests: XCTestCase {
 	func testPowerLabelsStandOnTheSheetAlone() {
 		var design = Design()
 		design.schematic.labels.append(NetLabel(at: .zero, text: "GND"))
-		design.schematic.labels.append(NetLabel(at: Point(x: .mm(10), y: 0), text: "VCC"))
+		design.schematic.labels.append(NetLabel(at: Point(x: 10 * .mm, y: 0), text: "VCC"))
 
 		XCTAssertEqual(design.schematic.labels.count, 2)
 		XCTAssertTrue(design.schematic.symbols.isEmpty)
@@ -283,7 +283,7 @@ final class SchematicTests: XCTestCase {
 	func testADesignatorIsFreeOnBothHalvesBeforeItIsUsed() {
 		var design = Design()
 		design.board.footprints = [
-			Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: .mm(80), y: .mm(140))),
+			Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: 80 * .mm, y: 140 * .mm)),
 		]
 		design.place(Symbol.Spec(kind: .resistor), at: .zero)
 
@@ -293,8 +293,8 @@ final class SchematicTests: XCTestCase {
 
 	func testAPairedPartNeedsNoMatchingUpAfterwards() {
 		var design = Design()
-		design.place(Symbol.Spec(component: .ad823), at: Point(x: .mm(200), y: .mm(150)))
-		design.place(Footprint.Spec(kind: .chip), at: Point(x: .mm(60), y: .mm(100)))
+		design.place(Symbol.Spec(component: .ad823), at: Point(x: 200 * .mm, y: 150 * .mm))
+		design.place(Footprint.Spec(kind: .chip), at: Point(x: 60 * .mm, y: 100 * .mm))
 
 		let from = design.schematic.symbols[0].placedPins[0].at
 		let to = design.schematic.symbols[1].placedPins[0].at
@@ -309,8 +309,8 @@ final class SchematicTests: XCTestCase {
 	func testAParkedPartCoversNothingAlreadyThere() {
 		var design = Design()
 		for index in 0 ..< 6 {
-			design.place(Symbol.Spec(kind: .ic, pins: 8), at: Point(x: .mm(20.0 + Double(index) * 40.0), y: .mm(180)))
-			design.place(Footprint.Spec(kind: .header, pins: 3), at: Point(x: .mm(90), y: .mm(20.0 + Double(index) * 20.0)))
+			design.place(Symbol.Spec(kind: .ic, pins: 8), at: Point(x: (20 + index * 40) * .mm, y: 180 * .mm))
+			design.place(Footprint.Spec(kind: .header, pins: 3), at: Point(x: 90 * .mm, y: (20 + index * 20) * .mm))
 		}
 
 		assertNothingOverlaps(design.board.footprints.map(\.placedExtent), inside: design.board.bounds)
@@ -323,11 +323,11 @@ final class SchematicTests: XCTestCase {
 	func testAParkedSymbolKeepsClearOfAWireAlreadyDrawn() {
 		var design = Design()
 		let wire = Wire(
-			start: Point(x: 0, y: .mm(12)),
-			end: Point(x: design.schematic.size.width, y: .mm(12))
+			start: Point(x: 0, y: 12 * .mm),
+			end: Point(x: design.schematic.size.width, y: 12 * .mm)
 		)
 		design.schematic.wires = [wire]
-		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: .mm(20), y: .mm(20)))
+		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: 20 * .mm, y: 20 * .mm))
 
 		let parked = design.schematic.symbols[0].placedExtent
 		XCTAssertFalse(parked.intersects(Rect(from: wire.start, to: wire.end)))
@@ -347,12 +347,12 @@ final class SchematicTests: XCTestCase {
 	@MainActor
 	func testResizingTheSheetKeepsTheDrawingAndIsUndoable() {
 		var design = Design()
-		design.schematic.wires = [wire(10, 10, 40, 10)]
-		design.schematic.labels = [NetLabel(at: Point(x: .mm(10), y: .mm(10)), text: "IN")]
+		design.schematic.wires = [wire(10 * .mm, 10 * .mm, 40 * .mm, 10 * .mm)]
+		design.schematic.labels = [NetLabel(at: Point(x: 10 * .mm, y: 10 * .mm), text: "IN")]
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
 		harness.schematic.selection = [.wire(0)]
-		let size = Size(width: .mm(420), height: .mm(297))
+		let size = Size(width: 420 * .mm, height: 297 * .mm)
 
 		harness.perform { $0.resizeSheet(size: size) }
 
@@ -369,7 +369,7 @@ final class SchematicTests: XCTestCase {
 
 	func testASheetSizeSurvivesTheDocument() throws {
 		var design = Design()
-		let size = Size(width: .inches(17), height: .inches(11))
+		let size = Size(width: 17 * .inch, height: 11 * .inch)
 		design.schematic.resize(size: size)
 
 		let decoded = try Document.decode(Document(design: design).encoded())
@@ -382,9 +382,9 @@ final class SchematicTests: XCTestCase {
 
 	func testPartsParkInsideWhateverSheetTheyAreGiven() {
 		var design = Design()
-		design.schematic.resize(size: Size(width: .mm(120), height: .mm(90)))
+		design.schematic.resize(size: Size(width: 120 * .mm, height: 90 * .mm))
 		for index in 0 ..< 4 {
-			design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: .mm(20), y: .mm(20.0 + Double(index) * 20.0)))
+			design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: 20 * .mm, y: (20 + index * 20) * .mm))
 		}
 
 		assertNothingOverlaps(design.schematic.symbols.map(\.placedExtent), inside: design.schematic.bounds)
@@ -392,8 +392,8 @@ final class SchematicTests: XCTestCase {
 
 	func testASymbolShowsItsFootprintAndAFootprintItsSymbol() {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: Point(x: .mm(40), y: .mm(40)))
-		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: .mm(20), y: .mm(20)))
+		design.place(Symbol.Spec(kind: .resistor), at: Point(x: 40 * .mm, y: 40 * .mm))
+		design.place(Footprint.Spec(kind: .soic, pins: 8), at: Point(x: 20 * .mm, y: 20 * .mm))
 
 		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R1", "U1"])
 		XCTAssertEqual(design.board.footprints.map(\.reference), ["R1", "U1"])
@@ -405,9 +405,9 @@ final class SchematicTests: XCTestCase {
 	func testOnlyAPartHasAnotherHalfToShow() {
 		var design = Design()
 		design.schematic.labels.append(NetLabel(at: .zero, text: "GND"))
-		design.schematic.wires = [wire(0, 0, 10, 0)]
+		design.schematic.wires = [wire(0, 0, 10 * .mm, 0)]
 		design.board.traces = [
-			Trace(start: .zero, end: Point(x: .mm(10), y: 0), width: .mm(0.4), layer: 0, net: nil),
+			Trace(start: .zero, end: Point(x: 10 * .mm, y: 0), width: 400, layer: 0, net: nil),
 		]
 
 		XCTAssertTrue(design.board.footprints.isEmpty)
@@ -419,7 +419,7 @@ final class SchematicTests: XCTestCase {
 
 	func testAPartWhoseOtherHalfHasGoneHasNothingToShow() {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: Point(x: .mm(40), y: .mm(40)))
+		design.place(Symbol.Spec(kind: .resistor), at: Point(x: 40 * .mm, y: 40 * .mm))
 		design.board.footprints = []
 
 		XCTAssertTrue(design.footprints(for: [.symbol(0)]).isEmpty)
@@ -429,12 +429,12 @@ final class SchematicTests: XCTestCase {
 		var viewport = Viewport()
 		viewport.size = CGSize(width: 400.0, height: 300.0)
 		viewport.magnification = 4.0
-		let sheet = Size(width: .mm(100), height: .mm(80))
+		let sheet = Size(width: 100 * .mm, height: 80 * .mm)
 
 		viewport.revealPending(in: sheet)
 		XCTAssertEqual(viewport.scrollPosition.point, .zero)
 
-		viewport.reveal(Point(x: .mm(50), y: .mm(40)))
+		viewport.reveal(Point(x: 50 * .mm, y: 40 * .mm))
 		viewport.revealPending(in: sheet)
 
 		XCTAssertNil(viewport.pending)
@@ -446,7 +446,7 @@ final class SchematicTests: XCTestCase {
 		var viewport = Viewport()
 		viewport.size = CGSize(width: 400.0, height: 300.0)
 		viewport.magnification = 4.0
-		let sheet = Size(width: .mm(100), height: .mm(80))
+		let sheet = Size(width: 100 * .mm, height: 80 * .mm)
 
 		viewport.reveal(Point(x: 0, y: 0))
 		viewport.revealPending(in: sheet)
@@ -460,18 +460,18 @@ final class SchematicTests: XCTestCase {
 
 	func testACanvasOfNoSizeYetKeepsTheRevealItWasAskedFor() {
 		var viewport = Viewport()
-		viewport.reveal(Point(x: .mm(50), y: .mm(40)))
-		viewport.revealPending(in: Size(width: .mm(100), height: .mm(80)))
+		viewport.reveal(Point(x: 50 * .mm, y: 40 * .mm))
+		viewport.revealPending(in: Size(width: 100 * .mm, height: 80 * .mm))
 
-		XCTAssertEqual(viewport.pending, Point(x: .mm(50), y: .mm(40)))
+		XCTAssertEqual(viewport.pending, Point(x: 50 * .mm, y: 40 * .mm))
 		XCTAssertEqual(viewport.scrollPosition.point, .zero)
 	}
 
 	private func wiredDesign() -> Design {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .classic))
 		design.schematic.symbols = [
 			Symbol(spec: .init(kind: .resistor), reference: "R1", at: .zero),
-			Symbol(spec: .init(kind: .ic, pins: 8), reference: "U1", at: Point(x: .mm(40), y: 0)),
+			Symbol(spec: .init(kind: .ic, pins: 8), reference: "U1", at: Point(x: 40 * .mm, y: 0)),
 		]
 		let from = design.schematic.symbols[0].placedPins[1].at
 		let to = design.schematic.symbols[1].placedPins[6].at
@@ -479,8 +479,8 @@ final class SchematicTests: XCTestCase {
 		design.schematic.labels = [NetLabel(at: from, text: "SDA")]
 
 		design.board.footprints = [
-			Footprint(spec: .init(kind: .chip, chip: .c0603), reference: "R1", at: Point(x: .mm(10), y: .mm(10))),
-			Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: Point(x: .mm(30), y: .mm(20))),
+			Footprint(spec: .init(kind: .chip, chip: .c0603), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm)),
+			Footprint(spec: .init(kind: .soic, pins: 8), reference: "U1", at: Point(x: 30 * .mm, y: 20 * .mm)),
 		]
 		return design
 	}
@@ -504,7 +504,7 @@ final class SchematicTests: XCTestCase {
 		var design = wiredDesign()
 		design.board.footprints.removeFirst()
 		design.board.footprints.append(
-			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: .mm(5), y: .mm(5)))
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: 5 * .mm, y: 5 * .mm))
 		)
 		let report = design.updateBoardFromSchematic()
 
@@ -546,15 +546,15 @@ final class SchematicTests: XCTestCase {
 		XCTAssertEqual(Set([rats[0].from, rats[0].to]), Set(pads))
 
 		design.board.traces = [
-			Trace(start: pads[0], end: pads[1], width: .mm(0.25), layer: 0, net: rats[0].net),
+			Trace(start: pads[0], end: pads[1], width: 250, layer: 0, net: rats[0].net),
 		]
 		XCTAssertEqual(design.board.ratsnest(), [])
 	}
 
 	func testRatsnestIgnoresPadsWithNoNetAndViaBridgedCopper() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .classic))
 		design.board.footprints = [
-			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: .mm(10), y: .mm(10))),
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: 10 * .mm, y: 10 * .mm)),
 		]
 		XCTAssertEqual(design.board.ratsnest(), [])
 
@@ -563,22 +563,22 @@ final class SchematicTests: XCTestCase {
 
 		let pads = design.board.footprints[0].placedPads.map(\.at)
 		design.board.traces = [
-			Trace(start: pads[0], end: Point(x: .mm(20), y: .mm(20)), width: .mm(0.25), layer: 0, net: 0),
-			Trace(start: Point(x: .mm(20), y: .mm(20)), end: pads[1], width: .mm(0.25), layer: 1, net: 0),
+			Trace(start: pads[0], end: Point(x: 20 * .mm, y: 20 * .mm), width: 250, layer: 0, net: 0),
+			Trace(start: Point(x: 20 * .mm, y: 20 * .mm), end: pads[1], width: 250, layer: 1, net: 0),
 		]
 		XCTAssertEqual(design.board.ratsnest().count, 1, "different layers need a via")
 
 		design.board.vias = [
-			Via(at: Point(x: .mm(20), y: .mm(20)), net: 0),
+			Via(at: Point(x: 20 * .mm, y: 20 * .mm), net: 0),
 		]
 		XCTAssertEqual(design.board.ratsnest(), [])
 	}
 
 	func testAPlaneJoinsWhatIsDrilledThroughIt() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .digital))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .digital))
 		design.board.footprints = [
-			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: .mm(10), y: .mm(10))),
-			Footprint(spec: .init(kind: .header, pins: 2), reference: "J2", at: Point(x: .mm(30), y: .mm(30))),
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: 10 * .mm, y: 10 * .mm)),
+			Footprint(spec: .init(kind: .header, pins: 2), reference: "J2", at: Point(x: 30 * .mm, y: 30 * .mm)),
 		]
 		design.board.footprints.modifyEach { footprint in
 			footprint.pads.modifyEach { pad in pad.net = 0 }
@@ -593,13 +593,13 @@ final class SchematicTests: XCTestCase {
 	}
 
 	func testAPlaneLeavesCopperItDoesNotReachAlone() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .digital))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .digital))
 		design.board.footprints = [
 			modifying(
-				Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: .mm(10), y: .mm(10)))
+				Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm))
 			) { footprint in footprint.pads.modifyEach { pad in pad.net = 0 } },
 			modifying(
-				Footprint(spec: .init(kind: .chip), reference: "R2", at: Point(x: .mm(30), y: .mm(30)))
+				Footprint(spec: .init(kind: .chip), reference: "R2", at: Point(x: 30 * .mm, y: 30 * .mm))
 			) { footprint in footprint.pads.modifyEach { pad in pad.net = 0 } },
 		]
 		XCTAssertEqual(design.board.ratsnest(planes: design.planes).count, 3)
@@ -642,16 +642,16 @@ final class SchematicTests: XCTestCase {
 	func testSchematicCanvasRendersAPopulatedSheetWithoutFailing() throws {
 		var design = wiredDesign()
 		design.schematic.symbols.append(contentsOf: [
-			Symbol(spec: .init(kind: .capacitor), reference: "C1", at: Point(x: .mm(20), y: .mm(30))),
-			Symbol(spec: .init(kind: .inductor), reference: "L1", at: Point(x: .mm(40), y: .mm(30))),
-			Symbol(spec: .init(kind: .diode), reference: "D1", at: Point(x: .mm(60), y: .mm(30))),
-			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: .mm(80), y: .mm(30))),
+			Symbol(spec: .init(kind: .capacitor), reference: "C1", at: Point(x: 20 * .mm, y: 30 * .mm)),
+			Symbol(spec: .init(kind: .inductor), reference: "L1", at: Point(x: 40 * .mm, y: 30 * .mm)),
+			Symbol(spec: .init(kind: .diode), reference: "D1", at: Point(x: 60 * .mm, y: 30 * .mm)),
+			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: 80 * .mm, y: 30 * .mm)),
 		])
 		design.schematic.labels += [
-			NetLabel(at: Point(x: .mm(20), y: .mm(50)), text: "GND"),
-			NetLabel(at: Point(x: .mm(40), y: .mm(50)), text: "VCC"),
+			NetLabel(at: Point(x: 20 * .mm, y: 50 * .mm), text: "GND"),
+			NetLabel(at: Point(x: 40 * .mm, y: 50 * .mm), text: "VCC"),
 		]
-		design.schematic.wires.append(Wire(start: Point(x: .mm(20), y: .mm(50)), end: Point(x: .mm(40), y: .mm(50))))
+		design.schematic.wires.append(Wire(start: Point(x: 20 * .mm, y: 50 * .mm), end: Point(x: 40 * .mm, y: 50 * .mm)))
 
 		let view = SchematicView(design: .constant(design), state: .constant(SchematicState()))
 		let renderer = ImageRenderer(
@@ -663,13 +663,13 @@ final class SchematicTests: XCTestCase {
 
 	@MainActor
 	func testPinTextRendersAtEveryRotationOnceTheSheetIsZoomedIn() {
-		var design = Design(board: Board(size: Size(width: .mm(50), height: .mm(40)), stack: .classic))
+		var design = Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: .classic))
 		for (index, rotation) in Rotation.allCases.enumerated() {
 			design.schematic.symbols.append(modifying(
 				Symbol(
 					spec: .init(component: .cd4013),
 					reference: "U\(index + 1)",
-					at: Point(x: .mm(Double(30 + index * 40)), y: .mm(40))
+					at: Point(x: (30 + index * 40) * .mm, y: 40 * .mm)
 				)
 			) { symbol in
 				symbol.rotation = rotation
@@ -677,7 +677,7 @@ final class SchematicTests: XCTestCase {
 			})
 		}
 		design.schematic.symbols.append(
-			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: .mm(20), y: .mm(15)))
+			Symbol(spec: .init(kind: .transistor), reference: "Q1", at: Point(x: 20 * .mm, y: 15 * .mm))
 		)
 
 		var state = SchematicState()

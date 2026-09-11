@@ -68,7 +68,7 @@ struct LayoutSideBar: View {
 					GridPicker(
 						title: "Gap",
 						value: $design.board.rules.clearance,
-						options: Nm.clearances
+						options: µm.clearances
 					)
 					CheckList(
 						violations: design.check(),
@@ -78,12 +78,12 @@ struct LayoutSideBar: View {
 				}
 
 				Panel(title: "Route") {
-					GridPicker(title: "Width", value: $state.traceWidth, options: Nm.widths)
-					GridPicker(title: "Grid", value: $state.routingGrid, options: Nm.routingGrids)
+					GridPicker(title: "Width", value: $state.traceWidth, options: µm.widths)
+					GridPicker(title: "Grid", value: $state.routingGrid, options: µm.routingGrids)
 				}
 
 				Panel(title: "Place") {
-					GridPicker(title: "Grid", value: $state.placementGrid, options: Nm.placementGrids)
+					GridPicker(title: "Grid", value: $state.placementGrid, options: µm.placementGrids)
 					Button("Footprint…", systemImage: "square.grid.3x3.square") {
 						editor.sheet = .footprint
 					}
@@ -94,7 +94,7 @@ struct LayoutSideBar: View {
 				}
 
 				Panel(title: "Display") {
-					GridPicker(title: "Grid", value: $state.grid, options: Nm.displayGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 				}
 			}
 			.padding(12.0)

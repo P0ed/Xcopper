@@ -225,7 +225,7 @@ private extension Design {
 	func label(_ id: Net.ID?) -> String { net(id)?.name ?? "Copper" }
 }
 
-private func spacing(_ nanometers: Double) -> String {
-	let mm = nanometers.mm
+private func spacing(_ micrometers: Double) -> String {
+	let mm = micrometers.mm
 	return String(format: mm < 0.01 ? "%.3f mm" : "%.2f mm", mm)
 }

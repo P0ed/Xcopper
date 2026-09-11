@@ -5,17 +5,17 @@ import XCTest
 @MainActor
 final class SelectionEditingTests: XCTestCase {
 
-	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
 
-	private func trace(_ width: Nm, layer: Int = 0) -> Trace {
-		Trace(start: .zero, end: point(10, 0), width: width, layer: layer, net: nil)
+	private func trace(_ width: µm, layer: Int = 0) -> Trace {
+		Trace(start: .zero, end: point(10 * .mm, 0), width: width, layer: layer, net: nil)
 	}
 
 	private func design() -> Design {
 		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(20, 20))
-		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(40, 20))
-		design.place(Symbol.Spec(kind: .capacitor, value: "100n"), at: point(60, 20))
+		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(20 * .mm, 20 * .mm))
+		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(40 * .mm, 20 * .mm))
+		design.place(Symbol.Spec(kind: .capacitor, value: "100n"), at: point(60 * .mm, 20 * .mm))
 		return design
 	}
 
@@ -24,24 +24,24 @@ final class SelectionEditingTests: XCTestCase {
 			var state = initial
 			state.selection = [ref]
 			state.beginSelect(at: .zero, mode: .union)
-			state.updateSelect(to: point(2, 2))
-			state.beginSelect(at: point(2, 2), mode: .replace)
-			let selection = try XCTUnwrap(state.endSelect(at: point(4, 4)))
-			XCTAssertEqual(selection.rect, Rect(from: .zero, to: point(4, 4)))
+			state.updateSelect(to: point(2 * .mm, 2 * .mm))
+			state.beginSelect(at: point(2 * .mm, 2 * .mm), mode: .replace)
+			let selection = try XCTUnwrap(state.endSelect(at: point(4 * .mm, 4 * .mm)))
+			XCTAssertEqual(selection.rect, Rect(from: .zero, to: point(4 * .mm, 4 * .mm)))
 			XCTAssertEqual(selection.initial, [ref])
 			XCTAssertEqual(selection.mode, .union)
 			XCTAssertNil(state.selectSession)
 			XCTAssertNil(state.endSelect(at: .zero))
 
 			state.beginMove(at: .zero)
-			state.updateMove(to: point(2, 2))
-			let move = try XCTUnwrap(state.endMove(at: point(4, 4)))
-			XCTAssertEqual(move.delta, point(4, 4))
+			state.updateMove(to: point(2 * .mm, 2 * .mm))
+			let move = try XCTUnwrap(state.endMove(at: point(4 * .mm, 4 * .mm)))
+			XCTAssertEqual(move.delta, point(4 * .mm, 4 * .mm))
 			XCTAssertNil(state.moveSession)
 			XCTAssertNil(state.endMove(at: .zero))
 
 			state.beginMove(at: .zero)
-			state.updateMove(to: point(2, 2))
+			state.updateMove(to: point(2 * .mm, 2 * .mm))
 			XCTAssertFalse(try XCTUnwrap(state.endMove(at: .zero)).didMove)
 		}
 
@@ -126,7 +126,7 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testLayoutCanStillAssignNetsToTracesAndVias() {
 		var design = design()
-		design.board.traces = [trace(.mm(0.4))]
+		design.board.traces = [trace(400)]
 		design.board.vias = [Via(at: .zero, net: nil)]
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .layout
@@ -149,7 +149,7 @@ final class SelectionEditingTests: XCTestCase {
 		let harness = EditorHarness(design: original)
 		harness.editor.mode = .layout
 		harness.layout.selection = [.pad(0, 0)]
-		harness.clipboard.holes = [Hole(at: .zero, diameter: .mm(1))]
+		harness.clipboard.holes = [Hole(at: .zero, diameter: 1 * .mm)]
 		let clipboard = harness.clipboard
 		XCTAssertTrue(harness.operations.hasPadSelection)
 		XCTAssertFalse(harness.operations.hasModuleSelection)
@@ -167,9 +167,9 @@ final class SelectionEditingTests: XCTestCase {
 	func testLabelsSelectedTogetherEditAsOne() throws {
 		let harness = EditorHarness(design: design())
 		harness.design.schematic.labels = [
-			NetLabel(at: point(20, 40), text: "GND"),
-			NetLabel(at: point(40, 40), text: "VCC"),
-			NetLabel(at: point(60, 40), text: "GND"),
+			NetLabel(at: point(20 * .mm, 40 * .mm), text: "GND"),
+			NetLabel(at: point(40 * .mm, 40 * .mm), text: "VCC"),
+			NetLabel(at: point(60 * .mm, 40 * .mm), text: "GND"),
 		]
 		let group = try XCTUnwrap(Set<Schematic.Ref>([.label(1), .label(0)]).group)
 		XCTAssertEqual(group.kind, .label)
@@ -184,7 +184,7 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testDuplicatingALabelPreservesItsNetAndCanBeUndone() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(20, 40), text: "VEE")]
+		design.schematic.labels = [NetLabel(at: point(20 * .mm, 40 * .mm), text: "VEE")]
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
 		harness.schematic.selection = [.label(0)]
@@ -201,28 +201,28 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testASharedBindingReadsOneValueAndWritesItToEverySelectedObject() {
 		let harness = EditorHarness(design: Design())
-		harness.design.board.traces = [trace(.mm(0.4)), trace(.mm(1.2)), trace(.mm(0.4))]
+		harness.design.board.traces = [trace(400), trace(1_200), trace(400)]
 		let width = harness.binding(\.design).board.traces.shared([0, 2], \.width)
-		XCTAssertEqual(width.wrappedValue, .mm(0.4))
+		XCTAssertEqual(width.wrappedValue, 400)
 
 		let mixed = harness.binding(\.design).board.traces.shared([0, 1], \.width)
 		XCTAssertNil(mixed.wrappedValue)
 
-		width.wrappedValue = .mm(0.8)
-		XCTAssertEqual(harness.design.board.traces.map(\.width), [.mm(0.8), .mm(1.2), .mm(0.8)])
+		width.wrappedValue = 800
+		XCTAssertEqual(harness.design.board.traces.map(\.width), [800, 1_200, 800])
 	}
 
 	func testASharedBindingIgnoresAMixedValueAndAnIndexThatIsGone() {
 		let harness = EditorHarness(design: Design())
-		harness.design.board.holes = [Hole(at: .zero, diameter: .mm(1.0))]
+		harness.design.board.holes = [Hole(at: .zero, diameter: 1 * .mm)]
 		let drill = harness.binding(\.design).board.holes.shared([0, 7], \.diameter)
-		XCTAssertEqual(drill.wrappedValue, .mm(1.0))
+		XCTAssertEqual(drill.wrappedValue, 1 * .mm)
 
 		drill.wrappedValue = nil
-		XCTAssertEqual(harness.design.board.holes.map(\.diameter), [.mm(1.0)])
+		XCTAssertEqual(harness.design.board.holes.map(\.diameter), [1 * .mm])
 
-		drill.wrappedValue = .mm(2.0)
-		XCTAssertEqual(harness.design.board.holes.map(\.diameter), [.mm(2.0)])
+		drill.wrappedValue = 2 * .mm
+		XCTAssertEqual(harness.design.board.holes.map(\.diameter), [2 * .mm])
 	}
 
 	func testEditingTheValueOfSelectedSymbolsCarriesToTheirFootprints() {
@@ -257,8 +257,8 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testAPowerLabelKeepsItsNetNameToItself() {
 		var design = Design()
-		design.schematic.labels = [NetLabel(at: point(20, 20), text: "GND")]
-		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(40, 20))
+		design.schematic.labels = [NetLabel(at: point(20 * .mm, 20 * .mm), text: "GND")]
+		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(40 * .mm, 20 * .mm))
 		XCTAssertEqual(design.board.footprints.count, 1)
 
 		design.schematic.labels[0].text = "AGND"
@@ -282,8 +282,8 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testDeletingEitherHalfTakesThePartOffBothSides() {
 		let harness = EditorHarness(design: design())
-		harness.design.schematic.wires = [Wire(start: .zero, end: point(10, 0))]
-		harness.design.board.traces = [trace(.mm(0.4))]
+		harness.design.schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
+		harness.design.board.traces = [trace(400)]
 		let before = harness.design
 
 		harness.editor.mode = .layout
@@ -309,7 +309,7 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testCopyingEitherHalfPutsTheWholePartOnTheClipboard() {
 		let harness = EditorHarness(design: design())
-		harness.design.board.traces = [trace(.mm(0.4))]
+		harness.design.board.traces = [trace(400)]
 
 		harness.editor.mode = .layout
 		harness.layout.selection = [.footprint(0)]
@@ -372,7 +372,7 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testALabelPastesWithNothingToStandForItOnTheBoard() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(80, 20), text: "GND")]
+		design.schematic.labels = [NetLabel(at: point(80 * .mm, 20 * .mm), text: "GND")]
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
 		harness.schematic.selection = [.label(0)]
@@ -382,15 +382,15 @@ final class SelectionEditingTests: XCTestCase {
 		harness.perform { $0.paste() }
 		XCTAssertEqual(harness.design.schematic.symbols.map(\.kind), [.resistor, .resistor, .capacitor])
 		XCTAssertEqual(harness.design.schematic.labels.map(\.text), ["GND", "GND"])
-		XCTAssertEqual(harness.design.schematic.labels[1].at, point(80, 20) + harness.operations.offset)
+		XCTAssertEqual(harness.design.schematic.labels[1].at, point(80 * .mm, 20 * .mm) + harness.operations.offset)
 		XCTAssertEqual(harness.schematic.selection, [.label(1)])
 		XCTAssertEqual(harness.design.board, design.board)
 	}
 
 	func testDeletingCopperOrALabelLeavesTheOtherEditorAlone() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(80, 20), text: "GND")]
-		design.schematic.wires = [Wire(start: .zero, end: point(10, 0))]
+		design.schematic.labels = [NetLabel(at: point(80 * .mm, 20 * .mm), text: "GND")]
+		design.schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
 		let parts = (design.schematic.symbols.count, design.board.footprints.count)
 
 		design.deleteSchematic([.wire(0)])
@@ -406,7 +406,7 @@ final class SelectionEditingTests: XCTestCase {
 
 	func testDeletingCopperLeavesTheOtherEditorsSelectionStanding() {
 		let harness = EditorHarness(design: design())
-		harness.design.board.traces = [trace(.mm(0.4))]
+		harness.design.board.traces = [trace(400)]
 		harness.editor.mode = .layout
 		harness.layout.selection = [.trace(0)]
 		harness.schematic.selection = [.symbol(1)]

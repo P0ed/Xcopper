@@ -5,11 +5,11 @@ import XCTest
 @MainActor
 final class SyncTests: XCTestCase {
 
-	private func point(_ x: Double, _ y: Double) -> Point { Point(x: .mm(x), y: .mm(y)) }
+	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
 
 	private func connectedDesign() -> Design {
 		var design = Design(board: Board(stack: .classic))
-		for (x, y) in [(20.0, 20.0), (20.0, 40.0), (60.0, 20.0), (60.0, 40.0)] {
+		for (x, y) in [(20 * µm.mm, 20 * µm.mm), (20 * .mm, 40 * .mm), (60 * .mm, 20 * .mm), (60 * .mm, 40 * .mm)] {
 			design.place(Symbol.Spec(kind: .resistor), at: point(x, y))
 		}
 		for pair in [(0, 1), (2, 3)] {
@@ -28,7 +28,7 @@ final class SyncTests: XCTestCase {
 		design.board.footprints[1].pads[0].net = legacy
 		let from = design.board.footprints[0].placedPads[0].at
 		let to = design.board.footprints[1].placedPads[0].at
-		design.board.traces = [Trace(start: from, end: to, width: .mm(0.25), layer: 0, net: legacy)]
+		design.board.traces = [Trace(start: from, end: to, width: 250, layer: 0, net: legacy)]
 		design.board.vias = [Via(at: to, net: legacy)]
 		_ = design.updateBoardFromSchematic()
 		let synced = design
@@ -49,7 +49,7 @@ final class SyncTests: XCTestCase {
 		var reordered = first
 		reordered.schematic.symbols.reverse()
 		reordered.schematic.wires.reverse()
-		let delta = point(10, 40)
+		let delta = point(10 * .mm, 40 * .mm)
 		reordered.schematic.symbols.modifyEach { $0.at = $0.at + delta }
 		reordered.schematic.wires.modifyEach {
 			$0.start = $0.start + delta
@@ -122,7 +122,7 @@ final class SyncTests: XCTestCase {
 	func testLayoutEditsDoNotResynchronizePadNets() {
 		let harness = EditorHarness(design: connectedDesign())
 		let original = harness.design
-		harness.perform { $0.design.board.footprints[0].at = point(50, 50) }
+		harness.perform { $0.design.board.footprints[0].at = point(50 * .mm, 50 * .mm) }
 		XCTAssertEqual(harness.design.nets, original.nets)
 		XCTAssertEqual(harness.design.board.footprints[0].pads, original.board.footprints[0].pads)
 	}
