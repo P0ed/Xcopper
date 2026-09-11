@@ -33,20 +33,11 @@ struct SchematicSideBar: View {
 				Panel(title: "Sheet") {
 					GridPicker(title: "Snap", value: $state.snap, options: µm.sheetSnapGrids)
 					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
-				}
-
-				Panel(title: "Place") {
-					Button("Symbol…", systemImage: "square.on.circle") { editor.sheet = .symbol }
+					Button(state.spec.summary, systemImage: "square.on.circle") { editor.sheet = .symbol }
 						.buttonStyle(.borderless)
-					Text(state.spec.summary)
-						.font(.caption)
-						.foregroundStyle(.secondary)
-					Button("Label…", systemImage: "tag") { editor.sheet = .label }
+					Button(state.label, systemImage: "tag") { editor.sheet = .label }
 						.buttonStyle(.borderless)
 						.padding(.top, 2.0)
-					Text(state.label)
-						.font(.caption)
-						.foregroundStyle(.secondary)
 				}
 			}
 			.padding(12.0)

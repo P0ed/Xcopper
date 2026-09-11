@@ -158,10 +158,6 @@ struct GridPicker: View {
 	}
 }
 
-extension CGFloat {
-	static var captionWidth: CGFloat { 52.0 }
-}
-
 @MainActor
 struct PropertyRow<Content: View>: View {
 	var title: String
@@ -171,9 +167,9 @@ struct PropertyRow<Content: View>: View {
 		HStack(spacing: 6.0) {
 			Text(title)
 				.foregroundStyle(.secondary)
-				.frame(width: .captionWidth, alignment: .leading)
+				.frame(width: 96.0, alignment: .leading)
 			content()
-				.frame(maxWidth: .infinity, alignment: .leading)
+				.frame(width: 96.0, alignment: .leading)
 		}
 	}
 }

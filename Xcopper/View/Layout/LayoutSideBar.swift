@@ -22,6 +22,46 @@ struct LayoutSideBar: View {
 					CounterpartButton(operations: operations)
 				}
 
+				Panel(title: "Board") {
+					GridPicker(
+						title: "Gap",
+						value: $design.board.rules.clearance,
+						options: µm.clearances
+					)
+					CheckList(
+						violations: design.check(),
+						stack: stack,
+						show: operations.show
+					)
+					GridPicker(title: "Trace", value: $state.traceWidth, options: µm.widths)
+					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
+					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
+
+					Button(state.spec.summary, systemImage: "square.grid.3x3.square") {
+						editor.sheet = .footprint
+					}
+					.buttonStyle(.borderless)
+				}
+
+				if !stack.internals.isEmpty {
+					Panel(title: "Layers") {
+						ForEach(Array(stack.copper), id: \.self) { layer in
+							LayerRow(
+								text: stack.name(of: layer) + ": "
+								+ (design.net(design.plane(layer))?.name ?? "SIG"),
+								color: Palette.color(of: layer, in: stack),
+								shortcut: stack.shortName(of: layer).first!
+							)
+						}
+						LayerRow(
+							text: "Silkscreen",
+							shortcut: "§",
+							toggle: $state.silkscreen
+						)
+					}
+				}
+
 				ModulePanel(operations: operations)
 
 				Panel(title: "Nets") {
@@ -50,53 +90,6 @@ struct LayoutSideBar: View {
 					}
 					.buttonStyle(.borderless)
 					.padding(.top, 2.0)
-				}
-
-				if !stack.internals.isEmpty {
-					Panel(title: "Planes") {
-						ForEach(Array(stack.internals), id: \.self) { layer in
-							PlaneRow(
-								layer: layer,
-								stack: stack,
-								name: design.net(design.plane(layer))?.name ?? "None"
-							)
-						}
-					}
-				}
-
-				Panel(title: "Design rules") {
-					GridPicker(
-						title: "Gap",
-						value: $design.board.rules.clearance,
-						options: µm.clearances
-					)
-					CheckList(
-						violations: design.check(),
-						stack: stack,
-						show: operations.show
-					)
-				}
-
-				Panel(title: "Route") {
-					GridPicker(title: "Width", value: $state.traceWidth, options: µm.widths)
-					GridPicker(title: "Grid", value: $state.routingGrid, options: µm.routingGrids)
-				}
-
-				Panel(title: "Place") {
-					GridPicker(title: "Grid", value: $state.placementGrid, options: µm.placementGrids)
-					Button("Footprint…", systemImage: "square.grid.3x3.square") {
-						editor.sheet = .footprint
-					}
-					.buttonStyle(.borderless)
-					Text(state.spec.summary)
-						.font(.caption)
-						.foregroundStyle(.secondary)
-				}
-
-				Panel(title: "Display") {
-					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
-					Toggle("Silkscreen", isOn: $state.silkscreen)
-						.toggleStyle(.checkbox)
 				}
 			}
 			.padding(12.0)
@@ -180,21 +173,25 @@ extension Violation.Kind {
 }
 
 @MainActor
-struct PlaneRow: View {
-	var layer: Int
-	var stack: Stack
-	var name: String
+struct LayerRow: View {
+	var text: String
+	var color: Color = .primary
+	var shortcut: Character?
+	var toggle: Binding<Bool> = .constant(true)
 
 	var body: some View {
-		HStack(spacing: 6.0) {
-			Text(stack.name(of: layer))
-				.foregroundStyle(Palette.color(of: layer, in: stack))
-				.frame(width: .captionWidth, alignment: .leading)
-			Text(name)
-			Spacer(minLength: 0.0)
+		Button {
+			toggle.wrappedValue.toggle()
+		} label: {
+			Text(text)
+				.foregroundStyle(color)
+				.font(.caption)
+				.padding(.horizontal, 6.0)
+				.padding(.vertical, 3.0)
 		}
-		.font(.caption)
-		.padding(.horizontal, 6.0)
-		.padding(.vertical, 3.0)
+		.buttonStyle(.borderless)
+		.keyboardShortcut(shortcut.map { char in
+			KeyboardShortcut(KeyEquivalent(char), modifiers: [])
+		})
 	}
 }

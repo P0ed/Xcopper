@@ -63,10 +63,10 @@ struct EditorView: View {
 	@ViewBuilder
 	private var sidebar: some View {
 		switch editor.mode {
-		case .layout:
-			LayoutSideBar(design: $design, state: $layout, editor: $editor, operations: operations)
 		case .schematic:
 			SchematicSideBar(design: $design, state: $schematic, editor: $editor, operations: operations)
+		case .layout:
+			LayoutSideBar(design: $design, state: $layout, editor: $editor, operations: operations)
 		case .preview:
 			PreviewSideBar(board: design.resolved.board, state: $preview)
 		}
@@ -75,8 +75,6 @@ struct EditorView: View {
 	@ViewBuilder
 	private var detail: some View {
 		switch editor.mode {
-		case .layout:
-			LayoutView(design: $design, state: $layout, claimKeyboard: claimKeyboard)
 		case .schematic:
 			SchematicView(
 				design: $design,
@@ -84,6 +82,8 @@ struct EditorView: View {
 				claimKeyboard: claimKeyboard,
 				beginEditing: { property in editor.editing = property }
 			)
+		case .layout:
+			LayoutView(design: $design, state: $layout, claimKeyboard: claimKeyboard)
 		case .preview: PreviewView(board: design.resolved.board, state: $preview)
 		}
 	}
@@ -91,15 +91,15 @@ struct EditorView: View {
 	@ToolbarContentBuilder
 	private var toolbar: some ToolbarContent {
 		switch editor.mode {
+		case .schematic:
+			SchematicToolBar(
+				state: $schematic,
+				shortcuts: editor.editing == nil
+			)
 		case .layout:
 			LayoutToolBar(
 				stack: design.board.stack,
 				state: $layout,
-				shortcuts: editor.editing == nil
-			)
-		case .schematic:
-			SchematicToolBar(
-				state: $schematic,
 				shortcuts: editor.editing == nil
 			)
 		case .preview:
