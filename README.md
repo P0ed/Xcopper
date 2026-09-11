@@ -454,6 +454,6 @@ changed or disappeared; source files are never modified by parent edits.
 
 ## Roadmap
 
-- Modules should be connected to shared power planes.
-- Option to remove the solder mask.
-- API. Enable automation/verification/testing directly from `claude`/`codex` CLI.
+- Option to remove the solder mask in board settings (render + fabrication)
+- Toggle render silkscreen in sidebar
+- API
