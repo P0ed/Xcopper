@@ -95,6 +95,8 @@ struct LayoutSideBar: View {
 
 				Panel(title: "Display") {
 					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
+					Toggle("Silkscreen", isOn: $state.silkscreen)
+						.toggleStyle(.checkbox)
 				}
 			}
 			.padding(12.0)

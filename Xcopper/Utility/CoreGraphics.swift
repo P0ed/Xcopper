@@ -21,10 +21,6 @@ extension Size {
 	}
 }
 
-extension Double {
-	var mm: Double { self / 1_000.0 }
-}
-
 extension Point {
 
 	func cg(_ scale: CGFloat, origin: CGPoint) -> CGPoint {

@@ -163,11 +163,11 @@ private extension Design {
 		case .hole:
 			touching
 				? "\(label(copper.net)) over a hole"
-				: "\(label(copper.net)) \(spacing(apart)) from a hole"
+				: "\(label(copper.net)) \(mm(apart)) from a hole"
 		case .short:
 			"\(label(a.net)) meets \(label(b.net))"
 		default:
-			"\(label(a.net)) \(spacing(apart)) from \(label(b.net))"
+			"\(label(a.net)) \(mm(apart)) from \(label(b.net))"
 		}
 		return Violation(
 			kind: kind,
@@ -196,7 +196,7 @@ private extension Design {
 				refs: [object.ref],
 				text: margin <= 0
 					? "\(what) over the edge"
-					: "\(what) \(spacing(Double(margin))) from the edge"
+					: "\(what) \(mm(Double(margin))) from the edge"
 			)
 		}
 	}
@@ -225,7 +225,7 @@ private extension Design {
 	func label(_ id: Net.ID?) -> String { net(id)?.name ?? "Copper" }
 }
 
-private func spacing(_ micrometers: Double) -> String {
-	let mm = micrometers.mm
+private func mm(_ micrometers: Double) -> String {
+	let mm = micrometers / 1_000
 	return String(format: mm < 0.01 ? "%.3f mm" : "%.2f mm", mm)
 }

@@ -63,8 +63,10 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
-**Board → Board settings…** (`⌘B`) sets the board size, stackup and via drill and
-pad diameters. Every via uses the board's sizes, including existing vias and vias
+**Board → Board settings…** (`⌘B`) sets the board size, stackup, solder mask and via drill and
+pad diameters. Turn off **Solder mask** to leave both faces unmasked in the 3D
+preview and fabrication set. This setting is saved with the board and can be undone.
+Every via uses the board's sizes, including existing vias and vias
 inside imported modules. Applying a change updates them together and can be undone.
 Vias always pass through the whole board, from top to bottom.
 Blind and buried vias are not supported.
@@ -87,6 +89,10 @@ use the grid for those objects; a mixed group containing a footprint, hole or
 module moves together on the placement grid. Grid dots keep their separate
 spacing setting in Display. `R` rotates a selection clockwise and `⇧R` rotates
 it counterclockwise.
+
+The sidebar's **Display → Silkscreen** checkbox shows or hides footprint outlines,
+pin-one markers and reference text on the layout. It starts enabled and controls
+only the drawing; the fabrication set carries no silkscreen.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
@@ -325,7 +331,9 @@ thickness with its cut edge showing, solder mask over it, copper reading through
 the mask, pads left open and plated, holes drilled through and lined, and every
 part standing where the layout puts it. Nothing is approximated away: the copper
 drawn is the copper on the board, and no legend is drawn because the fabrication
-set carries none.
+set carries none. With solder mask turned off in Board settings, the faces show
+bare laminate and exposed plated copper. The preview's mask color picker appears
+only while solder mask is enabled.
 
 | Key | View |
 | --- | --- |
@@ -364,7 +372,9 @@ Nothing is written before the board has been looked over. A set asked for while
 a rule is broken says how many are broken and what the first of them are, and
 going ahead anyway is a button; turning back takes the layout to the first.
 
-Pads open the solder mask and vias do not, so vias come back tented.
+With solder mask enabled, pads open the mask and vias do not, so vias come back
+tented. Turning it off in Board settings writes a full-board opening into each
+mask Gerber, leaving both faces unmasked.
 
 The Gerbers are RS-274X in millimeters at a 4.6 format. Board coordinates are stored
 as integer micrometers and multiplied by 1,000 for export without rounding. Copper
@@ -396,6 +406,7 @@ Generic and custom footprints retain their stored geometry.
 Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
 Saved via layer ranges are also discarded: every via spans the current board stack.
+The board stores `solderMask`; older documents without it open with mask enabled.
 Older power and ground symbols and saved flags open as net labels, preserving
 their connection points and effective net names.
 
@@ -419,7 +430,7 @@ Wire the block's pins; the board updates automatically. Connections
 pass through module IO to imported pads, traces, vias and nested modules. Private
 nets and component references belong to their instance hierarchy. Separate
 instances share only connected IO and the `GND`, `VCC` and `VEE` supply nets.
-The parent supplies its stack, internal planes, clearance rules, via sizes and 3D thickness.
+The parent supplies its stack, internal planes, clearance rules, via sizes, solder mask and 3D thickness.
 Source top and bottom copper map to the parent's outer layers, and through holes
 span the parent stack. Module rectangles are placement bounds; fabrication
 exports only the parent's outline.
@@ -451,9 +462,3 @@ parent to another folder resolves dependencies there and may require a new grant
 Import, movement, rotation, duplication, deletion, paste and explicit reload are
 undoable. Undo restores the previous resolved snapshot even if sources have since
 changed or disappeared; source files are never modified by parent edits.
-
-## Roadmap
-
-- Option to remove the solder mask in board settings (render + fabrication)
-- Toggle render silkscreen in sidebar
-- API

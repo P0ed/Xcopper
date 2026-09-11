@@ -5,11 +5,13 @@ struct BoardDialog: View {
 	var size: Size
 	var stack: Stack
 	var rules: Rules
-	var confirm: (Size, Stack, Rules) -> Void
+	var solderMask: Bool
+	var confirm: (Size, Stack, Rules, Bool) -> Void
 
 	@State private var chosen: Size?
 	@State private var selected: Stack?
 	@State private var selectedRules: Rules?
+	@State private var selectedSolderMask: Bool?
 	@FocusState private var focus: Property?
 
 	private var stackup: Stack { selected ?? stack }
@@ -26,7 +28,7 @@ struct BoardDialog: View {
 			action: "Apply",
 			isValid: chosen != nil && validVias,
 			confirm: {
-				if let chosen { confirm(chosen, stackup, draft.wrappedValue) }
+				if let chosen { confirm(chosen, stackup, draft.wrappedValue, selectedSolderMask ?? solderMask) }
 			}
 		) {
 			VStack(spacing: 12.0) {
@@ -43,6 +45,12 @@ struct BoardDialog: View {
 				Text(stackup.summary)
 					.font(.caption)
 					.foregroundStyle(.secondary)
+
+				Toggle("Solder mask", isOn: Binding(
+					get: { selectedSolderMask ?? solderMask },
+					set: { selectedSolderMask = $0 }
+				))
+				.toggleStyle(.checkbox)
 
 				Panel(title: "Vias") {
 					LengthRow(title: "Drill", value: Binding(draft.viaDrill),

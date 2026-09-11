@@ -8,11 +8,11 @@ enum Figure: Hashable {
 
 extension Figure {
 
-	func outset(_ amount: Int) -> Figure {
+	func outset(_ amount: µm) -> Figure {
 		switch self {
 		case let .rect(rect): .rect(rect.outset(amount))
-		case let .round(center, diameter): .round(center, µm(clamping: Int(diameter) + amount * 2))
-		case let .segment(start, end, width): .segment(start, end, µm(clamping: Int(width) + amount * 2))
+		case let .round(center, diameter): .round(center, µm(clamping: diameter + amount * 2))
+		case let .segment(start, end, width): .segment(start, end, µm(clamping: width + amount * 2))
 		}
 	}
 
@@ -21,9 +21,9 @@ extension Figure {
 		case let .rect(rect):
 			rect
 		case let .round(center, diameter):
-			Rect(center: center, size: Size(width: Int(diameter), height: Int(diameter)))
+			Rect(center: center, size: Size(width: diameter, height: diameter))
 		case let .segment(start, end, width):
-			Rect(from: start, to: end).outset(Int(width) / 2)
+			Rect(from: start, to: end).outset(width / 2)
 		}
 	}
 
@@ -32,7 +32,7 @@ extension Figure {
 		case let .rect(rect):
 			rect.outset(tolerance).contains(point)
 		case let .round(center, diameter):
-			point.isNear(center, within: Int(diameter) / 2 + tolerance)
+			point.isNear(center, within: diameter / 2 + tolerance)
 		case let .segment(start, end, width):
 			distance(from: point, to: start, end) <= Double(Int(width) / 2 + tolerance)
 		}
@@ -42,7 +42,7 @@ extension Figure {
 func length(from start: Point, to end: Point) -> Double {
 	let dx = Double(end.x - start.x)
 	let dy = Double(end.y - start.y)
-	return (dx * dx + dy * dy).squareRoot().mm
+	return (dx * dx + dy * dy).squareRoot() / 1_000
 }
 
 func distance(from point: Point, to start: Point, _ end: Point) -> Double {

@@ -49,7 +49,9 @@ extension LayoutView {
 		)
 
 		renderDrills(board, selection, in: context, scale: scale, origin: origin)
-		renderSilk(board, selection, in: context, scale: scale, origin: origin)
+		if state.silkscreen {
+			renderSilk(board, selection, in: context, scale: scale, origin: origin)
+		}
 		renderRatsnest(board, in: context, scale: scale, origin: origin)
 
 		renderModules(modules, in: context, scale: scale, origin: origin)

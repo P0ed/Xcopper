@@ -23,9 +23,7 @@ extension Finish {
 	var shape: Shape { Shape(thickness: thickness, copper: copper, components: components) }
 
 	var coating: RGBA {
-		mask.covers
-			? mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
-			: plating.rgb
+		mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
 	}
 }
 
@@ -199,7 +197,7 @@ extension Board {
 			model.add(
 				side.loop(outline),
 				holes: punched.map { hole in side.loop(hole) },
-				shade: .mask,
+				shade: solderMask ? .mask : .laminate,
 				level: side.mask
 			)
 		}
@@ -231,7 +229,7 @@ extension Board {
 				.segment(trace.start, trace.end, trace.width),
 				arc: 2,
 				drills: punches,
-				shade: .coating,
+				shade: solderMask ? .coating : .plating,
 				level: side.copper,
 				side: side,
 				into: &model
@@ -241,7 +239,7 @@ extension Board {
 			lay(
 				.round(via.at, rules.viaPad),
 				drills: punches,
-				shade: .coating,
+				shade: solderMask ? .coating : .plating,
 				level: side.copper,
 				side: side,
 				into: &model

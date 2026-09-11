@@ -80,8 +80,12 @@ private extension Design {
 			function: "Soldermask,\(board.stack.sideName(of: layer))",
 			negative: true
 		)
-		for pad in board.pads(on: layer) {
-			gerber.fill(pad.figure.outset(Int(Gerber.maskExpansion)))
+		if board.solderMask {
+			for pad in board.pads(on: layer) {
+				gerber.fill(pad.figure.outset(Gerber.maskExpansion))
+			}
+		} else {
+			gerber.region(board.bounds)
 		}
 		return file(gerber, name: name, extension: board.stack.maskFile(of: layer))
 	}

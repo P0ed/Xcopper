@@ -61,7 +61,7 @@ enum Palette {
 }
 
 enum Mask: String, CaseIterable, Identifiable {
-	case green, black, clear
+	case green, black
 
 	var id: String { rawValue }
 	var name: String { rawValue.capitalized }
@@ -70,11 +70,8 @@ enum Mask: String, CaseIterable, Identifiable {
 		switch self {
 		case .green: RGBA(r: 0.05, g: 0.33, b: 0.17)
 		case .black: RGBA(r: 0.10, g: 0.10, b: 0.11)
-		case .clear: RGBA(r: 0.56, g: 0.47, b: 0.33)
 		}
 	}
-
-	var covers: Bool { self != .clear }
 }
 
 enum Plating: String, CaseIterable, Identifiable {
@@ -92,7 +89,7 @@ enum Plating: String, CaseIterable, Identifiable {
 
 extension Palette {
 	static let bareCopper = RGBA(r: 0.72, g: 0.45, b: 0.20)
-	static let laminate = RGBA(r: 0.76, g: 0.68, b: 0.42)
+	static let laminate = RGBA(r: 0.56, g: 0.47, b: 0.33)
 	static let solder = RGBA(r: 0.70, g: 0.71, b: 0.73)
 	static let moulding = RGBA(r: 0.13, g: 0.13, b: 0.14)
 	static let chip = RGBA(r: 0.19, g: 0.17, b: 0.16)

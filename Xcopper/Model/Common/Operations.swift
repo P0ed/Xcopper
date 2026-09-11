@@ -371,7 +371,7 @@ extension Operations {
 
 extension Operations {
 
-	func configureBoard(size: Size, stack: Stack, rules: Rules) {
+	func configureBoard(size: Size, stack: Stack, rules: Rules, solderMask: Bool? = nil) {
 		guard stack == design.board.stack || design.canRestack(stack) else {
 			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
 			return
@@ -379,6 +379,7 @@ extension Operations {
 		var next = design
 		next.board.resize(size: size)
 		next.board.rules = rules
+		if let solderMask { next.board.solderMask = solderMask }
 		if stack != next.board.stack {
 			next.restack(stack)
 			layout.clampLayer(next.board.stack)

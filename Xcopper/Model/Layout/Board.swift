@@ -124,9 +124,26 @@ struct Board: Equatable, Codable {
 	var holes: [Hole]
 	var footprints: [Footprint]
 	var rules: Rules
+	var solderMask = true
 }
 
 extension Board {
+
+	enum CodingKeys: String, CodingKey {
+		case size, stack, traces, vias, holes, footprints, rules, solderMask
+	}
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		size = try values.decode(Size.self, forKey: .size)
+		stack = try values.decode(Stack.self, forKey: .stack)
+		traces = try values.decode([Trace].self, forKey: .traces)
+		vias = try values.decode([Via].self, forKey: .vias)
+		holes = try values.decode([Hole].self, forKey: .holes)
+		footprints = try values.decode([Footprint].self, forKey: .footprints)
+		rules = try values.decode(Rules.self, forKey: .rules)
+		solderMask = try values.decodeIfPresent(Bool.self, forKey: .solderMask) ?? true
+	}
 
 	init(size: Size = .init(width: 4 * .inch, height: 6 * .inch), stack: Stack = .analog) {
 		self.size = size
