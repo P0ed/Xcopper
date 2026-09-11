@@ -149,6 +149,7 @@ struct LayoutView: View {
 		visible: CGRect,
 		dimmed: Bool
 	) {
+		guard state[visible: layer] else { return }
 		let color = Palette.color(of: layer, in: drawing.board.stack)
 		let opacity = dimmed ? 0.38 : 1.0
 

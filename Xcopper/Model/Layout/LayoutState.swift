@@ -83,6 +83,7 @@ struct LayoutState: Equatable, SelectionState {
 	var placementGrid: µm = .placementGrids.first!
 	var routingGrid: µm = .routingGrids.last!
 	var grid: µm = .displayGrids.first!
+	var hiddenLayers: Int = 0
 	var silkscreen = true
 	var traceWidth: µm = .widths.first!
 	var spec: Footprint.Spec = .default
@@ -94,6 +95,14 @@ struct LayoutState: Equatable, SelectionState {
 }
 
 extension LayoutState {
+
+	subscript(visible layer: Int) -> Bool {
+		get { hiddenLayers & 1 << layer == 0 }
+		set {
+			if newValue { hiddenLayers &= ~(1 << layer) }
+			else { hiddenLayers |= 1 << layer }
+		}
+	}
 
 	private var usesPlacementGrid: Bool {
 		switch tool {

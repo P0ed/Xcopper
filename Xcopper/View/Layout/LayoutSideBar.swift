@@ -45,20 +45,22 @@ struct LayoutSideBar: View {
 					.buttonStyle(.borderless)
 				}
 
-				if !stack.internals.isEmpty {
-					Panel(title: "Layers") {
-						ForEach(Array(stack.copper), id: \.self) { layer in
-							LayerRow(
-								text: stack.name(of: layer) + ": "
-								+ (design.net(design.plane(layer))?.name ?? "SIG"),
-								color: Palette.color(of: layer, in: stack),
-								shortcut: stack.shortName(of: layer).first!
-							)
-						}
+				Panel(title: "Layers") {
+					LayerRow(
+						text: "Silkscreen",
+						color: .primary,
+						shortcut: editor.keysAvailable ? "§" : nil,
+						toggle: $state.silkscreen
+					)
+					ForEach(Array(stack.copper), id: \.self) { layer in
+						let text = stack.name(of: layer) + ": "
+							+ (design.net(design.plane(layer))?.name ?? "SIG")
+						let color = Palette.color(of: layer, in: stack)
 						LayerRow(
-							text: "Silkscreen",
-							shortcut: "§",
-							toggle: $state.silkscreen
+							text: text,
+							color: color,
+							shortcut: editor.keysAvailable ? "\(layer + 1)".first : nil,
+							toggle: $state[visible: layer]
 						)
 					}
 				}
@@ -177,15 +179,15 @@ extension Violation.Kind {
 @MainActor
 struct LayerRow: View {
 	var text: String
-	var color: Color = .primary
+	var color: Color
 	var shortcut: Character?
-	var toggle: Binding<Bool> = .constant(true)
+	@Binding var toggle: Bool
 
 	var body: some View {
 		Button {
-			toggle.wrappedValue.toggle()
+			toggle.toggle()
 		} label: {
-			Text(text)
+			Label(text, systemImage: toggle ? "largecircle.fill.circle" : "circle")
 				.foregroundStyle(color)
 				.font(.caption)
 				.padding(.horizontal, 6.0)
@@ -195,5 +197,6 @@ struct LayerRow: View {
 		.keyboardShortcut(shortcut.map { char in
 			KeyboardShortcut(KeyEquivalent(char), modifiers: [])
 		})
+		.accessibilityAddTraits(toggle ? .isSelected : [])
 	}
 }
