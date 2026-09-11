@@ -892,24 +892,27 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(sharpestTurn(board), 1)
 	}
 
-	func testAViaCarriedOffAJunctionLeavesACornerThatComesApart() {
+	func testDraggingAViaKeepsBothTracesConnectedAtTheJunction() {
 		var board = board()
 		let junction = Point(x: 10 * .mm, y: 20 * .mm)
+		let first = Point(x: 0, y: 20 * .mm)
+		let last = Point(x: 10 * .mm, y: 30 * .mm)
 		board.traces = [
-			trace(from: Point(x: 0, y: 20 * .mm), to: junction),
-			trace(from: junction, to: Point(x: 10 * .mm, y: 30 * .mm)),
+			trace(from: first, to: junction),
+			trace(from: junction, to: last),
 		]
 		board.vias = [Via(at: junction, net: nil)]
 
 		XCTAssertEqual(sharpestTurn(board), 0)
 
-		board.move([.via(0)], by: Point(x: 5 * .mm, y: 5 * .mm), grid: 1 * .mm)
+		let moved = board.move([.via(0)], by: Point(x: 5 * .mm, y: 5 * .mm), grid: 1 * .mm)
+		let via = Point(x: 15 * .mm, y: 25 * .mm)
 
-		XCTAssertEqual(board.traces.count, 3)
-		XCTAssertEqual(board.traces[0].end, Point(x: 9 * .mm, y: 20 * .mm))
-		XCTAssertEqual(board.traces[1].start, Point(x: 10 * .mm, y: 21 * .mm))
-		XCTAssertEqual(board.traces[2].start, Point(x: 9 * .mm, y: 20 * .mm))
-		XCTAssertEqual(board.traces[2].end, Point(x: 10 * .mm, y: 21 * .mm))
+		XCTAssertEqual(moved, [.via(0)])
+		XCTAssertEqual(board.vias[0].at, via)
+		XCTAssertEqual(board.traces.count { $0.start == via || $0.end == via }, 2)
+		XCTAssertTrue(board.traces.contains { $0.start == first || $0.end == first })
+		XCTAssertTrue(board.traces.contains { $0.start == last || $0.end == last })
 		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
 		XCTAssertEqual(sharpestTurn(board), 1)
 	}

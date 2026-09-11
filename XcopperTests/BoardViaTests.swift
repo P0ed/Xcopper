@@ -39,6 +39,40 @@ final class BoardViaTests: XCTestCase {
 		XCTAssertEqual(board.routing().terminals.map(\.figure), copper)
 	}
 
+	func testDraggingAViaCarriesTraceEndsAcrossEveryLayer() {
+		var board = Board(stack: .analog)
+		let at = point(20 * .mm, 20 * .mm)
+		let anchor = point(10 * .mm, 20 * .mm)
+		let delta = point(3 * .mm, 5 * .mm)
+		board.vias = [Via(at: at, net: 1)]
+		board.traces = board.stack.copper.map { layer in
+			Trace(start: anchor, end: at, width: 300, layer: layer, net: 1)
+		}
+
+		XCTAssertEqual(board.attachedEnds(to: [.via(0)]).count, board.stack.count)
+		XCTAssertEqual(board.move([.via(0)], by: delta, grid: 1 * .mm), [.via(0)])
+		XCTAssertEqual(board.vias[0].at, at + delta)
+		for layer in board.stack.copper {
+			let traces = board.traces.filter { $0.layer == layer }
+			XCTAssertTrue(traces.contains { $0.start == at + delta || $0.end == at + delta })
+			XCTAssertTrue(traces.contains { $0.start == anchor || $0.end == anchor })
+			XCTAssertTrue(traces.allSatisfy { ($0.end - $0.start).isOctilinear && $0.width == 300 && $0.net == 1 })
+		}
+	}
+
+	func testDraggingAViaAndItsTraceMovesTheirSharedEndOnce() {
+		var board = Board(stack: .classic)
+		let at = point(20 * .mm, 20 * .mm)
+		let anchor = point(10 * .mm, 20 * .mm)
+		let delta = point(3 * .mm, 5 * .mm)
+		board.vias = [Via(at: at, net: 1)]
+		board.traces = [Trace(start: anchor, end: at, width: 300, layer: 0, net: 1)]
+
+		XCTAssertEqual(board.move([.via(0), .trace(0)], by: delta, grid: 1 * .mm), [.via(0), .trace(0)])
+		XCTAssertEqual(board.vias[0].at, at + delta)
+		XCTAssertEqual(board.traces, [Trace(start: anchor + delta, end: at + delta, width: 300, layer: 0, net: 1)])
+	}
+
 	@MainActor
 	func testBoardSettingsUndoAndRedoSizesAndNewConnectionsTogether() {
 		var design = design()

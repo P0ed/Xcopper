@@ -69,7 +69,6 @@ struct RouteTerminal {
 	var figure: Figure
 	var layers: ClosedRange<Int>
 	var moving: Bool = false
-	var carriesAttachments: Bool = true
 
 	func contains(_ point: Point, layer: Int) -> Bool { layers.contains(layer) && figure.contains(point) }
 }
@@ -98,7 +97,7 @@ extension RouteGeometry {
 			for isStart in [true, false] {
 				let point = isStart ? segment.start : segment.end
 				if joints.contains(Junction(point: point, layer: segment.layer)) || terminals.contains(where: {
-					$0.moving && $0.carriesAttachments && $0.contains(point, layer: segment.layer)
+					$0.moving && $0.contains(point, layer: segment.layer)
 				}) { ends.insert(RouteEnd(segment: index, isStart: isStart)) }
 			}
 		}

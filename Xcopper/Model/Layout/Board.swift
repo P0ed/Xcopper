@@ -263,7 +263,7 @@ extension Board {
 		for (index, via) in vias.enumerated() {
 			terminals.append(RouteTerminal(
 				figure: .round(via.at, rules.viaPad), layers: stack.top ... stack.bottom,
-				moving: refs.contains(.via(index)), carriesAttachments: false
+				moving: refs.contains(.via(index))
 			))
 		}
 		return RouteGeometry(segments: traces, terminals: terminals, angles: .octilinear)
