@@ -66,10 +66,12 @@ extension LayoutView {
 	private func renderModules(_ modules: [ModuleInstance], in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
 		for module in modules {
 			let unresolved = design.moduleStatus(module.id) != nil
-			let color: Color = unresolved ? .red : state.selection.contains(.module(module.id)) ? Palette.preview : Palette.silk
+			let color: Color = unresolved ? .red : Palette.silk.opacity(0.5)
 			let rect = module.bounds.cg(scale, origin: origin)
-			context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.0, dash: [6, 3]))
-			context.draw(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color), at: CGPoint(x: rect.midX, y: rect.minY - 10))
+			if state.silkscreen {
+				context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.0, dash: [6, 3]))
+				context.draw(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color), at: CGPoint(x: rect.midX, y: rect.minY - 10))
+			}
 		}
 	}
 
@@ -235,7 +237,7 @@ extension LayoutView {
 				path.addPath(outline)
 			}
 		}
-		context.stroke(path, with: .color(Palette.silk.opacity(0.55)), lineWidth: 1.0)
+		context.stroke(path, with: .color(Palette.silk.opacity(0.5)), lineWidth: 1.0)
 		Lit.stroke(picked, Palette.lit(Palette.silk), lineWidth: 1.0, in: context)
 
 		guard scale >= 6.0 else { return }
