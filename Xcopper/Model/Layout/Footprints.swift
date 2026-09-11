@@ -345,7 +345,7 @@ extension Footprint {
 					net: nil
 				),
 				Pad(
-					at: Point(x: 0, y: 6_350),
+					at: Point(x: 0, y: 6_000),
 					size: Size(width: 2 * .mm, height: 2 * .mm),
 					shape: .oval,
 					drill: 1 * .mm,
