@@ -104,10 +104,7 @@ struct LayoutView: View {
 		for module in modules {
 			let rect = module.bounds.cg(scale, origin: origin)
 			let unresolved = design.moduleStatus(module.id) != nil
-			let color: Color = unresolved ? .red : Palette.silk.opacity(0.5)
-			if rect.insetBy(dx: -1, dy: -1).intersects(visible) {
-				context.stroke(Path(rect), with: .color(color), style: StrokeStyle(lineWidth: 1.0, dash: [6, 3]))
-			}
+			let color: Color = unresolved ? .red : Palette.silk
 			let label = context.resolve(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color))
 			let at = CGPoint(x: rect.midX, y: rect.minY - 10)
 			let size = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
