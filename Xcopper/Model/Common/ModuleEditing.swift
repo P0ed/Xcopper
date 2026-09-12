@@ -48,15 +48,22 @@ extension Design {
 
 	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
 		let projection = moduleProjection()
-		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole, selection: selection)
-		if !hit.isEmpty { return Set(hit.map { projection.owner($0) }) }
-		return modules.last { $0.bounds.outset(tolerance).contains(point) }.map { [.module($0.id)] } ?? []
+		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole, selection: projection.expanded(selection))
+		return Set(hit.map { $0.kind == .pad ? $0 : projection.owner($0) })
 	}
 
 	func layoutRefs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
 		let projection = moduleProjection()
 		return Set(projection.design.board.refs(in: rect, layer: layer, whole: whole).map { projection.owner($0) })
-			.union(modules.filter { rect.intersects($0.bounds) }.map { .module($0.id) })
+			.union(projection.design.board.footprints.enumerated().compactMap { index, footprint in
+				guard let owner = projection.owners[.footprint(index)],
+					rect.intersects(footprint.placedBody) || footprint.placedPads.contains(where: { pad in
+						(pad.isThrough || footprint.layer(of: pad, in: board.stack) == layer)
+							&& rect.intersects(pad.figure.bounds)
+					})
+				else { return nil }
+				return .module(owner)
+			})
 	}
 
 	func schematicRef(at point: Point, tolerance: Int) -> Schematic.Ref? {
@@ -75,7 +82,7 @@ extension Design {
 	}
 
 	func layoutBounds(_ refs: Set<Ref>) -> Rect? {
-		Rect.union([board.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map(\.bounds))
+		Rect.union([resolved.board.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map(\.bounds))
 	}
 
 	func schematicBounds(_ refs: Set<Schematic.Ref>) -> Rect? {

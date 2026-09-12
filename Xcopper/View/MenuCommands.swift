@@ -175,7 +175,7 @@ struct MenuCommands: Commands {
 				name:"Place Module",
 				image: "m.square",
 				shortcut: "M",
-				disabled: op.modulesDisabled,
+				disabled: op.actionsDisabled,
 				action: { op?.importModule() }
 			)
 			ActionButton(

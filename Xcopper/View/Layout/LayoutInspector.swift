@@ -5,7 +5,7 @@ struct LayoutInspector: View {
 	@Binding var design: Design
 	var selection: Set<Ref>
 	@FocusState.Binding var focus: Property?
-	var selectFootprint: (Int) -> Void
+	var selectOwner: (Ref) -> Void
 
 	private var board: Board { design.board }
 
@@ -13,7 +13,7 @@ struct LayoutInspector: View {
 		if selection.count == 1, let ref = selection.first, ref.kind == .module || ref.kind == .pad {
 			properties(of: ref)
 		} else if !selection.isEmpty, selection.allSatisfy({ $0.kind == .pad }) {
-			PadsInspector(design: design, refs: selection)
+			PadsInspector(design: design.resolved, refs: selection)
 		} else if let group = selection.group {
 			properties(of: group.kind, group.indices)
 		} else {
@@ -28,10 +28,14 @@ struct LayoutInspector: View {
 		switch ref {
 		case let .module(id):
 			ModuleInspector(design: $design, id: id, layout: true, focus: $focus)
-		case let .pad(index, _) where board.placedPad(ref) != nil:
-			PadsInspector(design: design, refs: [ref])
-			Button("Select footprint") { selectFootprint(index) }
-				.buttonStyle(.borderless)
+		case let .pad(index, _):
+			let projection = design.moduleProjection()
+			if projection.design.board.placedPad(ref) != nil {
+				let owner = projection.owner(.footprint(index))
+				PadsInspector(design: projection.design, refs: [ref])
+				Button(owner.kind == .module ? "Select module" : "Select footprint") { selectOwner(owner) }
+					.buttonStyle(.borderless)
+			}
 		default:
 			EmptyView()
 		}

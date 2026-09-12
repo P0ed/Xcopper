@@ -16,9 +16,9 @@ struct LayoutSideBar: View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Selection") {
-					LayoutInspector(design: $design, selection: state.selection, focus: $focus) { index in
+					LayoutInspector(design: $design, selection: state.selection, focus: $focus) { ref in
 						state.cancelSessions()
-						state.selection = [.footprint(index)]
+						state.selection = [ref]
 					}
 					CounterpartButton(operations: operations)
 				}
