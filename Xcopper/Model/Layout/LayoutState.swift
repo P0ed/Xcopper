@@ -47,12 +47,12 @@ extension µm {
 		[127, 254, 635]
 	}
 
-	static var widths: [µm] {
-		[400, 1_200]
+	static var traceWidths: [µm] {
+		[400, 500, 1_200, 2_000]
 	}
 
 	static var clearances: [µm] {
-		[300, 600]
+		[300, 400, 500]
 	}
 
 	static var sheetSnapGrids: [µm] {
@@ -85,7 +85,7 @@ struct LayoutState: Equatable, SelectionState {
 	var grid: µm = .displayGrids.first!
 	var hiddenLayers: Int = 0
 	var silkscreen = true
-	var traceWidth: µm = .widths.first!
+	var traceWidth: µm = .traceWidths.first!
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []
 	var traceSession: TraceSession?

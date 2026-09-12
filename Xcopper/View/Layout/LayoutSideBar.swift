@@ -34,15 +34,10 @@ struct LayoutSideBar: View {
 						stack: stack,
 						show: operations.show
 					)
-					GridPicker(title: "Trace", value: $state.traceWidth, options: µm.widths)
+					GridPicker(title: "Trace", value: $state.traceWidth, options: µm.traceWidths)
 					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
 					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
 					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
-
-					Button(state.spec.summary, systemImage: "square.grid.3x3.square") {
-						editor.sheet = .footprint
-					}
-					.buttonStyle(.borderless)
 				}
 
 				Panel(title: "Layers") {

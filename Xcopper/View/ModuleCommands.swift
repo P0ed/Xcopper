@@ -203,7 +203,6 @@ struct ModulePanel: View {
 					}
 				}
 				ForEach(operations.design.moduleCache.notices, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
-				Button("Reload Modules") { operations.reloadModules() }.buttonStyle(.borderless)
 			}
 		}
 	}
