@@ -5,12 +5,12 @@ extension EditorView {
 	var keyboardController: (KeyPress) -> KeyPress.Result {
 		{ keys in
 			let modifiers = keys.modifiers
+			guard editor.keysAvailable else { return .ignored }
 
 			if keys.key == .escape {
-				guard cancelSessions() else { return .ignored }
+				guard clearSelection() else { return .ignored }
 				return .handled
 			}
-			guard editor.keysAvailable else { return .ignored }
 
 			@MainActor
 			func step(dx: Int = 0, dy: Int = 0) {
@@ -37,14 +37,16 @@ extension EditorView {
 		}
 	}
 
-	private func cancelSessions() -> Bool {
+	private func clearSelection() -> Bool {
 		switch editor.mode {
 		case .layout:
-			guard layout.traceSession != nil || layout.selectSession != nil else { return false }
-			layout.cancelSessions()
+			guard !layout.selection.isEmpty || layout.traceSession != nil || layout.selectSession != nil || layout.moveSession != nil
+			else { return false }
+			layout.resetTransientInteractions()
 		case .schematic:
-			guard schematic.wireSession != nil || schematic.selectSession != nil else { return false }
-			schematic.cancelSessions()
+			guard !schematic.selection.isEmpty || schematic.wireSession != nil || schematic.selectSession != nil || schematic.moveSession != nil
+			else { return false }
+			schematic.resetTransientInteractions()
 		case .preview:
 			return false
 		}

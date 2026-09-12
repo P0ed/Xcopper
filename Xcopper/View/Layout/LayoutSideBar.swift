@@ -24,20 +24,15 @@ struct LayoutSideBar: View {
 				}
 
 				Panel(title: "Board") {
-					GridPicker(
-						title: "Gap",
-						value: $design.board.rules.clearance,
-						options: µm.clearances
-					)
+					TraceWidthChoice(title: "Trace", value: Binding($state.traceWidth))
+					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
+					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
+					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 					CheckList(
 						violations: violations,
 						stack: stack,
 						show: operations.show
 					)
-					TraceWidthChoice(title: "Trace", value: Binding($state.traceWidth))
-					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
-					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
-					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 				}
 
 				Panel(title: "Layers") {

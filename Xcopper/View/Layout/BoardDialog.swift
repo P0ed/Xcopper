@@ -52,6 +52,9 @@ struct BoardDialog: View {
 				))
 				.toggleStyle(.checkbox)
 
+				GridPicker(title: "Gap", value: draft.clearance,
+					options: Set(µm.clearances + [draft.wrappedValue.clearance]).sorted())
+
 				Panel(title: "Traces") {
 					GridPicker(title: "Default width", value: draft.traceWidth,
 						options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())

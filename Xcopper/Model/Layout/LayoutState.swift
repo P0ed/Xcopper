@@ -60,7 +60,7 @@ extension µm {
 	}
 
 	static var displayGrids: [µm] {
-		[2_540, 1 * .inch]
+		[2_540, 12_700, 25_400]
 	}
 
 	var label: String {
