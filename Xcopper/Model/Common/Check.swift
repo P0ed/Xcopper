@@ -79,7 +79,7 @@ extension Board {
 
 		for (index, trace) in traces.enumerated() where stack.contains(trace.layer) {
 			objects.append(BoardObject(
-				.segment(trace.start, trace.end, trace.width),
+				.segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 				net: trace.net,
 				ref: .trace(index),
 				layers: trace.layer ... trace.layer
@@ -96,7 +96,7 @@ extension Board {
 		for (index, footprint) in footprints.enumerated() {
 			for trace in footprint.copper(in: stack) {
 				objects.append(BoardObject(
-					.segment(trace.start, trace.end, trace.width),
+					.segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 					net: trace.net,
 					ref: .footprint(index),
 					layers: trace.layer ... trace.layer

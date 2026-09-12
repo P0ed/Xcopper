@@ -132,13 +132,7 @@ struct TracesInspector: View {
 	var body: some View {
 		ValueRow(title: "Object", value: indices.count == 1 ? "Trace" : "Traces")
 		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
-		LengthRow(
-			title: "Width",
-			value: $traces.shared(indices, \.width),
-			range: 0.01 ... 50.0,
-			property: .width,
-			focus: $focus
-		)
+		TraceWidthChoice(value: $traces.shared(indices, \.width))
 		LayerChoice(title: "Layer", layer: $traces.shared(indices, \.layer), stack: stack)
 		NetChoice(net: $traces.shared(indices, \.net), nets: nets)
 		ValueRow(
@@ -263,6 +257,26 @@ struct LayerChoice: View {
 		ChoiceRow(title: title, value: $layer) {
 			ForEach(stack.signals, id: \.self) { layer in
 				Text(stack.name(of: layer)).tag(Int?.some(layer))
+			}
+		}
+	}
+}
+
+@MainActor
+struct TraceWidthChoice: View {
+	var title: String = "Width"
+	@Binding var value: µm??
+
+	private var options: [µm] {
+		Set(µm.traceWidths + [value ?? nil].compactMap { $0 }).sorted()
+	}
+
+	var body: some View {
+		ChoiceRow(title: title, value: $value) {
+			if value == nil { Text("Mixed").tag(µm??.none) }
+			Text("Inherited").tag(µm??.some(nil))
+			ForEach(options, id: \.self) { width in
+				Text("\(width.label) mm").tag(µm??.some(width))
 			}
 		}
 	}

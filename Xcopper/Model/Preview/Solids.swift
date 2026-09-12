@@ -226,7 +226,7 @@ extension Board {
 
 		for trace in traces + footprints.flatMap({ $0.copper(in: stack) }) where trace.layer == side.layer {
 			lay(
-				.segment(trace.start, trace.end, trace.width),
+				.segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 				arc: 2,
 				drills: punches,
 				shade: solderMask ? .coating : .plating,

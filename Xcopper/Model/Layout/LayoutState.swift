@@ -85,7 +85,7 @@ struct LayoutState: Equatable, SelectionState {
 	var grid: µm = .displayGrids.first!
 	var hiddenLayers: Int = 0
 	var silkscreen = true
-	var traceWidth: µm = .traceWidths.first!
+	var traceWidth: µm?
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []
 	var traceSession: TraceSession?

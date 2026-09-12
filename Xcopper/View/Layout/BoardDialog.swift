@@ -52,6 +52,14 @@ struct BoardDialog: View {
 				))
 				.toggleStyle(.checkbox)
 
+				Panel(title: "Traces") {
+					GridPicker(title: "Default width", value: draft.traceWidth,
+						options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())
+					Text("Applies to inherited traces on this board and in submodules.")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+
 				Panel(title: "Vias") {
 					LengthRow(title: "Drill", value: Binding(draft.viaDrill),
 						range: 0.01 ... 20.0, property: .drill, focus: $focus)

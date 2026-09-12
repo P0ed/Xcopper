@@ -26,7 +26,7 @@ extension Board {
 				guard let net = trace.net else { continue }
 				result.append(Terminal(
 					at: trace.start,
-					figure: .segment(trace.start, trace.end, trace.width),
+					figure: .segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 					layers: trace.layer ... trace.layer,
 					net: net
 				))
@@ -84,7 +84,7 @@ extension Board {
 			}
 			for (other, peer) in traces.enumerated()
 			where other > index && peer.layer == trace.layer {
-				let figure = Figure.segment(peer.start, peer.end, peer.width)
+				let figure = Figure.segment(peer.start, peer.end, peer.width ?? rules.traceWidth)
 				if figure.contains(trace.start) || figure.contains(trace.end) {
 					merge.union(node, terminals.count + other)
 				}

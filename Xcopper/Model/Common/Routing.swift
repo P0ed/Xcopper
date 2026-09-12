@@ -25,7 +25,7 @@ protocol RoutedSegment: Equatable {
 extension Trace: RoutedSegment {
 	func canFuse(with other: Trace) -> Bool { width == other.width && net == other.net }
 	func joining(_ other: Trace, from start: Point, to end: Point) -> Trace {
-		Trace(start: start, end: end, width: max(width, other.width), layer: layer, net: net ?? other.net)
+		Trace(start: start, end: end, width: [width, other.width].compactMap { $0 }.max(), layer: layer, net: net ?? other.net)
 	}
 }
 

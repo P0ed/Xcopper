@@ -212,7 +212,7 @@ extension Board {
 		var result: [(Figure, Net.ID?)] = []
 
 		for trace in traces where trace.layer == layer {
-			result.append((.segment(trace.start, trace.end, trace.width), trace.net))
+			result.append((.segment(trace.start, trace.end, trace.width ?? rules.traceWidth), trace.net))
 		}
 		for via in vias where stack.contains(layer) {
 			result.append((.round(via.at, rules.viaPad), via.net))
@@ -222,7 +222,7 @@ extension Board {
 		}
 		for footprint in footprints {
 			for trace in footprint.copper(in: stack) where trace.layer == layer {
-				result.append((.segment(trace.start, trace.end, trace.width), trace.net))
+				result.append((.segment(trace.start, trace.end, trace.width ?? rules.traceWidth), trace.net))
 			}
 		}
 		return result
@@ -234,7 +234,7 @@ extension Board {
 		for case let .trace(index) in refs
 		where traces.indices.contains(index) && traces[index].layer == layer {
 			let trace = traces[index]
-			result.append(.segment(trace.start, trace.end, trace.width))
+			result.append(.segment(trace.start, trace.end, trace.width ?? rules.traceWidth))
 		}
 		for case let .via(index) in refs
 		where vias.indices.contains(index) && stack.contains(layer) {
@@ -243,7 +243,7 @@ extension Board {
 		for case let .footprint(index) in refs where footprints.indices.contains(index) {
 			let footprint = footprints[index]
 			for trace in footprint.copper(in: stack) where trace.layer == layer {
-				result.append(.segment(trace.start, trace.end, trace.width))
+				result.append(.segment(trace.start, trace.end, trace.width ?? rules.traceWidth))
 			}
 			for pad in footprint.placedPads
 			where pad.isThrough || footprint.layer(of: pad, in: stack) == layer {
@@ -309,7 +309,7 @@ extension Board {
 	func hitTest(at point: Point, layer: Int, tolerance: Int, selection: Set<Ref> = []) -> Ref? {
 		for (index, trace) in traces.enumerated().reversed()
 		where trace.layer == layer
-			&& Figure.segment(trace.start, trace.end, trace.width).contains(point, tolerance: tolerance) {
+			&& Figure.segment(trace.start, trace.end, trace.width ?? rules.traceWidth).contains(point, tolerance: tolerance) {
 			return .trace(index)
 		}
 		for (index, via) in vias.enumerated().reversed()
@@ -398,7 +398,7 @@ extension Board {
 	func isTerminal(_ point: Point, layer: Int) -> Bool {
 		for footprint in footprints {
 			for trace in footprint.copper(in: stack)
-			where trace.layer == layer && Figure.segment(trace.start, trace.end, trace.width).contains(point) {
+			where trace.layer == layer && Figure.segment(trace.start, trace.end, trace.width ?? rules.traceWidth).contains(point) {
 				return true
 			}
 		}

@@ -6,7 +6,7 @@ struct Net: Hashable, Codable, Identifiable {
 struct Trace: Hashable, Codable {
 	var start: Point
 	var end: Point
-	var width: µm
+	var width: µm?
 	var layer: Int
 	var net: Net.ID?
 }
@@ -222,7 +222,7 @@ extension Board {
 
 	var occupied: [Rect] {
 		footprints.map(\.placedExtent)
-			+ traces.map { trace in Figure.segment(trace.start, trace.end, trace.width).bounds }
+			+ traces.map { trace in Figure.segment(trace.start, trace.end, trace.width ?? rules.traceWidth).bounds }
 			+ vias.map { via in Figure.round(via.at, rules.viaPad).bounds }
 			+ holes.map { hole in Figure.round(hole.at, hole.diameter).bounds }
 	}
@@ -263,7 +263,7 @@ extension Board {
 		for (index, footprint) in footprints.enumerated() {
 			for trace in footprint.copper(in: stack) {
 				terminals.append(RouteTerminal(
-					figure: .segment(trace.start, trace.end, trace.width),
+					figure: .segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 					layers: trace.layer ... trace.layer,
 					moving: refs.contains(.footprint(index))
 				))

@@ -34,7 +34,7 @@ struct LayoutSideBar: View {
 						stack: stack,
 						show: operations.show
 					)
-					GridPicker(title: "Trace", value: $state.traceWidth, options: µm.traceWidths)
+					TraceWidthChoice(title: "Trace", value: Binding($state.traceWidth))
 					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
 					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
 					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)

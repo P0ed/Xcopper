@@ -281,7 +281,7 @@ struct LayoutView: View {
 		origin: CGPoint
 	) {
 		if let session = state.traceSession, session.didDraw {
-			let figure = Figure.segment(session.start, session.end, state.traceWidth)
+			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
 			context.fill(
 				figure.path(scale, origin: origin),
 				with: .color(Palette.color(of: session.layer, in: board.stack).opacity(0.7))
