@@ -48,7 +48,7 @@ struct LayoutView: View {
 			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
 			context.fill(
 				figure.path(scale, origin: origin),
-				with: .color(.white.opacity(0.7))
+				with: .color(Palette.activeCopper)
 			)
 			context.stroke(
 				figure.path(scale, origin: origin),

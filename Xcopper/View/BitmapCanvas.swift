@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 @MainActor
@@ -35,13 +34,12 @@ struct BitmapCanvas<Key: Equatable>: View {
 				.insetBy(dx: -128, dy: -128)
 				.intersection(CGRect(origin: .zero, size: geo.size))
 			if !visible.isNull, !visible.isEmpty {
-				ZStack(alignment: .topLeading) {
-					BoardBitmapView(cache: cache, revision: cache.revision, scale: request.scale, visible: visible)
-					Canvas { context, _ in
-						var context = context
+				let snapshot = cache.snapshot
+				Canvas { context, _ in
+					snapshot?.draw(in: context, scale: request.scale, visible: visible)
+					overlay(modifying(context) { context in
 						context.translateBy(x: -visible.minX, y: -visible.minY)
-						overlay(context)
-					}
+					})
 				}
 				.frame(width: visible.width, height: visible.height)
 				.offset(x: visible.minX, y: visible.minY)
@@ -75,20 +73,31 @@ private final class BoardBitmapCache {
 		var render: (GraphicsContext, CGFloat, CGRect) -> Void
 	}
 
-	private struct Snapshot {
+	struct Snapshot {
 		var image: CGImage
 		var size: CGSize
 		var scale: CGFloat
+
+		func draw(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
+			let ratio = scale / self.scale
+			let origin = CGPoint(
+				x: Layout.margin * (1 - ratio) - visible.minX,
+				y: Layout.margin * (1 - ratio) - visible.minY
+			)
+			context.draw(
+				Image(decorative: image, scale: 1).interpolation(.none),
+				in: CGRect(origin: origin, size: size * ratio)
+			)
+		}
 	}
 
-	private(set) var revision = 0
+	private(set) var snapshot: Snapshot?
 	@ObservationIgnored private var generation = 0
 	@ObservationIgnored private var pending: Request?
 	@ObservationIgnored private var worker: Task<Void, Never>?
 	@ObservationIgnored private var paused = false
 	@ObservationIgnored private var buffers: [BoardBitmapBuffer] = []
 	@ObservationIgnored private var front = 1
-	@ObservationIgnored private var snapshot: Snapshot?
 
 	func update(
 		size: CGSize,
@@ -126,22 +135,6 @@ private final class BoardBitmapCache {
 		worker?.cancel()
 	}
 
-	func draw(in context: CGContext, scale: CGFloat, visible: CGRect) {
-		guard let snapshot else { return }
-		let ratio = scale / snapshot.scale
-		let origin = CGPoint(
-			x: Layout.margin * (1 - ratio) - visible.minX,
-			y: Layout.margin * (1 - ratio) - visible.minY
-		)
-		let size = snapshot.size * ratio
-		context.saveGState()
-		context.interpolationQuality = .none
-		context.translateBy(x: origin.x, y: origin.y + size.height)
-		context.scaleBy(x: 1, y: -1)
-		context.draw(snapshot.image, in: CGRect(origin: .zero, size: size))
-		context.restoreGState()
-	}
-
 	private func run() async {
 		while !Task.isCancelled, !paused, let request = pending {
 			let back = 1 - front
@@ -154,30 +147,25 @@ private final class BoardBitmapCache {
 			}
 			pending = nil
 			guard let dimensions = BoardBitmapBuffer.Dimensions(size: request.size, scale: request.displayScale),
-				let pdf = record(request, dimensions: dimensions)
+				let image = render(request, into: buffer, dimensions: dimensions)
 			else { continue }
-			let image = await Task.detached(priority: .userInitiated) {
-				buffer.render(pdf, dimensions: dimensions)
-			}.value
-			guard !Task.isCancelled, request.generation == generation, let image else { continue }
+			guard !Task.isCancelled, request.generation == generation else { continue }
 			guard !paused else {
 				pending = request
 				continue
 			}
 			snapshot = Snapshot(image: image, size: dimensions.size, scale: request.scale)
 			front = back
-			revision &+= 1
 		}
 		worker = nil
 		start()
 	}
 
-	private func record(_ request: Request, dimensions: BoardBitmapBuffer.Dimensions) -> Data? {
-		let data = NSMutableData()
-		var bounds = CGRect(x: 0, y: 0, width: dimensions.width, height: dimensions.height)
-		guard let consumer = CGDataConsumer(data: data),
-			let context = CGContext(consumer: consumer, mediaBox: &bounds, nil)
-		else { return nil }
+	private func render(
+		_ request: Request,
+		into buffer: BoardBitmapBuffer,
+		dimensions: BoardBitmapBuffer.Dimensions
+	) -> CGImage? {
 		let renderer = ImageRenderer(content:
 			Canvas { context, size in
 				context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Palette.background))
@@ -185,17 +173,15 @@ private final class BoardBitmapCache {
 				context.scaleBy(x: dimensions.scale, y: dimensions.scale)
 				request.render(context, request.scale, CGRect(origin: .zero, size: request.size))
 			}
-			.frame(width: bounds.width, height: bounds.height)
+			.frame(width: CGFloat(dimensions.width), height: CGFloat(dimensions.height))
 			.environment(\.displayScale, request.displayScale)
 			.environment(\.colorScheme, request.colorScheme)
 		)
+		var image: CGImage?
 		renderer.render { _, draw in
-			context.beginPDFPage(nil)
-			draw(context)
-			context.endPDFPage()
+			image = buffer.render(dimensions: dimensions, draw: draw)
 		}
-		context.closePDF()
-		return Data(referencing: data)
+		return image
 	}
 }
 
@@ -234,7 +220,7 @@ private final class BoardBitmapBuffer: @unchecked Sendable {
 
 	private func release() { lock.withLock { inUse = false } }
 
-	func render(_ pdf: Data, dimensions: Dimensions) -> CGImage? {
+	func render(dimensions: Dimensions, draw: (CGContext) -> Void) -> CGImage? {
 		guard lock.withLock({
 			guard !inUse else { return false }
 			inUse = true
@@ -242,20 +228,18 @@ private final class BoardBitmapBuffer: @unchecked Sendable {
 		}) else { return nil }
 		var transferred = false
 		defer { if !transferred { release() } }
-		guard let provider = CGDataProvider(data: pdf as CFData),
-			let document = CGPDFDocument(provider), let page = document.page(at: 1),
-			let context = CGContext(
-				data: data,
-				width: dimensions.width,
-				height: dimensions.height,
-				bitsPerComponent: 8,
-				bytesPerRow: dimensions.bytesPerRow,
-				space: Self.colorSpace,
-				bitmapInfo: Self.bitmapInfo.rawValue
-			)
+		guard let context = CGContext(
+			data: data,
+			width: dimensions.width,
+			height: dimensions.height,
+			bitsPerComponent: 8,
+			bytesPerRow: dimensions.bytesPerRow,
+			space: Self.colorSpace,
+			bitmapInfo: Self.bitmapInfo.rawValue
+		)
 		else { return nil }
 		context.clear(CGRect(x: 0, y: 0, width: dimensions.width, height: dimensions.height))
-		context.drawPDFPage(page)
+		draw(context)
 		context.flush()
 		let retained = Unmanaged.passRetained(self)
 		guard let pixels = CGDataProvider(
@@ -285,44 +269,5 @@ private final class BoardBitmapBuffer: @unchecked Sendable {
 			shouldInterpolate: false,
 			intent: .defaultIntent
 		)
-	}
-}
-
-private struct BoardBitmapView: NSViewRepresentable {
-	var cache: BoardBitmapCache
-	var revision: Int
-	var scale: CGFloat
-	var visible: CGRect
-
-	func makeNSView(context: Context) -> BitmapView {
-		let view = BitmapView()
-		view.wantsLayer = true
-		view.layer?.magnificationFilter = .nearest
-		view.layer?.minificationFilter = .nearest
-		return view
-	}
-
-	func updateNSView(_ view: BitmapView, context: Context) {
-		guard view.cache !== cache || view.revision != revision || view.scale != scale || view.visible != visible else { return }
-		view.cache = cache
-		view.revision = revision
-		view.scale = scale
-		view.visible = visible
-		view.needsDisplay = true
-	}
-
-	final class BitmapView: NSView {
-		var cache: BoardBitmapCache?
-		var revision = -1
-		var scale: CGFloat = 1
-		var visible: CGRect = .zero
-
-		override var isFlipped: Bool { true }
-
-		override func draw(_ dirtyRect: NSRect) {
-			guard let context = NSGraphicsContext.current?.cgContext else { return }
-			context.clear(dirtyRect)
-			cache?.draw(in: context, scale: scale, visible: visible)
-		}
 	}
 }
