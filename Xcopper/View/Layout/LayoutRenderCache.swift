@@ -87,6 +87,6 @@ struct LayoutPickedDrawing {
 
 private func layoutPath(_ figures: [Figure]) -> Path {
 	var path = Path()
-	for figure in figures { path.addPath(figure.path(1, origin: .zero)) }
+	for figure in figures { path.addPath(figure.path(1, origin: .zero).normalized(eoFill: false)) }
 	return path
 }

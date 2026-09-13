@@ -180,7 +180,7 @@ private final class BoardBitmapCache {
 		else { return nil }
 		let renderer = ImageRenderer(content:
 			Canvas { context, size in
-				context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(nsColor: .underPageBackgroundColor)))
+				context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Palette.background))
 				var context = context
 				context.scaleBy(x: dimensions.scale, y: dimensions.scale)
 				request.render(context, request.scale, CGRect(origin: .zero, size: request.size))

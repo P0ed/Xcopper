@@ -48,7 +48,7 @@ extension µm {
 	}
 
 	static var traceWidths: [µm] {
-		[400, 500, 1_200, 2_000]
+		[400, 500, 600, 800, 1_000, 1_200, 2_000]
 	}
 
 	static var clearances: [µm] {

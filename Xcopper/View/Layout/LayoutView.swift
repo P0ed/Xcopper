@@ -136,7 +136,7 @@ private struct LayoutRenderer {
 			dimmed: false
 		)
 
-		geometry.fill(drawing.drills, with: .color(Palette.drill))
+		geometry.fill(drawing.drills, with: .color(Palette.background))
 		Lit.stroke(picked.drills.applying(transform), Palette.lit(Palette.silk), lineWidth: 1.5, in: context)
 		if state.silkscreen {
 			renderSilk(board, picked.selection, in: context, scale: scale, origin: origin, visible: visible)
@@ -196,7 +196,7 @@ private struct LayoutRenderer {
 		dimmed: Bool
 	) {
 		guard state[visible: layer] else { return }
-		let color = Palette.color(of: layer, in: drawing.board.stack)
+		let color = Palette.activeCopper
 		let opacity = dimmed ? 0.38 : 1.0
 
 		if let clearances = drawing.clearances[layer] {

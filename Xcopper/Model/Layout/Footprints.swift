@@ -326,7 +326,7 @@ extension Footprint {
 
 	func copper(in stack: Stack) -> [Trace] {
 		guard package == .pomona1581, pads.count >= 2 else { return [] }
-		return [stack.top, stack.bottom].map { layer in
+		return stack.copper.map { layer in
 			Trace(start: place(pads[0].at), end: place(pads[1].at), width: 2 * .mm, layer: layer, net: pads[0].net)
 		}
 	}

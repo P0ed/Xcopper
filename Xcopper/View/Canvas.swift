@@ -58,7 +58,7 @@ struct CanvasScroll<Content: View>: View {
 
 	private var background: some View {
 		GeometryReader { geo in
-			Color(nsColor: .underPageBackgroundColor)
+			Palette.background
 				.onChange(of: geo.size, initial: true) { _, new in
 					viewport.resize(to: new, content: size)
 				}
