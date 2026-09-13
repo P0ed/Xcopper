@@ -29,18 +29,19 @@ struct BitmapCanvas<Key: Equatable>: View {
 			displayScale: displayScale,
 			colorScheme: colorScheme
 		)
+		let snapshot = cache.snapshot
 		GeometryReader { geo in
 			let visible = viewport.visibleRect(in: geo.size)
 				.insetBy(dx: -128, dy: -128)
 				.intersection(CGRect(origin: .zero, size: geo.size))
 			if !visible.isNull, !visible.isEmpty {
-				let snapshot = cache.snapshot
 				Canvas { context, _ in
 					snapshot?.draw(in: context, scale: request.scale, visible: visible)
 					overlay(modifying(context) { context in
 						context.translateBy(x: -visible.minX, y: -visible.minY)
 					})
 				}
+				.id(snapshot?.generation)
 				.frame(width: visible.width, height: visible.height)
 				.offset(x: visible.minX, y: visible.minY)
 				.allowsHitTesting(false)
@@ -74,6 +75,7 @@ private final class BoardBitmapCache {
 	}
 
 	struct Snapshot {
+		var generation: Int
 		var image: CGImage
 		var size: CGSize
 		var scale: CGFloat
@@ -154,7 +156,12 @@ private final class BoardBitmapCache {
 				pending = request
 				continue
 			}
-			snapshot = Snapshot(image: image, size: dimensions.size, scale: request.scale)
+			snapshot = Snapshot(
+				generation: request.generation,
+				image: image,
+				size: dimensions.size,
+				scale: request.scale
+			)
 			front = back
 		}
 		worker = nil
