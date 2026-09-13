@@ -274,7 +274,7 @@ struct TraceWidthChoice: View {
 	var body: some View {
 		ChoiceRow(title: title, value: $value) {
 			if value == nil { Text("Mixed").tag(µm??.none) }
-			Text("Inherited").tag(µm??.some(nil))
+			Text("Default").tag(µm??.some(nil))
 			ForEach(options, id: \.self) { width in
 				Text("\(width.label) mm").tag(µm??.some(width))
 			}

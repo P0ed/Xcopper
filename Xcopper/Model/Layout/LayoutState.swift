@@ -84,7 +84,7 @@ struct LayoutState: Equatable, SelectionState {
 	var routingGrid: µm = .routingGrids.last!
 	var grid: µm = .displayGrids.first!
 	var hiddenLayers: Int = 0
-	var silkscreen = true
+	var silkscreen = false
 	var traceWidth: µm?
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []

@@ -167,9 +167,9 @@ struct PropertyRow<Content: View>: View {
 		HStack(spacing: 6.0) {
 			Text(title)
 				.foregroundStyle(.secondary)
-				.frame(width: 96.0, alignment: .leading)
+				.frame(maxWidth: .infinity, alignment: .leading)
 			content()
-				.frame(width: 96.0, alignment: .leading)
+				.frame(maxWidth: .infinity, alignment: .trailing)
 		}
 	}
 }

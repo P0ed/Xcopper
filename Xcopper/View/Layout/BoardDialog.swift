@@ -12,7 +12,6 @@ struct BoardDialog: View {
 	@State private var selected: Stack?
 	@State private var selectedRules: Rules?
 	@State private var selectedSolderMask: Bool?
-	@FocusState private var focus: Property?
 
 	private var stackup: Stack { selected ?? stack }
 	private var draft: Binding<Rules> {
@@ -52,26 +51,14 @@ struct BoardDialog: View {
 				))
 				.toggleStyle(.checkbox)
 
-				GridPicker(title: "Gap", value: draft.clearance,
-					options: Set(µm.clearances + [draft.wrappedValue.clearance]).sorted())
-
-				Panel(title: "Traces") {
-					GridPicker(title: "Default width", value: draft.traceWidth,
-						options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())
-					Text("Applies to inherited traces on this board and in submodules.")
-						.font(.caption)
-						.foregroundStyle(.secondary)
-				}
-
-				Panel(title: "Vias") {
-					LengthRow(title: "Drill", value: Binding(draft.viaDrill),
-						range: 0.01 ... 20.0, property: .drill, focus: $focus)
-					LengthRow(title: "Pad", value: Binding(draft.viaPad),
-						range: 0.01 ... 20.0, property: .pad, focus: $focus)
-					Text(validVias ? "Applies to every via on this board." : "The pad must be larger than the drill.")
-						.font(.caption)
-						.foregroundStyle(validVias ? Color.secondary : .orange)
-				}
+					Panel(title: "Globals") {
+						GridPicker(title: "Gap", value: draft.clearance,
+							options: Set(µm.clearances + [draft.wrappedValue.clearance]).sorted())
+						GridPicker(title: "Trace width", value: draft.traceWidth,
+							options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())
+						GridPicker(title: "Via drill", value: draft.viaDrill, options: [400, 500])
+						GridPicker(title: "Via pad", value: draft.viaPad, options: [800, 900, 1_000])
+					}
 			}
 			.frame(width: 240.0)
 		}
