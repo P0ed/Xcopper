@@ -201,7 +201,7 @@ private struct SchematicRenderer {
 		Lit.fill(pickedFills, Palette.lit(Palette.symbol), in: context)
 
 		guard scale >= 2.0 else { return }
-		let size = max(7.0, min(15.0, scale * 2.2))
+		let size = 1.5 * scale
 
 		for symbol in schematic.symbols {
 			let extent = symbol.placedExtent.cg(scale, origin: origin)
@@ -210,14 +210,14 @@ private struct SchematicRenderer {
 				Text(symbol.reference)
 					.font(.system(size: size, weight: .medium))
 					.foregroundStyle(Palette.symbol),
-				at: CGPoint(x: extent.midX, y: extent.minY - size * 0.7)
+				at: CGPoint(x: extent.midX, y: extent.minY - scale * 1.2)
 			)
 			if !symbol.value.isEmpty {
 				context.draw(
 					Text(symbol.value)
 						.font(.system(size: size))
 						.foregroundStyle(Palette.symbol.opacity(0.7)),
-					at: CGPoint(x: extent.midX, y: extent.maxY + size * 0.7)
+					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 1.2)
 				)
 			}
 		}
@@ -230,12 +230,11 @@ private struct SchematicRenderer {
 		origin: CGPoint,
 		visible: CGRect
 	) {
-		let numberSize = Double.mm(PinText.numberHeight) * scale
-		guard numberSize >= 4.5 else { return }
-
+		let numberSize = 1.0 * scale
+		guard numberSize >= 5.0 else { return }
 		let nameSize = Double.mm(PinText.nameHeight) * scale
-		let gap = Double.mm(PinText.gap) * scale
-		let inset = Double.mm(PinText.inset) * scale
+		let gap = 0.2 * scale
+		let inset = 0.4 * scale
 
 		for (index, symbol) in projection.design.schematic.symbols.enumerated() {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
@@ -314,7 +313,7 @@ private struct SchematicRenderer {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		let size = max(7.0, min(15.0, scale * 2.2))
+		let size = max(7.0, min(15.0, scale * 2.0))
 		let radius = max(1.5, Double.mm(NetLabel.anchor) * scale / 2.0)
 
 		for (index, label) in schematic.labels.enumerated() {
@@ -334,7 +333,7 @@ private struct SchematicRenderer {
 					.font(.system(size: size))
 					.foregroundStyle(tint)
 			)
-			let at = CGPoint(x: anchor.x, y: anchor.y - size)
+			let at = CGPoint(x: anchor.x, y: anchor.y - 12.0)
 			if picked {
 				let extent = text.measure(in: CGSize(width: 1_000.0, height: 1_000.0))
 				Lit.plate(
@@ -348,5 +347,4 @@ private struct SchematicRenderer {
 			context.draw(text, at: at, anchor: .leading)
 		}
 	}
-
 }

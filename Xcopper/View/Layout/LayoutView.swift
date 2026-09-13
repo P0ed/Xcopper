@@ -154,8 +154,12 @@ private struct LayoutRenderer {
 			let rect = module.bounds.cg(scale, origin: origin)
 			let unresolved = design.moduleStatus(module.id) != nil
 			let color: Color = unresolved ? .red : Palette.silk
-			let label = context.resolve(Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)").font(.system(size: 11)).foregroundStyle(color))
-			let at = CGPoint(x: rect.midX, y: rect.minY - 10)
+			let label = context.resolve(
+				Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)")
+					.font(.system(size: 1.2 * scale))
+					.foregroundStyle(color)
+			)
+			let at = CGPoint(x: rect.midX, y: rect.minY - 0.8 * scale)
 			let size = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
 			if CGRect(x: at.x - size.width / 2, y: at.y - size.height / 2, width: size.width, height: size.height).intersects(visible) {
 				context.draw(label, at: at)
@@ -309,11 +313,12 @@ private struct LayoutRenderer {
 		guard scale >= 6.0 else { return }
 		for footprint in board.footprints {
 			let body = footprint.placedBody.cg(scale, origin: origin)
-			let at = CGPoint(x: body.midX, y: body.minY - 7.0)
+			let at = CGPoint(x: body.midX, y: body.minY - 0.8 * scale)
 			guard at.y >= visible.minY - 14, at.y <= visible.maxY + 14 else { continue }
+
 			let label = context.resolve(
 				Text(footprint.reference)
-					.font(.system(size: max(7.0, min(14.0, scale * 0.7))))
+					.font(.system(size: 1.2 * scale))
 					.foregroundStyle(Palette.silk)
 			)
 			let size = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
@@ -322,5 +327,4 @@ private struct LayoutRenderer {
 			}
 		}
 	}
-
 }
