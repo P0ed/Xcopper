@@ -15,19 +15,19 @@ struct LayoutView: View {
 	}
 
 	var body: some View {
-		CanvasScroll(viewport: $state.viewport, size: design.board.size) {
-			GeometryReader { geo in
-				let visible = state.viewport.visibleRect(in: geo.size)
-					.insetBy(dx: -128, dy: -128)
-					.intersection(CGRect(origin: .zero, size: geo.size))
-				if !visible.isNull, !visible.isEmpty {
-					Canvas { ctx, _ in
-						var ctx = ctx
-						ctx.translateBy(x: -visible.minX, y: -visible.minY)
-						render(in: ctx, visible: visible)
-					}
-					.frame(width: visible.width, height: visible.height)
-					.offset(x: visible.minX, y: visible.minY)
+		let renderer = LayoutRenderer(design: design, state: state, cache: renderCache)
+		CanvasScroll(viewport: $state.viewport, size: design.board.size) { isMoving in
+			BitmapCanvas(
+				key: renderer.key,
+				size: design.board.size,
+				viewport: state.viewport,
+				isMoving: isMoving,
+				render: renderer.render
+			) { context in
+				let scale = state.viewport.magnification
+				renderSessions(design.board, in: context, scale: scale, origin: Layout.origin)
+				if state.tool != .select {
+					renderCursor(state.viewport.cursor, in: context, scale: scale, origin: Layout.origin)
 				}
 			}
 			.contentShape(Rectangle())
@@ -38,10 +38,63 @@ struct LayoutView: View {
 		}
 	}
 
-	private func render(in context: GraphicsContext, visible: CGRect) {
-		let scale = state.viewport.magnification
+	private func renderSessions(
+		_ board: Board,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
+		if let session = state.traceSession, session.didDraw {
+			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
+			context.fill(
+				figure.path(scale, origin: origin),
+				with: .color(Palette.color(of: session.layer, in: board.stack).opacity(0.7))
+			)
+			context.stroke(
+				figure.path(scale, origin: origin),
+				with: .color(Palette.preview),
+				lineWidth: 0.75
+			)
+		}
+		if let session = state.selectSession, session.didDrag {
+			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
+		}
+	}
+}
+
+@MainActor
+private struct LayoutRenderer {
+	var design: Design
+	var state: LayoutState
+	var cache: LayoutRenderCache
+
+	struct Key: Equatable {
+		var design: Design
+		var layer: Int
+		var grid: µm
+		var hiddenLayers: Int
+		var silkscreen: Bool
+		var selection: Set<Ref>
+		var move: Point?
+		var routingGrid: µm
+	}
+
+	var key: Key {
+		Key(
+			design: design,
+			layer: state.layer,
+			grid: state.grid,
+			hiddenLayers: state.hiddenLayers,
+			silkscreen: state.silkscreen,
+			selection: state.selection,
+			move: state.moveSession.flatMap { $0.didMove ? $0.delta : nil },
+			routingGrid: state.routingGrid
+		)
+	}
+
+	func render(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
 		let origin = Layout.origin
-		let (drawing, picked) = renderCache.value(for: design, state: state)
+		let (drawing, picked) = cache.value(for: design, state: state)
 		let board = drawing.board
 		guard !visible.isNull, !visible.isEmpty else { return }
 		var context = context
@@ -93,10 +146,6 @@ struct LayoutView: View {
 		renderModules(drawing.modules, in: context, scale: scale, origin: origin, visible: visible)
 		renderOutline(board, in: context, scale: scale, origin: origin)
 		renderViolations(drawing.violations, in: context, scale: scale, origin: origin, visible: visible)
-		renderSessions(board, in: context, scale: scale, origin: origin)
-		if state.tool != .select {
-			renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
-		}
 	}
 
 	private func renderModules(_ modules: [ModuleInstance], in context: GraphicsContext, scale: CGFloat, origin: CGPoint, visible: CGRect) {
@@ -274,26 +323,4 @@ struct LayoutView: View {
 		}
 	}
 
-	private func renderSessions(
-		_ board: Board,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint
-	) {
-		if let session = state.traceSession, session.didDraw {
-			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
-			context.fill(
-				figure.path(scale, origin: origin),
-				with: .color(Palette.color(of: session.layer, in: board.stack).opacity(0.7))
-			)
-			context.stroke(
-				figure.path(scale, origin: origin),
-				with: .color(Palette.preview),
-				lineWidth: 0.75
-			)
-		}
-		if let session = state.selectSession, session.didDrag {
-			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
-		}
-	}
 }

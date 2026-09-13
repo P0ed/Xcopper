@@ -15,15 +15,63 @@ struct SchematicView: View {
 	}
 
 	var body: some View {
-		CanvasScroll(viewport: $state.viewport, size: design.schematic.size) {
-			Canvas { ctx, size in
-				render(in: ctx, size: size)
+		let renderer = SchematicRenderer(design: design, state: state)
+		CanvasScroll(viewport: $state.viewport, size: design.schematic.size) { isMoving in
+			BitmapCanvas(
+				key: renderer.key,
+				size: design.schematic.size,
+				viewport: state.viewport,
+				isMoving: isMoving,
+				render: renderer.render
+			) { context in
+				let scale = state.viewport.magnification
+				renderSessions(in: context, scale: scale, origin: Layout.origin)
+				if state.tool != .select {
+					renderCursor(state.viewport.cursor, in: context, scale: scale, origin: Layout.origin)
+				}
 			}
+			.contentShape(Rectangle())
 			.gesture(editingController)
 			.onContinuousHover { phase in
 				if case let .active(location) = phase { hover(at: location) }
 			}
 		}
+	}
+
+	private func renderSessions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
+		if let session = state.wireSession, session.didDraw {
+			var path = Path()
+			path.move(to: session.start.cg(scale, origin: origin))
+			for point in session.points.dropFirst() { path.addLine(to: point.cg(scale, origin: origin)) }
+			context.stroke(path, with: .color(Palette.preview), lineWidth: 1.5)
+		}
+		if let session = state.selectSession, session.didDrag {
+			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
+		}
+	}
+}
+
+@MainActor
+private struct SchematicRenderer {
+	var design: Design
+	var state: SchematicState
+
+	struct Key: Equatable {
+		var design: Design
+		var grid: µm
+		var selection: Set<Schematic.Ref>
+		var move: Point?
+		var snap: µm
+	}
+
+	var key: Key {
+		Key(
+			design: design,
+			grid: state.grid,
+			selection: state.selection,
+			move: state.moveSession.flatMap { $0.didMove ? $0.delta : nil },
+			snap: state.snap
+		)
 	}
 
 	private var drawn: (projection: ModuleProjection, selection: Set<Schematic.Ref>) {
@@ -35,13 +83,11 @@ struct SchematicView: View {
 		return (projection, projection.expanded(selection))
 	}
 
-	private func render(in context: GraphicsContext, size: CGSize) {
-		let scale = state.viewport.magnification
+	func render(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
 		let origin = Layout.origin
 		let (projection, selection) = drawn
 		let schematic = projection.design.schematic
 		let netlist = Netlist(schematic)
-		let visible = state.viewport.visibleRect(in: size)
 
 		context.fill(
 			Path(schematic.bounds.cg(scale, origin: origin)),
@@ -67,10 +113,6 @@ struct SchematicView: View {
 			with: .color(Palette.outline),
 			lineWidth: 1.5
 		)
-		renderSessions(in: context, scale: scale, origin: origin)
-		if state.tool != .select {
-			renderCursor(state.viewport.cursor, in: context, scale: scale, origin: origin)
-		}
 	}
 
 	private func color(of name: String?) -> Color {
@@ -307,15 +349,4 @@ struct SchematicView: View {
 		}
 	}
 
-	private func renderSessions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
-		if let session = state.wireSession, session.didDraw {
-			var path = Path()
-			path.move(to: session.start.cg(scale, origin: origin))
-			for point in session.points.dropFirst() { path.addLine(to: point.cg(scale, origin: origin)) }
-			context.stroke(path, with: .color(Palette.preview), lineWidth: 1.5)
-		}
-		if let session = state.selectSession, session.didDrag {
-			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
-		}
-	}
 }

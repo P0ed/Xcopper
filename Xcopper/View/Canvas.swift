@@ -33,14 +33,14 @@ enum Layout {
 struct CanvasScroll<Content: View>: View {
 	@Binding var viewport: Viewport
 	var size: Size
-	@ViewBuilder var content: () -> Content
+	@ViewBuilder var content: (_ isMoving: Bool) -> Content
 
 	@GestureState private var magnifyGestureState: CGFloat?
 
 	var body: some View {
 		ScrollView([.horizontal, .vertical]) {
 			GeometryReader { geo in
-				content()
+				content(magnifyGestureState != nil)
 					.onChange(of: geo.frame(in: .scrollView)) { _, new in
 						viewport.frame = new
 					}
