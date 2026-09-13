@@ -141,20 +141,28 @@ struct Panel<Content: View>: View {
 }
 
 @MainActor
-struct GridPicker: View {
+struct ValuePicker<Value: Hashable>: View {
 	var title: String
-	@Binding var value: µm
-	var options: [µm]
+	@Binding var value: Value
+	var options: [Value]
+	var label: (Value) -> String
 
 	var body: some View {
 		PropertyRow(title: title) {
 			Picker("", selection: $value) {
 				ForEach(options, id: \.self) { option in
-					Text("\(option.label) mm").tag(option)
+					Text("\(label(option))").tag(option)
 				}
 			}
 			.labelsHidden()
 		}
+	}
+}
+
+extension ValuePicker where Value == µm {
+
+	init(title: String, value: Binding<Value>, options: [Value]) {
+		self.init(title: title, value: value, options: options, label: { "\($0.label) mm" })
 	}
 }
 

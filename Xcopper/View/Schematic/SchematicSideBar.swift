@@ -27,18 +27,11 @@ struct SchematicSideBar: View {
 					}
 					CounterpartButton(operations: operations)
 				}
-
-				ModulePanel(operations: operations)
-
 				Panel(title: "Sheet") {
-					GridPicker(title: "Snap", value: $state.snap, options: µm.sheetSnapGrids)
-					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
-					Button(state.spec.summary, systemImage: "square.on.circle") { editor.sheet = .symbol }
-						.buttonStyle(.borderless)
-					Button(state.label, systemImage: "tag") { editor.sheet = .label }
-						.buttonStyle(.borderless)
-						.padding(.top, 2.0)
+					ValuePicker(title: "Snap", value: $state.snap, options: µm.sheetSnapGrids)
+					ValuePicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 				}
+				ModulePanel(operations: operations)
 			}
 			.padding(12.0)
 		}

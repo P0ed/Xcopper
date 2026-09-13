@@ -52,12 +52,12 @@ struct BoardDialog: View {
 				.toggleStyle(.checkbox)
 
 					Panel(title: "Globals") {
-						GridPicker(title: "Gap", value: draft.clearance,
+						ValuePicker(title: "Gap", value: draft.clearance,
 							options: Set(µm.clearances + [draft.wrappedValue.clearance]).sorted())
-						GridPicker(title: "Trace width", value: draft.traceWidth,
+						ValuePicker(title: "Trace width", value: draft.traceWidth,
 							options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())
-						GridPicker(title: "Via drill", value: draft.viaDrill, options: [400, 500])
-						GridPicker(title: "Via pad", value: draft.viaPad, options: [800, 900, 1_000])
+						ValuePicker(title: "Via drill", value: draft.viaDrill, options: [400, 500])
+						ValuePicker(title: "Via pad", value: draft.viaPad, options: [800, 900, 1_000])
 					}
 			}
 			.frame(width: 240.0)

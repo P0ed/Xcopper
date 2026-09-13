@@ -25,9 +25,9 @@ struct LayoutSideBar: View {
 
 				Panel(title: "Board") {
 					TraceWidthChoice(title: "Trace", value: Binding($state.traceWidth))
-					GridPicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
-					GridPicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
-					GridPicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
+					ValuePicker(title: "Route", value: $state.routingGrid, options: µm.routingGrids)
+					ValuePicker(title: "Place", value: $state.placementGrid, options: µm.placementGrids)
+					ValuePicker(title: "Grid", value: $state.grid, options: µm.displayGrids)
 					CheckList(
 						violations: violations,
 						stack: stack,

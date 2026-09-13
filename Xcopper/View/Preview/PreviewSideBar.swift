@@ -19,7 +19,7 @@ struct PreviewSideBar: View {
 							Text(plating.name).tag(plating)
 						}
 					}
-					GridPicker(
+					ValuePicker(
 						title: "Core",
 						value: $state.finish.thickness,
 						options: µm.thicknesses
