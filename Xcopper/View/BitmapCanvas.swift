@@ -179,7 +179,8 @@ private final class BoardBitmapCache {
 			let context = CGContext(consumer: consumer, mediaBox: &bounds, nil)
 		else { return nil }
 		let renderer = ImageRenderer(content:
-			Canvas { context, _ in
+			Canvas { context, size in
+				context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(nsColor: .underPageBackgroundColor)))
 				var context = context
 				context.scaleBy(x: dimensions.scale, y: dimensions.scale)
 				request.render(context, request.scale, CGRect(origin: .zero, size: request.size))
@@ -199,11 +200,9 @@ private final class BoardBitmapCache {
 }
 
 private final class BoardBitmapBuffer: @unchecked Sendable {
-	private static let capacity = 64 * 1_024 * 1_024
-	private static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
-	private static let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(
-		CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)
-	)
+	private static let capacity = 16 * 1_024 * 1_024
+	private static let colorSpace = CGColorSpace(name: CGColorSpace.genericGrayGamma2_2)!
+	private static let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue)
 	private let data = UnsafeMutableRawPointer.allocate(byteCount: capacity, alignment: 64)
 	private let lock = NSLock()
 	private var inUse = false
@@ -222,10 +221,10 @@ private final class BoardBitmapBuffer: @unchecked Sendable {
 			guard size.width.isFinite, size.height.isFinite, scale.isFinite,
 				size.width > 0, size.height > 0, scale > 0
 			else { return nil }
-			let pixels = CGFloat(BoardBitmapBuffer.capacity / 4)
+			let pixels = CGFloat(BoardBitmapBuffer.capacity)
 			let scale = min(scale, sqrt(pixels / (size.width * size.height)), 16_384 / max(size.width, size.height))
 			width = max(1, Int(ceil(size.width * scale)))
-			bytesPerRow = (width * 4 + 63) / 64 * 64
+			bytesPerRow = (width + 63) / 64 * 64
 			height = max(1, min(Int(ceil(size.height * scale)), BoardBitmapBuffer.capacity / bytesPerRow))
 			self.scale = min(scale, CGFloat(height) / size.height)
 		}
@@ -277,7 +276,7 @@ private final class BoardBitmapBuffer: @unchecked Sendable {
 			width: dimensions.width,
 			height: dimensions.height,
 			bitsPerComponent: 8,
-			bitsPerPixel: 32,
+			bitsPerPixel: 8,
 			bytesPerRow: dimensions.bytesPerRow,
 			space: Self.colorSpace,
 			bitmapInfo: Self.bitmapInfo,

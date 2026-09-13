@@ -26,7 +26,7 @@ extension Viewport {
 
 	mutating func setScale(_ scale: CGFloat) {
 		fitting = false
-		let scale = min(max(scale, 2.0), 256.0)
+		let scale = min(max(scale, 2.0), 32.0)
 		let frame = frame
 		let size = size
 		let dm = scale / magnification

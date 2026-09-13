@@ -6,13 +6,19 @@ struct EditorView: View {
 	@Binding var clipboard: Clipboard
 
 	@State var editor: EditorState = .init()
-	@State var layout: LayoutState = .init()
+	@State var layout: LayoutState
 	@State var schematic: SchematicState = .init()
 	@State var preview: PreviewState = .init()
 
 	@FocusState private(set) var focused: Bool
 	@Environment(\.documentConfiguration) private var configuration
 	@Environment(\.undoManager) private var undoManager
+
+	init(design: Binding<Design>, clipboard: Binding<Clipboard>) {
+		_design = design
+		_clipboard = clipboard
+		_layout = State(initialValue: LayoutState(stack: design.wrappedValue.board.stack))
+	}
 
 	var body: some View {
 		NavigationSplitView(

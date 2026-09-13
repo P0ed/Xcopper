@@ -83,7 +83,7 @@ struct LayoutState: Equatable, SelectionState {
 	var placementGrid: µm = .placementGrids.first!
 	var routingGrid: µm = .routingGrids.last!
 	var grid: µm = .displayGrids.first!
-	var hiddenLayers: Int = 0
+	var hiddenLayers: Int
 	var silkscreen = false
 	var traceWidth: µm?
 	var spec: Footprint.Spec = .default
@@ -92,6 +92,10 @@ struct LayoutState: Equatable, SelectionState {
 	var selectSession: SelectSession<Ref>?
 	var moveSession: MoveSession?
 	var viewport: Viewport = .init()
+
+	init(stack: Stack = .analog) {
+		hiddenLayers = stack.internals.reduce(0) { $0 | 1 << $1 }
+	}
 }
 
 extension LayoutState {
