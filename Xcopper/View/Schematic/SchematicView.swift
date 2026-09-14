@@ -16,15 +16,9 @@ struct SchematicView: View {
 
 	var body: some View {
 		let renderer = SchematicRenderer(design: design, state: state)
-		CanvasScroll(viewport: $state.viewport, size: design.schematic.size) { isMoving in
-			BitmapCanvas(
-				key: renderer.key,
-				size: design.schematic.size,
-				viewport: state.viewport,
-				isMoving: isMoving,
-				render: renderer.render
-			) { context in
-				let scale = state.viewport.magnification
+		CanvasScroll(viewport: $state.viewport, size: design.schematic.size) {
+			ViewportCanvas(viewport: state.viewport) { context, scale, visible in
+				renderer.render(in: context, scale: scale, visible: visible)
 				renderSessions(in: context, scale: scale, origin: Layout.origin)
 				if state.tool != .select {
 					renderCursor(state.viewport.cursor, in: context, scale: scale, origin: Layout.origin)

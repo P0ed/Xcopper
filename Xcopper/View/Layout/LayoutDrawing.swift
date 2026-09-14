@@ -1,44 +1,5 @@
 import SwiftUI
 
-@MainActor
-final class LayoutRenderCache {
-	private struct Move: Equatable {
-		var delta: Point
-		var selection: Set<Ref>
-		var grid: µm
-	}
-
-	private var source: Design?
-	private var move: Move?
-	private var projection: ModuleProjection?
-	private var movedSelection: Set<Ref>?
-	private var drawing: LayoutDrawing?
-	private var selection: Set<Ref>?
-	private var picked = LayoutPickedDrawing()
-
-	func value(for design: Design, state: LayoutState) -> (LayoutDrawing, LayoutPickedDrawing) {
-		let move = state.moveSession.flatMap { session in
-			session.didMove ? Move(delta: session.delta, selection: state.selection, grid: state.routingGrid) : nil
-		}
-		if source != design || self.move != move || drawing == nil {
-			var moved = design
-			movedSelection = move.flatMap { moved.moveLayout($0.selection, by: $0.delta, grid: $0.grid) }
-			let projection = moved.moduleProjection()
-			self.projection = projection
-			drawing = LayoutDrawing(design: projection.design, modules: moved.modules)
-			source = design
-			self.move = move
-			selection = nil
-		}
-		if selection != state.selection {
-			let expanded = projection!.expanded(movedSelection ?? state.selection)
-			picked = LayoutPickedDrawing(board: drawing!.board, selection: expanded)
-			selection = state.selection
-		}
-		return (drawing!, picked)
-	}
-}
-
 struct LayoutDrawing {
 	var board: Board
 	var modules: [ModuleInstance]
@@ -70,8 +31,6 @@ struct LayoutPickedDrawing {
 	var selection: Set<Ref> = []
 	var copper: [Int: Path] = [:]
 	var drills = Path()
-
-	init() {}
 
 	init(board: Board, selection: Set<Ref>) {
 		self.selection = selection

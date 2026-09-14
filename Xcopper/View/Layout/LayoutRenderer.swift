@@ -4,37 +4,24 @@ import SwiftUI
 struct LayoutRenderer {
 	var design: Design
 	var state: LayoutState
-	var cache: LayoutRenderCache
 
-	struct Key: Equatable {
-		var design: Design
-		var layer: Int
-		var grid: µm
-		var hiddenLayers: Int
-		var silkscreen: Bool
-		var selection: Set<Ref>
-		var move: Point?
-		var routingGrid: µm
-	}
-
-	var key: Key {
-		Key(
-			design: design,
-			layer: state.layer,
-			grid: state.grid,
-			hiddenLayers: state.hiddenLayers,
-			silkscreen: state.silkscreen,
-			selection: state.selection,
-			move: state.moveSession.flatMap { $0.didMove ? $0.delta : nil },
-			routingGrid: state.routingGrid
+	private var drawn: (LayoutDrawing, LayoutPickedDrawing) {
+		var moved = design
+		var selection = state.selection
+		if let session = state.moveSession, session.didMove,
+			let next = moved.moveLayout(selection, by: session.delta, grid: state.routingGrid) { selection = next }
+		let projection = moved.moduleProjection()
+		return (
+			LayoutDrawing(design: projection.design, modules: moved.modules),
+			LayoutPickedDrawing(board: projection.design.board, selection: projection.expanded(selection))
 		)
 	}
 
 	func render(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
-		let origin = Layout.origin
-		let (drawing, picked) = cache.value(for: design, state: state)
-		let board = drawing.board
 		guard !visible.isNull, !visible.isEmpty else { return }
+		let origin = Layout.origin
+		let (drawing, picked) = drawn
+		let board = drawing.board
 		var context = context
 		context.clip(to: Path(visible))
 		let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: origin.x, ty: origin.y)

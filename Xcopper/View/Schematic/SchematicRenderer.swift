@@ -5,24 +5,6 @@ struct SchematicRenderer {
 	var design: Design
 	var state: SchematicState
 
-	struct Key: Equatable {
-		var design: Design
-		var grid: µm
-		var selection: Set<Schematic.Ref>
-		var move: Point?
-		var snap: µm
-	}
-
-	var key: Key {
-		Key(
-			design: design,
-			grid: state.grid,
-			selection: state.selection,
-			move: state.moveSession.flatMap { $0.didMove ? $0.delta : nil },
-			snap: state.snap
-		)
-	}
-
 	private var drawn: (projection: ModuleProjection, selection: Set<Schematic.Ref>) {
 		var moved = design
 		var selection = state.selection

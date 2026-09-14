@@ -7,7 +7,6 @@ struct LayoutView: View {
 	var claimKeyboard: () -> Void = ø
 
 	@Environment(\.undoManager) var undoManager
-	@State private var renderCache = LayoutRenderCache()
 
 	var board: Board {
 		get { design.board }
@@ -15,16 +14,10 @@ struct LayoutView: View {
 	}
 
 	var body: some View {
-		let renderer = LayoutRenderer(design: design, state: state, cache: renderCache)
-		CanvasScroll(viewport: $state.viewport, size: design.board.size) { isMoving in
-			BitmapCanvas(
-				key: renderer.key,
-				size: design.board.size,
-				viewport: state.viewport,
-				isMoving: isMoving,
-				render: renderer.render
-			) { context in
-				let scale = state.viewport.magnification
+		let renderer = LayoutRenderer(design: design, state: state)
+		CanvasScroll(viewport: $state.viewport, size: design.board.size) {
+			ViewportCanvas(viewport: state.viewport) { context, scale, visible in
+				renderer.render(in: context, scale: scale, visible: visible)
 				renderSessions(design.board, in: context, scale: scale, origin: Layout.origin)
 				if state.tool != .select {
 					renderCursor(state.viewport.cursor, in: context, scale: scale, origin: Layout.origin)

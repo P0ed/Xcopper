@@ -30,17 +30,42 @@ enum Layout {
 }
 
 @MainActor
+struct ViewportCanvas: View {
+	var viewport: Viewport
+	var render: (GraphicsContext, CGFloat, CGRect) -> Void
+
+	var body: some View {
+		GeometryReader { geo in
+			let visible = viewport.visibleRect(in: geo.size)
+				.insetBy(dx: -128, dy: -128)
+				.intersection(CGRect(origin: .zero, size: geo.size))
+			if !visible.isNull, !visible.isEmpty {
+				Canvas { context, _ in
+					var context = context
+					context.translateBy(x: -visible.minX, y: -visible.minY)
+					context.clip(to: Path(visible))
+					render(context, viewport.magnification, visible)
+				}
+				.frame(width: visible.width, height: visible.height)
+				.offset(x: visible.minX, y: visible.minY)
+				.allowsHitTesting(false)
+			}
+		}
+	}
+}
+
+@MainActor
 struct CanvasScroll<Content: View>: View {
 	@Binding var viewport: Viewport
 	var size: Size
-	@ViewBuilder var content: (_ isMoving: Bool) -> Content
+	@ViewBuilder var content: () -> Content
 
 	@GestureState private var magnifyGestureState: CGFloat?
 
 	var body: some View {
 		ScrollView([.horizontal, .vertical]) {
 			GeometryReader { geo in
-				content(magnifyGestureState != nil)
+				content()
 					.onChange(of: geo.frame(in: .scrollView)) { _, new in
 						viewport.frame = new
 					}
