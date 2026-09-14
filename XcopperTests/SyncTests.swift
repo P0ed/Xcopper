@@ -74,7 +74,7 @@ final class SyncTests: XCTestCase {
 
 	func testGeneratedNamesDoNotJoinAnExplicitlyNamedGroup() {
 		var design = connectedDesign()
-		design.schematic.labels = [NetLabel(at: design.schematic.wires[1].start, text: "N$R1.1/R2.1")]
+		design.schematic.symbols[2].pins[0].netLabel = "N$R1.1/R2.1"
 		_ = design.updateBoardFromSchematic()
 		XCTAssertNotEqual(design.board.footprints[0].pads[0].net, design.board.footprints[2].pads[0].net)
 		let synced = design
@@ -86,12 +86,12 @@ final class SyncTests: XCTestCase {
 		let harness = EditorHarness(design: connectedDesign())
 		let original = harness.design
 		harness.perform {
-			$0.$design.schematic.labels.wrappedValue = [NetLabel(at: original.schematic.wires[0].start, text: "SIGNAL")]
+			$0.$design.schematic.symbols[0].pins[0].netLabel.wrappedValue = "SIGNAL"
 		}
 		let labelled = harness.design
 		XCTAssertEqual(labelled.net(labelled.board.footprints[0].pads[0].net)?.name, "SIGNAL")
 		harness.perform {
-			$0.$design.schematic.labels.shared([0], \.text).wrappedValue = "RENAMED"
+			$0.$design.schematic.symbols[0].pins[0].netLabel.wrappedValue = "RENAMED"
 		}
 		let renamed = harness.design
 		XCTAssertEqual(renamed.net(renamed.board.footprints[1].pads[0].net)?.name, "RENAMED")
@@ -114,7 +114,7 @@ final class SyncTests: XCTestCase {
 		XCTAssertNotEqual(harness.design.schematic, synced.schematic)
 		XCTAssertEqual(harness.design.board, synced.board)
 		XCTAssertEqual(harness.design.nets, synced.nets)
-		harness.perform { $0.design.schematic.labels.append(NetLabel(at: .zero, text: "UNRELATED")) }
+		harness.perform { $0.design.schematic.symbols[0].pins[1].name = "UNRELATED" }
 		XCTAssertEqual(harness.design.board, synced.board)
 		XCTAssertEqual(harness.design.nets, synced.nets)
 	}

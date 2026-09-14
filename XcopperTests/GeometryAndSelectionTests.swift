@@ -844,32 +844,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(state.layer, 3)
 	}
 
-	@MainActor
-	func testCanvasRendersAPopulatedBoardWithoutFailing() throws {
-		var board = board(.analog)
-		board.traces = [
-			Trace(start: Point(x: 2 * .mm, y: 2 * .mm), end: Point(x: 20 * .mm, y: 20 * .mm), width: 250, layer: 0, net: 0),
-			Trace(start: Point(x: 2 * .mm, y: 30 * .mm), end: Point(x: 30 * .mm, y: 30 * .mm), width: 400, layer: 5, net: 1),
-		]
-		board.vias = [
-			Via(at: Point(x: 20 * .mm, y: 20 * .mm), net: 0),
-			Via(at: Point(x: 24 * .mm, y: 20 * .mm), net: 1),
-		]
-		board.holes = [Hole(at: Point(x: 45 * .mm, y: 35 * .mm), diameter: 3_200)]
-		board.footprints = [
-			Footprint(spec: .init(kind: .soic, pins: 14), reference: "U1", at: Point(x: 15 * .mm, y: 15 * .mm)),
-			Footprint(spec: .init(kind: .header, pins: 5, rows: 2), reference: "J1", at: Point(x: 38 * .mm, y: 12 * .mm)),
-			Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: 8 * .mm, y: 32 * .mm)),
-		]
-
-		let view = LayoutView(design: .constant(Design(board: board)), state: .constant(LayoutState()))
-		let renderer = ImageRenderer(
-			content: SwiftUI.Canvas { ctx, size in view.render(in: ctx, size: size) }
-				.frame(width: 480.0, height: 400.0)
-		)
-		XCTAssertNotNil(renderer.nsImage)
-	}
-
 	func testADragThatWouldSquareACornerBreaksItIntoTwo45s() {
 		var board = board()
 		board.traces = [

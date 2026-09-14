@@ -106,25 +106,27 @@ final class WireRoutingTests: XCTestCase {
 		assertConnected(schematic, point(2 * .mm, 3 * .mm), point(12 * .mm, 3 * .mm))
 	}
 
-	func testMovingALabelOnTheMiddleOfAWireKeepsItsNetName() throws {
+	func testMovingALabelledPinOnTheMiddleOfAWireKeepsItsNetName() throws {
 		var schematic = Schematic()
 		schematic.wires = [wire(0, 0, 10 * .mm, 0)]
-		schematic.labels = [NetLabel(at: point(5 * .mm, 0), text: "SIGNAL")]
-		XCTAssertNotNil(schematic.move([.label(0)], by: point(0, 3 * .mm)))
+		schematic.symbols = [symbol(at: point(5 * .mm, 0))]
+		schematic.symbols[0].pins[0].netLabel = "SIGNAL"
+		XCTAssertNotNil(schematic.move([.symbol(0)], by: point(0, 3 * .mm)))
 		XCTAssertEqual(Netlist(schematic).name(at: .zero), "SIGNAL")
 		XCTAssertEqual(Netlist(schematic).name(at: point(10 * .mm, 0)), "SIGNAL")
 		assertOrthogonal(schematic)
 	}
 
-	func testDraggingALabelKeepsTheWireOnIt() {
+	func testDraggingALabelledPinKeepsTheWireOnIt() {
 		for anchor in [point(0, 0), point(5 * .mm, 0), point(10 * .mm, 0)] {
 			var schematic = Schematic()
 			schematic.wires = [wire(0, 0, 10 * .mm, 0)]
-			schematic.labels = [NetLabel(at: anchor, text: "GND")]
-			XCTAssertNotNil(schematic.move([.label(0)], by: point(0, 3 * .mm)))
-			XCTAssertEqual(schematic.labels[0].at, anchor + point(0, 3 * .mm))
+			schematic.symbols = [symbol(at: anchor)]
+			schematic.symbols[0].pins[0].netLabel = "GND"
+			XCTAssertNotNil(schematic.move([.symbol(0)], by: point(0, 3 * .mm)))
+			XCTAssertEqual(schematic.symbols[0].placedPins[0].at, anchor + point(0, 3 * .mm))
 			let fixed = anchor == .zero ? point(10 * .mm, 0) : .zero
-			assertConnected(schematic, fixed, schematic.labels[0].at)
+			assertConnected(schematic, fixed, schematic.symbols[0].placedPins[0].at)
 			if anchor == point(5 * .mm, 0) { assertConnected(schematic, .zero, point(10 * .mm, 0)) }
 			XCTAssertEqual(Netlist(schematic).name(at: fixed), "GND")
 			assertOrthogonal(schematic)

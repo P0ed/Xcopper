@@ -29,13 +29,14 @@ enum Mode: Hashable, CaseIterable {
 }
 
 enum Sheet: String, Identifiable {
-	case board, schematic, footprint, net, symbol, label, find
+	case board, schematic, footprint, net, symbol, find
 
 	var id: String { rawValue }
 }
 
 enum Property: Hashable {
-	case reference, value, text, x, y, width, drill, pad, diameter
+	case reference, value, x, y, width, drill, pad, diameter
+	case pinNet(Int)
 }
 
 protocol ToolKind: Hashable, CaseIterable {

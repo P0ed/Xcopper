@@ -103,7 +103,7 @@ final class SelectionEditingTests: XCTestCase {
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
 		harness.perform {
-			$0.design.schematic.labels = [NetLabel(at: design.schematic.symbols[0].placedPins[0].at, text: "SIGNAL")]
+			$0.design.schematic.symbols[0].pins[0].netLabel = "SIGNAL"
 		}
 		let original = harness.design
 		XCTAssertEqual(original.net(original.board[net: .pad(0, 0)])?.name, "SIGNAL")
@@ -164,37 +164,25 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertFalse(harness.undo.canUndo)
 	}
 
-	func testLabelsSelectedTogetherEditAsOne() throws {
+	func testPinLabelEditsDoNotChangeOtherPins() {
 		let harness = EditorHarness(design: design())
-		harness.design.schematic.labels = [
-			NetLabel(at: point(20 * .mm, 40 * .mm), text: "GND"),
-			NetLabel(at: point(40 * .mm, 40 * .mm), text: "VCC"),
-			NetLabel(at: point(60 * .mm, 40 * .mm), text: "GND"),
-		]
-		let group = try XCTUnwrap(Set<Schematic.Ref>([.label(1), .label(0)]).group)
-		XCTAssertEqual(group.kind, .label)
-		XCTAssertEqual(group.indices, [0, 1])
-		XCTAssertNil(Set<Schematic.Ref>([.label(0), .symbol(0)]).group)
-		let net = harness.binding(\.design).schematic.labels.shared(group.indices, \.text)
-		XCTAssertNil(net.wrappedValue)
-		net.wrappedValue = "AGND"
-		XCTAssertEqual(harness.design.schematic.labels.map(\.text), ["AGND", "AGND", "GND"])
-		XCTAssertEqual(harness.design.board, design().board)
+		harness.perform { $0.$design.schematic.symbols[0].pins[0].netLabel.wrappedValue = "AGND" }
+		XCTAssertEqual(harness.design.schematic.symbols[0].pins[0].netLabel, "AGND")
+		XCTAssertNil(harness.design.schematic.symbols[0].pins[1].netLabel)
+		XCTAssertTrue(harness.design.schematic.symbols[1].pins.allSatisfy { $0.netLabel == nil })
+		XCTAssertEqual(harness.design.net(harness.design.board.footprints[0].pads[0].net)?.name, "AGND")
 	}
 
-	func testDuplicatingALabelPreservesItsNetAndCanBeUndone() {
+	func testDuplicatingASymbolPreservesItsPinLabelsAndCanBeUndone() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(20 * .mm, 40 * .mm), text: "VEE")]
+		design.schematic.symbols[0].pins[0].netLabel = "VEE"
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
-		harness.schematic.selection = [.label(0)]
+		harness.schematic.selection = [.symbol(0)]
 		harness.perform { $0.duplicate() }
-		XCTAssertEqual(harness.schematic.selection, [.label(1)])
-		XCTAssertEqual(harness.design.schematic.labels[1], modifying(design.schematic.labels[0]) {
-			$0.at = $0.at + harness.operations.offset
-		})
-		XCTAssertEqual(harness.design.board, design.board)
-		XCTAssertEqual(harness.design.schematic.symbols, design.schematic.symbols)
+		XCTAssertEqual(harness.schematic.selection, [.symbol(3)])
+		XCTAssertEqual(harness.design.schematic.symbols[3].pins, design.schematic.symbols[0].pins)
+		XCTAssertEqual(harness.design.schematic.symbols[3].at, design.schematic.symbols[0].at + harness.operations.offset)
 		harness.undo.undo()
 		XCTAssertEqual(harness.design, design)
 	}
@@ -255,14 +243,11 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertEqual(design.board.footprints.map(\.value), ["10n", "1K5", "10n"])
 	}
 
-	func testAPowerLabelKeepsItsNetNameToItself() {
+	func testAPinLabelDoesNotChangeThePartValue() {
 		var design = Design()
-		design.schematic.labels = [NetLabel(at: point(20 * .mm, 20 * .mm), text: "GND")]
 		design.place(Symbol.Spec(kind: .resistor, value: "1K5"), at: point(40 * .mm, 20 * .mm))
-		XCTAssertEqual(design.board.footprints.count, 1)
-
-		design.schematic.labels[0].text = "AGND"
-		XCTAssertEqual(design.schematic.labels.map(\.text), ["AGND"])
+		design.schematic.symbols[0].pins[0].netLabel = "AGND"
+		XCTAssertEqual(design.schematic.symbols[0].pins[0].netLabel, "AGND")
 		XCTAssertEqual(design.schematic.symbols.map(\.value), ["1K5"])
 		XCTAssertEqual(design.board.footprints.map(\.value), ["1K5"])
 	}
@@ -370,38 +355,32 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertEqual(harness.design.values(of: [Ref.footprint(4)]), ["1K5"])
 	}
 
-	func testALabelPastesWithNothingToStandForItOnTheBoard() {
+	func testPinLabelsPasteWithTheirSymbolAndFootprint() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(80 * .mm, 20 * .mm), text: "GND")]
+		design.schematic.symbols[0].pins[0].netLabel = "GND"
 		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
-		harness.schematic.selection = [.label(0)]
+		harness.schematic.selection = [.symbol(0)]
 		harness.perform { $0.copy() }
-		XCTAssertTrue(harness.clipboard.footprints.isEmpty)
-
+		XCTAssertEqual(harness.clipboard.symbols[0].pins[0].netLabel, "GND")
+		XCTAssertEqual(harness.clipboard.footprints.count, 1)
 		harness.perform { $0.paste() }
-		XCTAssertEqual(harness.design.schematic.symbols.map(\.kind), [.resistor, .resistor, .capacitor])
-		XCTAssertEqual(harness.design.schematic.labels.map(\.text), ["GND", "GND"])
-		XCTAssertEqual(harness.design.schematic.labels[1].at, point(80 * .mm, 20 * .mm) + harness.operations.offset)
-		XCTAssertEqual(harness.schematic.selection, [.label(1)])
-		XCTAssertEqual(harness.design.board, design.board)
+		XCTAssertEqual(harness.design.schematic.symbols[3].pins[0].netLabel, "GND")
+		XCTAssertEqual(harness.design.schematic.symbols[3].at, design.schematic.symbols[0].at + harness.operations.offset)
+		XCTAssertEqual(harness.schematic.selection, [.symbol(3)])
+		XCTAssertEqual(harness.design.board.footprints.count, 4)
 	}
 
-	func testDeletingCopperOrALabelLeavesTheOtherEditorAlone() {
+	func testDeletingAWirePreservesPartsAndPinLabels() {
 		var design = design()
-		design.schematic.labels = [NetLabel(at: point(80 * .mm, 20 * .mm), text: "GND")]
+		design.schematic.symbols[0].pins[0].netLabel = "GND"
 		design.schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
-		let parts = (design.schematic.symbols.count, design.board.footprints.count)
-
+		let symbols = design.schematic.symbols
+		let board = design.board
 		design.deleteSchematic([.wire(0)])
-		XCTAssertEqual(design.schematic.wires.count, 0)
-		XCTAssertEqual(design.schematic.symbols.count, parts.0)
-		XCTAssertEqual(design.board.footprints.count, parts.1)
-
-		design.deleteSchematic([.label(0)])
-		XCTAssertTrue(design.schematic.labels.isEmpty)
-		XCTAssertEqual(design.schematic.symbols.map(\.reference), ["R1", "R2", "C1"])
-		XCTAssertEqual(design.board.footprints.count, parts.1)
+		XCTAssertTrue(design.schematic.wires.isEmpty)
+		XCTAssertEqual(design.schematic.symbols, symbols)
+		XCTAssertEqual(design.board, board)
 	}
 
 	func testDeletingCopperLeavesTheOtherEditorsSelectionStanding() {

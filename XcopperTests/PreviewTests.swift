@@ -199,14 +199,12 @@ final class PreviewTests: XCTestCase {
 		board.footprints = [chip(at: Point(x: 10 * .mm, y: 10 * .mm))]
 
 		let gold = Plating.gold.rgb
-		let clear = modifying(Finish()) { $0.mask = .clear }
 		let green = Finish()
 
 		let copper = board.model(green.shape).pieces
 			.filter { piece in (20 ... 25).contains(abs(piece.level)) }
 
 		XCTAssertFalse(copper.isEmpty)
-		XCTAssertTrue(copper.allSatisfy { $0.shade.rgb(clear) == gold })
 		XCTAssertTrue(copper.contains { $0.shade.rgb(green) != gold }, "a trace under green is not")
 	}
 

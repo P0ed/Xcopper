@@ -139,8 +139,6 @@ struct EditorView: View {
 			NetDialog { name in operations.addNet(name: name) }
 		case .symbol:
 			SymbolDialog(spec: $schematic.spec) { schematic.tool = .symbol }
-		case .label:
-			LabelDialog(text: $schematic.label) { schematic.tool = .label }
 		case .find:
 			PromptDialog(action: "Find", prompt: "Reference or value", text: $editor.query) { query in
 				operations.find(query)

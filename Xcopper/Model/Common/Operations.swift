@@ -20,7 +20,6 @@ struct Clipboard: Equatable, Codable {
 	var footprints: [Footprint] = []
 	var symbols: [Symbol] = []
 	var wires: [Wire] = []
-	var labels: [NetLabel] = []
 	var modules: [ModuleInstance] = []
 
 	var layoutIsEmpty: Bool {
@@ -28,7 +27,7 @@ struct Clipboard: Equatable, Codable {
 	}
 
 	var schematicIsEmpty: Bool {
-		symbols.isEmpty && wires.isEmpty && labels.isEmpty && modules.isEmpty
+		symbols.isEmpty && wires.isEmpty && modules.isEmpty
 	}
 
 	func isEmpty(in mode: Mode) -> Bool {
@@ -280,7 +279,6 @@ extension Operations {
 			let sheet = design.schematic
 			next.symbols = design.symbols(at: refs)
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
-			next.labels = refs.compactMap { if case let .label(i) = $0, sheet.labels.indices.contains(i) { sheet.labels[i] } else { nil } }
 			next.footprints = design.footprints(at: design.footprints(for: schematic.selection).sorted(by: Ref.order))
 		case .preview:
 			return
@@ -347,10 +345,6 @@ extension Operations {
 				wire.end = wire.end + delta
 			})
 			created.insert(.wire(next.schematic.wires.count - 1))
-		}
-		for label in clipboard.labels {
-			next.schematic.labels.append(modifying(label) { label in label.at = label.at + delta })
-			created.insert(.label(next.schematic.labels.count - 1))
 		}
 		var taken = next.board.occupied
 		var used = next.usedReferences

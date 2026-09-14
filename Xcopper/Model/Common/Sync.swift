@@ -31,6 +31,7 @@ extension Design {
 					&& one.schematicAt == other.schematicAt
 					&& one.schematicRotation == other.schematicRotation
 					&& one.interface == other.interface
+					&& one.netLabels == other.netLabels
 			}
 	}
 

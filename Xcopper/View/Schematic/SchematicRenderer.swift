@@ -190,7 +190,7 @@ struct SchematicRenderer {
 
 			let inside = symbol.kind == .ic
 			let isModule = projection.symbolOwners[.symbol(index)] != nil
-			let numbered = symbol.kind.showsPinNumbers && !isModule
+			let numbered = symbol.kind.showsPinNumbers
 
 			for pin in symbol.placedPins {
 				let quarter = pin.direction.isQuarter
@@ -262,38 +262,32 @@ struct SchematicRenderer {
 		scale: CGFloat,
 		origin: CGPoint
 	) {
-		let size = max(7.0, min(15.0, scale * 2.0))
-		let radius = max(1.5, Double.mm(NetLabel.anchor) * scale / 2.0)
+		let size = max(7.0, min(15.0, scale * 1.5))
+		let radius = max(1.5, 0.25 * scale)
+		let gap = 0.6 * scale
 
-		for (index, label) in schematic.labels.enumerated() {
-			let anchor = label.at.cg(scale, origin: origin)
-			let color = color(of: netlist.name(at: label.at))
-			let picked = selection.contains(.label(index))
-			let tint = picked ? Palette.lit(color) : color
-
-			context.fill(
-				Path(ellipseIn: CGRect(center: anchor, radius: radius)),
-				with: .color(tint)
-			)
-			guard scale >= 2.0 else { continue }
-
-			let text = context.resolve(
-				Text(label.text)
-					.font(.system(size: size))
-					.foregroundStyle(tint)
-			)
-			let at = CGPoint(x: anchor.x, y: anchor.y - 12.0)
-			if picked {
-				let extent = text.measure(in: CGSize(width: 1_000.0, height: 1_000.0))
-				Lit.plate(
-					CGRect(
-						origin: CGPoint(x: at.x, y: at.y - extent.height / 2.0),
-						size: extent
-					),
+		for (index, symbol) in schematic.symbols.enumerated() {
+			let picked = selection.contains(.symbol(index))
+			for pin in symbol.placedPins {
+				guard let label = pin.netLabel, !label.trimmingWhitespace.isEmpty else { continue }
+				let anchor = pin.at.cg(scale, origin: origin)
+				let color = pin.hasInvalidIO ? Color.red : color(of: netlist.name(at: pin.at))
+				let tint = picked ? Palette.lit(color) : color
+				context.fill(
+					Path(ellipseIn: CGRect(center: anchor, radius: radius)),
+					with: .color(tint)
+				)
+				guard scale >= 2.0 else { continue }
+				let leading = pin.direction == .r0 || pin.direction == .r270
+				drawAlongLeg(
+					Text(label).font(.system(size: size)).foregroundStyle(tint),
+					at: anchor,
+					offset: CGPoint(x: leading ? gap : -gap, y: -gap),
+					anchor: leading ? .bottomLeading : .bottomTrailing,
+					quarter: pin.direction.isQuarter,
 					in: context
 				)
 			}
-			context.draw(text, at: at, anchor: .leading)
 		}
 	}
 }

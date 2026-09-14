@@ -48,13 +48,19 @@ extension Netlist {
 		for symbol in schematic.symbols {
 			for pin in symbol.placedPins { terminals.insert(pin.at) }
 		}
-		for label in schematic.labels {
-			terminals.insert(label.at)
-		}
 
 		for point in terminals {
 			for wire in schematic.wires where touches(point, wire) {
 				merge.union(point, wire.start)
+			}
+		}
+
+		var named: [String: Point] = [:]
+		for symbol in schematic.symbols {
+			for pin in symbol.placedPins {
+				guard let name = pin.netName else { continue }
+				if let other = named[name] { merge.union(pin.at, other) }
+				named[name] = pin.at
 			}
 		}
 
@@ -82,11 +88,12 @@ extension Netlist {
 			}
 		}
 
-		for label in schematic.labels {
-			let text = label.text.trimmingWhitespace
-			guard !text.isEmpty else { continue }
-			let slot = bucket(label.at)
-			groups[slot].name = min(groups[slot].name ?? text, text)
+		for symbol in schematic.symbols {
+			for pin in symbol.placedPins {
+				guard let name = pin.netName else { continue }
+				let slot = bucket(pin.at)
+				groups[slot].name = min(groups[slot].name ?? name, name)
+			}
 		}
 
 		self.groups = groups
@@ -112,7 +119,6 @@ extension Schematic {
 		for symbol in symbols {
 			for pin in symbol.placedPins { terminals.insert(pin.at) }
 		}
-		for label in labels { terminals.insert(label.at) }
 
 		return terminals.filter { point in
 			var legs = 0

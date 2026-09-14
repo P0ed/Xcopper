@@ -1,9 +1,18 @@
+import SwiftUI
 import XCTest
 @testable import Xcopper
 
 final class SupplyLabelTests: XCTestCase {
 
 	private func point(_ x: µm, _ y: µm) -> Point { Point(x: x, y: y) }
+
+	private func design() -> Design {
+		var design = Design()
+		for x in [20, 40, 60] {
+			design.place(Symbol.Spec(kind: .resistor), at: point(x * .mm, 20 * .mm))
+		}
+		return design
+	}
 
 	func testEverySymbolKindBringsExactlyOneFootprintToTheBoard() {
 		var design = Design()
@@ -14,143 +23,59 @@ final class SupplyLabelTests: XCTestCase {
 			XCTAssertEqual(design.footprints(for: [ref]), [.footprint(before)], kind.name)
 			XCTAssertEqual(design.schematic.symbols.last?.reference, design.board.footprints.last?.reference)
 		}
-		XCTAssertTrue(design.schematic.labels.isEmpty)
+		XCTAssertTrue(design.schematic.symbols.flatMap(\.pins).allSatisfy { $0.netLabel == nil })
 	}
 
-	func testLegacyPowerSymbolsOpenAsNetLabels() throws {
-		for kind in ["power", "ground"] {
-			for rotation in Rotation.allCases {
-				var design = Design()
-				design.place(Symbol.Spec(kind: .resistor, value: "10k"), at: point(20 * .mm, 20 * .mm))
-				design.place(Symbol.Spec(kind: .capacitor, value: "100n"), at: point(40 * .mm, 20 * .mm))
-				let at = design.schematic.symbols[0].placedPins[0].at
-				let expected = NetLabel(at: at, text: "SUPPLY")
-				var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
-				var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-				var symbols = try XCTUnwrap(sheet["symbols"] as? [[String: Any]])
-				var legacy = symbols[0]
-				legacy["kind"] = kind
-				legacy["at"] = ["x": at.x, "y": at.y]
-				legacy["rotation"] = rotation.rawValue
-				legacy["mirrored"] = true
-				legacy["value"] = expected.text
-				symbols.insert(legacy, at: 1)
-				sheet["symbols"] = symbols
-				sheet.removeValue(forKey: "flags")
-				json["schematic"] = sheet
+	func testPinLabelsNormalizeNamesAndConnectSeparateSymbols() {
+		var design = design()
+		design.schematic.symbols[0].pins[0].netLabel = " VCC \n"
+		design.schematic.symbols[1].pins[0].netLabel = "VCC"
+		let one = design.schematic.symbols[0].placedPins[0].at
+		let two = design.schematic.symbols[1].placedPins[0].at
+		let netlist = Netlist(design.schematic)
+		XCTAssertEqual(netlist.name(at: one), "VCC")
+		XCTAssertEqual(netlist.group(at: one), netlist.group(at: two))
+		design.schematic.symbols[0].pins[0].netLabel = nil
+		XCTAssertNil(Netlist(design.schematic).name(at: one))
+		XCTAssertEqual(Netlist(design.schematic).name(at: two), "VCC")
+	}
 
-				var decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-				XCTAssertEqual(decoded.schematic.symbols, design.schematic.symbols)
-				XCTAssertEqual(decoded.schematic.labels, [expected])
-				XCTAssertEqual(decoded.board, design.board)
-				XCTAssertEqual(Netlist(decoded.schematic).name(at: at), expected.text)
-				XCTAssertEqual(decoded.updateBoardFromSchematic().assigned, 1)
-				let net = decoded.nets.first { $0.name == expected.text }?.id
-				XCTAssertNotNil(net)
-				XCTAssertEqual(decoded.board.footprints[0].pads[0].net, net)
-				XCTAssertEqual(try Document.decode(Document(design: decoded).encoded()), decoded)
-			}
+	func testFindingANetSelectsTheSymbolsThatSpecifyIt() {
+		var design = design()
+		for (index, name) in ["GND", "GND", "#1 OUT1"].enumerated() {
+			design.schematic.symbols[index].pins[0].netLabel = name
 		}
-	}
-
-	func testADocumentWrittenBeforeFlagsExistedStillOpens() throws {
-		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: point(20 * .mm, 20 * .mm))
-		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
-		var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-		sheet.removeValue(forKey: "flags")
-		json["schematic"] = sheet
-		XCTAssertEqual(try Document.decode(JSONSerialization.data(withJSONObject: json)), design)
-	}
-
-	func testSavedFlagsAndLegacyPowerSymbolsOpenTogetherAsLabels() throws {
-		let design = Design()
-		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
-		var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-		sheet["flags"] = [["kind": "power", "at": ["x": 30 * .mm, "y": 30 * .mm], "rotation": 3, "net": "VEE"]]
-		sheet["symbols"] = [["kind": "ground", "at": ["x": 0, "y": 0], "rotation": 0, "value": "GND"]]
-		json["schematic"] = sheet
-		let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-		XCTAssertEqual(decoded.schematic.labels, [NetLabel(at: point(30 * .mm, 30 * .mm), text: "VEE"), NetLabel(at: .zero, text: "GND")])
-		XCTAssertTrue(decoded.schematic.symbols.isEmpty)
-		let encoded = try Document(design: decoded).encoded()
-		let written = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-		let writtenSheet = try XCTUnwrap(written["schematic"] as? [String: Any])
-		XCTAssertNil(writtenSheet["flags"])
-		XCTAssertEqual(try Document.decode(encoded), decoded)
-	}
-
-	func testMigratingAFlagKeepsTheLabelThatOverrodeItsNetName() throws {
-		for legacySymbol in [false, true] {
-			var design = Design()
-			design.schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
-			design.schematic.labels = [NetLabel(at: .zero, text: "SIGNAL")]
-			var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
-			var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-			sheet[legacySymbol ? "symbols" : "flags"] = [[
-				"kind": "ground", "at": ["x": 5 * .mm, "y": 0], "rotation": 0,
-				legacySymbol ? "value" : "net": "GND",
-			]]
-			json["schematic"] = sheet
-			let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-			XCTAssertEqual(decoded.schematic.labels, design.schematic.labels + [NetLabel(at: point(5 * .mm, 0), text: "SIGNAL")])
-			XCTAssertEqual(Netlist(decoded.schematic).name(at: point(10 * .mm, 0)), "SIGNAL")
-		}
-	}
-
-	func testMigratingAFlagAtAModulePortKeepsItsSupplyAssignment() throws {
-		var design = Design()
-		design.place(Symbol.Spec(kind: .resistor), at: point(20 * .mm, 20 * .mm))
-		let at = design.schematic.symbols[0].placedPins[0].at
-		design.schematic.labels = [NetLabel(at: at, text: "#SUPPLY")]
-		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
-		var sheet = try XCTUnwrap(json["schematic"] as? [String: Any])
-		sheet["flags"] = [["kind": "power", "at": ["x": at.x, "y": at.y], "rotation": 0, "net": "VCC"]]
-		json["schematic"] = sheet
-		let decoded = try Document.decode(JSONSerialization.data(withJSONObject: json))
-		XCTAssertEqual(decoded.schematic.labels.map(\.text), ["#SUPPLY", "VCC"])
-		let projection = decoded.moduleProjection(syncNative: true)
-		XCTAssertEqual(projection.ports["SUPPLY"], decoded.nets.first { $0.name == "VCC" }?.id)
-		XCTAssertEqual(projection.design.board.footprints[0].pads[0].net, projection.ports["SUPPLY"])
-	}
-
-	func testALabelAtACrossingMakesAJunction() {
-		var schematic = Schematic()
-		schematic.wires = [Wire(start: .zero, end: point(10 * .mm, 0)), Wire(start: point(5 * .mm, -5 * .mm), end: point(5 * .mm, 5 * .mm))]
-		XCTAssertEqual(schematic.junctions, [])
-		schematic.labels = [NetLabel(at: point(5 * .mm, 0), text: "GND")]
-		XCTAssertEqual(schematic.junctions, [point(5 * .mm, 0)])
-		XCTAssertEqual(Netlist(schematic).name(at: point(5 * .mm, 5 * .mm)), "GND")
-	}
-
-	func testALabelNamesAnIsolatedTerminalWithoutInventingAPart() {
-		var schematic = Schematic()
-		schematic.labels = [NetLabel(at: point(20 * .mm, 20 * .mm), text: " VCC \n")]
-		let group = Netlist(schematic).group(at: point(20 * .mm, 20 * .mm))
-		XCTAssertEqual(group?.name, "VCC")
-		XCTAssertEqual(group?.nodes, [])
-		schematic.labels[0].text = " \n"
-		XCTAssertNil(Netlist(schematic).name(at: point(20 * .mm, 20 * .mm)))
-	}
-
-	func testFindingANetPicksEveryMatchingLabelOnTheSheet() {
-		var design = Design()
-		design.schematic.labels = [
-			NetLabel(at: point(20 * .mm, 20 * .mm), text: "GND"),
-			NetLabel(at: point(40 * .mm, 20 * .mm), text: "GND"),
-			NetLabel(at: point(60 * .mm, 20 * .mm), text: "VCC"),
-		]
-		XCTAssertEqual(design.schematicRefs(matching: "gnd"), [.label(0), .label(1)])
-		XCTAssertTrue(design.layoutRefs(matching: "gnd").isEmpty)
+		XCTAssertEqual(design.schematicRefs(matching: "gnd"), [.symbol(0), .symbol(1)])
+		XCTAssertEqual(design.layoutRefs(matching: "gnd"), [.footprint(0), .footprint(1)])
+		XCTAssertEqual(design.schematicRefs(matching: "out1"), [.symbol(2)])
 		XCTAssertTrue(design.schematicRefs(matching: "").isEmpty)
 	}
 
-	func testAParkedSymbolKeepsClearOfALabelAlreadyDrawn() {
-		var baseline = Design()
-		baseline.place(Footprint.Spec(kind: .chip), at: point(20 * .mm, 20 * .mm))
+	func testLabelsFollowPinTransformsAndSurviveDocumentRoundTrip() throws {
+		var design = design()
+		design.schematic.symbols[0].pins[0].netLabel = "#1 OUT1"
+		design.schematic.symbols[0].rotation = .r90
+		design.schematic.symbols[0].mirrored = true
+		let pin = design.schematic.symbols[0].placedPins[0]
+		XCTAssertEqual(pin.netLabel, "#1 OUT1")
+		XCTAssertEqual(pin.netName, "OUT1")
+		XCTAssertEqual(Netlist(design.schematic).name(at: pin.at), "OUT1")
+		XCTAssertEqual(try Document.decode(Document(design: design).encoded()), design)
+	}
+
+	@MainActor
+	func testModulePinInspectorEditsSynchronizeAndStoreEmptyAsNone() {
 		var design = Design()
-		design.schematic.labels = [NetLabel(at: baseline.schematic.symbols[0].at, text: "GND")]
-		design.place(Footprint.Spec(kind: .chip), at: point(20 * .mm, 20 * .mm))
-		XCTAssertFalse(design.schematic.symbols[0].placedExtent.intersects(design.schematic.labels[0].bounds))
+		design.modules = [ModuleInstance(reference: "M1", filename: "Part.xcb", interface: [IODesignator(number: 1, name: "OUT1")])]
+		let harness = EditorHarness(design: design)
+		harness.perform { $0.design.modules[0][netLabel: "1"] = "#10 BUS" }
+		XCTAssertEqual(harness.design.modules[0].symbol.pins[0].netLabel, "#10 BUS")
+		XCTAssertTrue(harness.design.nets.contains { $0.name == "BUS" })
+		XCTAssertFalse(harness.design.nets.contains { $0.name == "#10 BUS" })
+		harness.perform { $0.design.modules[0][netLabel: "1"] = "" }
+		XCTAssertNil(harness.design.modules[0].netLabels)
+		XCTAssertNil(harness.design.modules[0].symbol.pins[0].netLabel)
+		harness.undo.undo()
+		XCTAssertEqual(harness.design.modules[0].symbol.pins[0].netLabel, "#10 BUS")
 	}
 }

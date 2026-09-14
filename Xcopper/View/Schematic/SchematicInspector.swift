@@ -32,12 +32,6 @@ struct SchematicInspector: View {
 				wires: indices.filter { schematic.wires.indices.contains($0) }.map { schematic.wires[$0] },
 				netlist: netlist
 			)
-		case .label:
-			LabelsInspector(
-				labels: $design.schematic.labels,
-				indices: indices.filter { schematic.labels.indices.contains($0) },
-				focus: $focus
-			)
 		case .module:
 			EmptyView()
 		}
@@ -80,6 +74,7 @@ struct SymbolsInspector: View {
 		if indices.count == 1, let index = indices.first {
 			PositionRows(at: $design.schematic.symbols[index, or: symbols[index]].at, focus: $focus)
 			ValueRow(title: "Pins", value: "\(symbols[index].pins.count)")
+			PinNetsInspector(pins: $design.schematic.symbols[index, or: symbols[index]].pins, focus: $focus)
 		}
 	}
 }
@@ -104,25 +99,31 @@ struct WiresInspector: View {
 }
 
 @MainActor
-struct LabelsInspector: View {
-	@Binding var labels: [NetLabel]
-	var indices: [Int]
+struct PinNetsInspector: View {
+	@Binding var pins: [Pin]
 	@FocusState.Binding var focus: Property?
 
-	private var text: Binding<String?> { $labels.shared(indices, \.text) }
-
 	var body: some View {
-		ValueRow(title: "Object", value: indices.count == 1 ? "Label" : "Labels")
-		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
-		TextRow(
-			title: "Net",
-			prompt: text.wrappedValue == nil ? "Mixed" : "NET",
-			text: text.orEmpty,
-			property: .text,
-			focus: $focus
-		)
-		if indices.count == 1, let index = indices.first {
-			PositionRows(at: $labels[index, or: labels[index]].at, focus: $focus)
+		Text("Pin net labels").font(.caption).foregroundStyle(.secondary)
+		ForEach(pins.indices, id: \.self) { index in
+			let pin = pins[index]
+			TextRow(
+				title: pin.isNamed ? "\(pin.number) · \(pin.name)" : pin.number,
+				prompt: "None",
+				text: Binding(
+					get: { pins.indices.contains(index) ? pins[index].netLabel ?? "" : "" },
+					set: { value in
+						guard pins.indices.contains(index) else { return }
+						pins[index].netLabel = value.trimmingWhitespace.isEmpty ? nil : value
+					}
+				),
+				property: .pinNet(index),
+				focus: $focus
+			)
+			if pin.hasInvalidIO {
+				Text("Use #1 OUT1: a positive IO number, then a net name.")
+					.font(.caption).foregroundStyle(.red)
+			}
 		}
 	}
 }

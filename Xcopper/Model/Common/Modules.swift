@@ -24,18 +24,32 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var schematicRotation: Rotation = .r0
 	var layoutAt: Point = .zero
 	var layoutRotation: Rotation = .r0
-	var interface: [String] = []
+	var interface: [IODesignator] = []
+	var netLabels: [String: String]?
 	var size = Size(width: 20 * .mm, height: 20 * .mm)
 	var layerCount: Int = 2
 
 	var symbol: Symbol {
-		var symbol = Symbol.ic(pinNames: interface)
+		let ports = interface.sorted(by: IODesignator.order)
+		var symbol = Symbol.ic(pinNames: ports.map(\.name))
 		symbol.reference = reference
 		symbol.value = filename
 		symbol.at = schematicAt
 		symbol.rotation = schematicRotation
-		for i in symbol.pins.indices { symbol.pins[i].number = interface[i] }
+		for i in symbol.pins.indices {
+			symbol.pins[i].number = String(ports[i].number)
+			symbol.pins[i].netLabel = self[netLabel: symbol.pins[i].number]
+		}
 		return symbol
+	}
+
+	subscript(netLabel number: String) -> String? {
+		get { netLabels?[number] }
+		set {
+			var labels = netLabels ?? [:]
+			labels[number] = newValue.flatMap { $0.trimmingWhitespace.isEmpty ? nil : $0 }
+			netLabels = labels.isEmpty ? nil : labels
+		}
 	}
 
 	func place(_ point: Point) -> Point { point.rotated(layoutRotation) + layoutAt }
@@ -46,6 +60,7 @@ struct ModuleContent: Equatable {
 	var board: Board
 	var nets: [Net]
 	var ports: [String: Net.ID]
+	var interface: [IODesignator]
 }
 
 struct ModuleCache: Equatable {
@@ -59,6 +74,7 @@ struct ModuleProjection {
 	var owners: [Ref: UUID] = [:]
 	var symbolOwners: [Schematic.Ref: UUID] = [:]
 	var ports: [String: Net.ID] = [:]
+	var interface: [IODesignator] = []
 	var interfaceError: String?
 	var report = Design.Report()
 
@@ -76,22 +92,6 @@ struct ModuleProjection {
 		let ids = refs.moduleIDs
 		guard !ids.isEmpty else { return refs }
 		return refs.union(symbolOwners.compactMap { ids.contains($0.value) ? $0.key : nil })
-	}
-}
-
-extension NetLabel {
-	var ioName: String? {
-		guard text.hasPrefix("#") else { return nil }
-		let name = String(text.dropFirst())
-		return name.trimmingWhitespace.isEmpty ? nil : name
-	}
-}
-
-extension Schematic {
-	var electrical: Schematic {
-		modifying(self) { sheet in
-			sheet.labels = labels.map { NetLabel(at: $0.at, text: $0.ioName == nil ? $0.text : "") }
-		}
 	}
 }
 
@@ -177,18 +177,16 @@ extension Design {
 			}
 		}
 
-		let electrical = result.design.schematic.electrical
+		let electrical = result.design.schematic
 		let netlist = Netlist(electrical)
 		var footprintsByReference: [String: [Int]] = [:]
 		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }
-		var ioNamesByPoint: [Point: [String]] = [:]
-		for label in schematic.labels { if let name = label.ioName { ioNamesByPoint[label.at, default: []].append(name) } }
 		var pointNets: [Point: Int] = [:]
 		var assignments: [(Int, Int, Int)] = []
 		var wired: Set<String> = []
 		for group in netlist.groups {
 			let nodes = group.nodes.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }
-			let active = nodes.count > 1 || group.name != nil || group.points.contains { ioNamesByPoint[$0] != nil }
+			let active = nodes.count > 1 || group.name != nil
 			var connected: [Int] = []
 			var pads: [(Int, Int)] = []
 			for node in nodes {
@@ -217,7 +215,7 @@ extension Design {
 				}
 			}
 			if !active && connected.isEmpty { continue }
-			let key = nodes.isEmpty ? group.points.flatMap { ioNamesByPoint[$0] ?? [] }.sorted().joined(separator: "/") : group.pinNames(in: electrical).joined(separator: "/")
+			let key = group.pinNames(in: electrical).joined(separator: "/")
 			let fallback = moduleNetID("group/\(key.isEmpty ? String(describing: group.points.sorted(by: Point.order)) : key)")
 			let named = group.name.map { name in netIDsByName[name] ?? moduleNetID("named/\(name)") }
 			let power = connected.first { id in nets[id].map(supplyNames.contains) ?? false }
@@ -232,13 +230,26 @@ extension Design {
 		}
 		for (i, j, id) in assignments { result.design.board.footprints[i].pads[j].net = id }
 		result.design.board.mapNets { $0.map { merge.find($0) } }
-		for label in schematic.labels {
-			guard let name = label.ioName, let id = pointNets[label.at].map({ merge.find($0) }) else { continue }
-			if let existing = result.ports[name], existing != id {
-				result.interfaceError = "Ambiguous #\(name): repeated labels resolve to different nets. Connect them to the same net and reload."
+		var interface: [Int: IODesignator] = [:]
+		for symbol in electrical.symbols {
+			for pin in symbol.placedPins {
+				if pin.hasInvalidIO {
+					result.interfaceError = "\(symbol.reference).\(pin.number): use # followed by a positive pin number and a net name, such as #1 OUT1."
+					continue
+				}
+				guard let port = pin.ioDesignator, let id = pointNets[pin.at].map({ merge.find($0) }) else { continue }
+				let number = String(port.number)
+				if let existing = interface[port.number], existing != port {
+					result.interfaceError = "Ambiguous #\(port.number): each IO pin number must have one name."
+				}
+				if let existing = result.ports[number], existing != id {
+					result.interfaceError = "Ambiguous #\(port.number) \(port.name): repeated designators must resolve to the same net."
+				}
+				interface[port.number] = port
+				result.ports[number] = id
 			}
-			result.ports[name] = id
 		}
+		result.interface = interface.values.sorted(by: IODesignator.order)
 		result.report.missingFootprints = Set(result.report.missingFootprints).sorted()
 		result.report.missingPins.sort()
 		result.report.extraFootprints = board.footprints.map(\.reference).filter { !wired.contains($0) }.sorted()
@@ -285,11 +296,10 @@ struct ModuleResolver {
 			let module = design.modules[index]
 			do {
 				let content = try resolve(module.filename, stack: design.board.stack, ancestors: ancestors)
-				let names = content.ports.keys.sorted()
-				if names != module.interface {
+				if content.interface != module.interface {
 					design.moduleCache.notices.append("\(module.reference): module pins changed. Parent wires kept their coordinates; check connections.")
 				}
-				design.modules[index].interface = names
+				design.modules[index].interface = content.interface
 				design.modules[index].size = content.board.size
 				design.modules[index].layerCount = content.board.stack.count
 				design.moduleCache.contents[module.id] = content
@@ -315,13 +325,13 @@ struct ModuleResolver {
 		for i in source.modules.indices {
 			let child = source.modules[i]
 			let content = try resolve(child.filename, stack: source.board.stack, ancestors: ancestors + [url])
-			source.modules[i].interface = content.ports.keys.sorted()
+			source.modules[i].interface = content.interface
 			source.modules[i].size = content.board.size
 			source.moduleCache.contents[child.id] = content
 		}
 		let projection = source.moduleProjection(syncNative: true)
 		if let error = projection.interfaceError { throw Err("\(filename): \(error)") }
-		let content = ModuleContent(board: projection.design.board, nets: projection.design.nets, ports: projection.ports)
+		let content = ModuleContent(board: projection.design.board, nets: projection.design.nets, ports: projection.ports, interface: projection.interface)
 		contents[url] = content
 		return content
 	}

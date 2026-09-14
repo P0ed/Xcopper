@@ -175,7 +175,20 @@ struct ModuleInspector: View {
 			let status = design.moduleStatus(id)
 			Text(status ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
 				.font(.caption).foregroundStyle(status == nil ? Color.secondary : Color.red)
+			if !layout { PinNetsInspector(pins: pins, focus: $focus) }
 		}
+	}
+
+	var pins: Binding<[Pin]> {
+		Binding(
+			get: { module?.symbol.pins ?? [] },
+			set: { pins in
+				guard let index = design.modules.firstIndex(where: { $0.id == id }) else { return }
+				var module = design.modules[index]
+				for pin in pins { module[netLabel: pin.number] = pin.netLabel }
+				design.modules[index] = module
+			}
+		)
 	}
 
 	var position: Binding<Point> {

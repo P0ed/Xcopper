@@ -6,6 +6,33 @@ struct Pin: Hashable, Codable {
 	var length: µm
 	var name: String
 	var number: String
+	var netLabel: String?
+}
+
+struct IODesignator: Hashable, Codable {
+	var number: Int
+	var name: String
+
+	init(number: Int, name: String) {
+		self.number = number
+		self.name = name
+	}
+
+	init?(_ label: String) {
+		let text = label.trimmingWhitespace
+		guard text.hasPrefix("#") else { return nil }
+		let suffix = text.dropFirst()
+		let digits = suffix.prefix { $0.isASCII && $0.isNumber }
+		let rest = suffix.dropFirst(digits.count)
+		guard let number = Int(digits), number > 0, rest.first?.isWhitespace == true else { return nil }
+		let name = String(rest).trimmingWhitespace
+		guard !name.isEmpty else { return nil }
+		self.init(number: number, name: name)
+	}
+
+	static func order(_ lhs: Self, _ rhs: Self) -> Bool {
+		(lhs.number, lhs.name) < (rhs.number, rhs.name)
+	}
 }
 
 enum PinText {
@@ -44,16 +71,10 @@ struct Wire: Hashable, Codable {
 	var end: Point
 }
 
-struct NetLabel: Hashable, Codable {
-	var at: Point
-	var text: String
-}
-
 struct Schematic: Equatable, Codable {
 	var size: Size
 	var symbols: [Symbol]
 	var wires: [Wire]
-	var labels: [NetLabel]
 }
 
 extension Schematic {
@@ -62,23 +83,21 @@ extension Schematic {
 		case module(UUID)
 		case symbol(Int)
 		case wire(Int)
-		case label(Int)
 
-		enum Kind: Hashable { case module, symbol, wire, label }
+		enum Kind: Hashable { case module, symbol, wire }
 
 		var kind: Kind {
 			switch self {
 			case .module: .module
 			case .symbol: .symbol
 			case .wire: .wire
-			case .label: .label
 			}
 		}
 
 		var index: Int {
 			switch self {
 			case .module: Int.max
-			case let .symbol(index), let .wire(index), let .label(index): index
+			case let .symbol(index), let .wire(index): index
 			}
 		}
 
@@ -89,64 +108,6 @@ extension Schematic {
 		self.size = size
 		symbols = []
 		wires = []
-		labels = []
-	}
-
-	init(from decoder: Decoder) throws {
-		let values = try decoder.container(keyedBy: CodingKeys.self)
-		let legacy = try decoder.container(keyedBy: LegacyKeys.self)
-		size = try values.decode(Size.self, forKey: .size)
-		symbols = []
-		var converted = try legacy.decodeIfPresent([LegacyPowerLabel].self, forKey: .flags)?.map(\.label) ?? []
-		for element in try values.decode([SymbolOrLabel].self, forKey: .symbols) {
-			switch element {
-			case let .symbol(symbol): symbols.append(symbol)
-			case let .label(label): converted.append(label)
-			}
-		}
-		wires = try values.decode([Wire].self, forKey: .wires)
-		labels = try values.decode([NetLabel].self, forKey: .labels)
-		migratePowerLabels(converted)
-	}
-
-	private enum LegacyKeys: String, CodingKey { case flags }
-
-	private struct LegacyPowerLabel: Decodable {
-		var label: NetLabel
-
-		private enum CodingKeys: String, CodingKey { case at, net, value }
-
-		init(from decoder: Decoder) throws {
-			let values = try decoder.container(keyedBy: CodingKeys.self)
-			label = NetLabel(
-				at: try values.decode(Point.self, forKey: .at),
-				text: try values.decodeIfPresent(String.self, forKey: .net) ?? values.decode(String.self, forKey: .value)
-			)
-		}
-	}
-
-	private enum SymbolOrLabel: Decodable {
-		case symbol(Symbol), label(NetLabel)
-
-		private enum CodingKeys: String, CodingKey { case kind }
-
-		init(from decoder: Decoder) throws {
-			let values = try decoder.container(keyedBy: CodingKeys.self)
-			switch try values.decode(String.self, forKey: .kind) {
-			case "power", "ground":
-				self = .label(try LegacyPowerLabel(from: decoder).label)
-			default:
-				self = .symbol(try Symbol(from: decoder))
-			}
-		}
-	}
-
-	private mutating func migratePowerLabels(_ converted: [NetLabel]) {
-		guard !converted.isEmpty else { return }
-		var electrical = electrical
-		electrical.labels += converted.map { NetLabel(at: $0.at, text: "") }
-		let netlist = Netlist(electrical)
-		labels += converted.map { NetLabel(at: $0.at, text: netlist.name(at: $0.at) ?? $0.text) }
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
@@ -163,23 +124,21 @@ extension Pin {
 	var figure: Figure { .segment(at, root, 200) }
 
 	var isNamed: Bool { !name.isEmpty && name != number }
+
+	var ioDesignator: IODesignator? { netLabel.flatMap(IODesignator.init) }
+
+	var netName: String? {
+		guard let text = netLabel?.trimmingWhitespace, !text.isEmpty else { return nil }
+		return text.hasPrefix("#") ? ioDesignator?.name : text
+	}
+
+	var hasInvalidIO: Bool {
+		netLabel?.trimmingWhitespace.hasPrefix("#") == true && ioDesignator == nil
+	}
 }
 
 extension Wire {
 	var figure: Figure { .segment(start, end, 200) }
-}
-
-extension NetLabel {
-
-	static let height = 1_800
-	static let anchor = 500
-
-	var bounds: Rect {
-		Rect(
-			origin: Point(x: at.x, y: at.y - Self.height),
-			size: Size(width: max(1, text.count) * 1_100 + 800, height: Self.height)
-		)
-	}
 }
 
 extension Glyph {

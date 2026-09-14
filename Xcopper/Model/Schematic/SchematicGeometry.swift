@@ -9,10 +9,6 @@ extension Schematic {
 				return .symbol(index)
 			}
 		}
-		for (index, label) in labels.enumerated().reversed()
-		where label.bounds.outset(tolerance).contains(point) {
-			return .label(index)
-		}
 		for (index, wire) in wires.enumerated().reversed()
 		where wire.figure.contains(point, tolerance: tolerance) {
 			return .wire(index)
@@ -41,9 +37,6 @@ extension Schematic {
 		for (index, symbol) in symbols.enumerated() where rect.contains(symbol.at) {
 			result.insert(.symbol(index))
 		}
-		for (index, label) in labels.enumerated() where rect.contains(label.at) {
-			result.insert(.label(index))
-		}
 		return result
 	}
 
@@ -52,8 +45,6 @@ extension Schematic {
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
 				Rect(from: wires[index].start, to: wires[index].end)
-			case let .label(index) where labels.indices.contains(index):
-				labels[index].bounds
 			case let .symbol(index) where symbols.indices.contains(index):
 				Rect.union(
 					[symbols[index].placedBody]
@@ -84,7 +75,6 @@ extension Schematic {
 			consider(wire.end)
 			consider(nearest([wire.start, wire.end], to: point))
 		}
-		for label in labels { consider(label.at) }
 		return best
 	}
 }
@@ -100,11 +90,6 @@ extension Schematic {
 				))
 			}
 		}
-		for (index, label) in labels.enumerated() {
-			terminals.append(RouteTerminal(
-				figure: .round(label.at, 0), layers: 0 ... 0, moving: refs.contains(.label(index))
-			))
-		}
 		return RouteGeometry(segments: wires, terminals: terminals, angles: .orthogonal)
 	}
 
@@ -113,7 +98,7 @@ extension Schematic {
 		guard delta != .zero else { return refs }
 		var route = routing(moving: refs)
 		let points = Set(wires.flatMap { [$0.start, $0.end] }
-			+ symbols.flatMap { $0.placedPins.map(\.at) } + labels.map(\.at))
+			+ symbols.flatMap { $0.placedPins.map(\.at) })
 		var pieces: [Wire] = []
 		var selected: Set<Int> = []
 		for (index, wire) in wires.enumerated() {
@@ -132,8 +117,6 @@ extension Schematic {
 			switch ref {
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols[index].at = symbols[index].at + delta
-			case let .label(index) where labels.indices.contains(index):
-				labels[index].at = labels[index].at + delta
 			default: break
 			}
 		}
@@ -144,7 +127,6 @@ extension Schematic {
 	mutating func remove(_ refs: Set<Ref>) {
 		symbols.remove(at: refs.compactMap { if case let .symbol(i) = $0 { i } else { nil } })
 		wires.remove(at: refs.compactMap { if case let .wire(i) = $0 { i } else { nil } })
-		labels.remove(at: refs.compactMap { if case let .label(i) = $0 { i } else { nil } })
 	}
 
 	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Point? = nil) {
@@ -158,8 +140,6 @@ extension Schematic {
 			case let .wire(index) where wires.indices.contains(index):
 				wires[index].start = spin(wires[index].start)
 				wires[index].end = spin(wires[index].end)
-			case let .label(index) where labels.indices.contains(index):
-				labels[index].at = spin(labels[index].at)
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols[index].at = spin(symbols[index].at)
 				symbols[index].rotation = clockwise
@@ -181,8 +161,6 @@ extension Schematic {
 			case let .wire(index) where wires.indices.contains(index):
 				wires[index].start = flip(wires[index].start)
 				wires[index].end = flip(wires[index].end)
-			case let .label(index) where labels.indices.contains(index):
-				labels[index].at = flip(labels[index].at)
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols[index].at = flip(symbols[index].at)
 				symbols[index].mirrored.toggle()
@@ -202,9 +180,6 @@ extension Schematic {
 					wire.end = wire.end + delta
 				})
 				created.insert(.wire(wires.count - 1))
-			case let .label(index) where labels.indices.contains(index):
-				labels.append(modifying(labels[index]) { label in label.at = label.at + delta })
-				created.insert(.label(labels.count - 1))
 			case let .symbol(index) where symbols.indices.contains(index):
 				symbols.append(modifying(symbols[index]) { symbol in
 					symbol.at = symbol.at + delta
@@ -231,6 +206,5 @@ extension Schematic {
 	var occupied: [Rect] {
 		symbols.map(\.placedExtent)
 			+ wires.map { wire in Rect(from: wire.start, to: wire.end) }
-			+ labels.map(\.bounds)
 	}
 }

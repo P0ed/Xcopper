@@ -58,7 +58,7 @@ final class DeviceIdentityTests: XCTestCase {
 		var leaf = Design(board: Board(size: Size(width: 20 * .mm, height: 20 * .mm), stack: .classic))
 		leaf.place(Footprint.Spec(chip: .c0805, device: .capacitor), at: Point(x: 5 * .mm, y: 5 * .mm))
 		leaf.place(Footprint.Spec(component: .hlmpWL02), at: Point(x: 12 * .mm, y: 12 * .mm))
-		leaf.schematic.labels = [NetLabel(at: leaf.schematic.symbols[0].placedPins[0].at, text: "#IN")]
+		leaf.schematic.symbols[0].pins[0].netLabel = "#1 IN"
 		let appearances = leaf.board.footprints.map(\.appearance)
 
 		let leafData = try Document(design: leaf).encoded()

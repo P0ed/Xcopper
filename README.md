@@ -23,7 +23,6 @@ Minimal schematic capture and PCB layout for macOS. One rectangular board and on
 | --- | --- |
 | `S` | Select |
 | `W` | Wire |
-| `L` | Label |
 | `F` | Place symbol |
 
 `⌘B` sets how big the sheet is, in millimetres or inches, the way the same key
@@ -36,25 +35,27 @@ than its drawing leaves it hanging over the edge.
 `R` rotates a selection clockwise and `⇧R` rotates it counterclockwise. Wires
 use horizontal and vertical segments, including when snapping to an offset pin
 or wire. Click or drag to draw and continue from the last endpoint; landing on a
-pin, label or existing wire finishes the route and returns to Select. Hold `⌃`
+pin or existing wire finishes the route and returns to Select. Hold `⌃`
 to ignore connection snapping, or press `⎋` to cancel. `⇧` keeps wires orthogonal.
 
-Dragging a symbol, module, label or wire segment keeps its existing
+Dragging a symbol, module or wire segment keeps its existing
 connections. Neighbouring wires extend or contract, corners slide, and extra
 right-angle legs appear where needed to reach a fixed pin or junction. Collapsed segments disappear
-and straight segments fuse. `⌘` selects a whole wire run up to a pin, label or
+and straight segments fuse. `⌘` selects a whole wire run up to a pin or
 branch, using the same selection rules as layout traces.
 
-A selected symbol, wire or label lights up the way copper does on the layout,
+A selected symbol or wire lights up the way copper does on the layout,
 with the glow carrying the selection on a symbol already drawn near white.
 
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor and an IC
 box with any pin count. Every symbol represents a part with one footprint.
 Double-click a resistor or capacitor in Select mode to edit its value in the
 sidebar.
-Net labels name every connection, including supplies: `GND`, `VCC` and `VEE`
-use the same labels as signal nets. Double-click a label to edit its name in
-the sidebar.
+Select a symbol or module and edit its **Pin net labels** fields in the sidebar.
+Each pin has an optional net label; an empty field means no label (`.none`).
+Labels appear at every pin that specifies one and move with the part. Matching
+labels connect pins, including supplies such as `GND`, `VCC` and `VEE`.
+Use `#1 OUT1` to name a net `OUT1` and expose it as module IO pin 1, named `OUT1`.
 
 The part picker also contains manufacturer-specific symbols with named pins and
 matching footprints. Package variants use SOIC where the manufacturer offers it.
@@ -176,7 +177,7 @@ The value belongs to the part rather than to either drawing. Typing a resistance
 into the sidebar on the sheet writes it on the footprint as well, typing it on
 the layout writes it back on the symbol, and a part placed with a value carries
 it to the half that follows: the two are one part under the reference they
-share. Labels carry their own net name and have no footprint.
+share. Net labels belong to the symbol pins.
 
 The reference belongs to the part as well. Retyping it on either side renames
 both halves at once, so a rename never breaks the pair, and deleting either half
@@ -187,14 +188,14 @@ are — only the part goes.
 Copying carries the part whole. Either half copied puts both on the clipboard,
 and pasting or duplicating lays the half in front of you where the offset falls
 while the other is parked where there is room, the two sharing the one new
-reference. A label copies and pastes on the sheet alone, keeping its net name.
+reference. Pin net labels travel with the copied part or module.
 
 Either half shows the other. With a part picked, `⌘J` turns the document over,
 lights up what stands there for it — the footprint a symbol stands for, or the
 symbol a footprint does — and scrolls it into the middle of the view. The sidebar
 offers the same under the selection. It is the shared designator that pairs the
 two, so a part whose other half has been deleted has nothing to show, and neither
-has a wire, a length of copper or a label.
+has a wire or a length of copper.
 
 The picker shelves the library by what a part does rather than by the package
 it comes in — op-amps, multipliers, logic, switches, panel controls, connectors
@@ -219,8 +220,8 @@ without assigning a device or library identity.
 of every part in the editor in front of you, ignoring case, and a part answers
 when either field begins with it: `R10` finds that resistor, `C` every
 capacitor, `1K5` everything of that value. A module answers to its reference and
-to the file it came from, and a label to its net name: `GND` finds every label
-carrying that name. What matched becomes the selection and is scrolled
+to the file it came from. Pin net labels also match: `GND` finds every symbol
+or module with a pin carrying that net name. What matched becomes the selection and is scrolled
 into view, ready for the sidebar to edit as one; a query nothing answers selects
 nothing. The part pickers, which `⌘F` used to open, are on `⌘⇧F` on both sides.
 
@@ -232,12 +233,13 @@ the layers it spans and its net; a hole its drill; a footprint its reference,
 value, side, rotation, position and whether the bill of materials carries it.
 On the sheet a symbol gives its reference and value — the resistance, the
 capacitance, the part number — along with its rotation, whether it is mirrored
-and where it stands. A label gives its net name and position. A wire reports
+and where it stands. A single symbol or module also gives an editable net label
+for each pin. A wire reports
 the net it lands in and how long it is, both read back out of the drawing
 rather than stored.
 
 Several objects of one kind are edited at once. A selection of traces, of
-footprints, of labels — anything of a single kind — puts the same rows
+footprints — anything of a single kind — puts the same rows
 in the sidebar standing for all of it: a field they agree on shows that value, one they
 differ over shows empty, and what is typed or picked there lands on every one of
 them. Properties that cannot be shared stay out of it, a reference and a
@@ -247,8 +249,9 @@ how much copper or wire the selection comes to.
 
 ## Nets
 
-Connectivity is never stored, only drawn. A wire shorts its own two ends, and any
-pin tip, wire end or label anchor sitting on a wire joins it.
+Connectivity is derived from wires and pin labels. A wire shorts its own two ends, and any
+pin tip or wire end sitting on a wire joins it. Pins with matching net labels
+also share a net without a wire.
 Because only those terminals are tested against wires, a T-junction connects
 and two wires merely crossing do not — the usual schematic convention, and junction dots follow from
 it rather than being placed by hand.
@@ -398,7 +401,9 @@ nor placed.
 
 Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
 All coordinates and lengths are stored as integer micrometers.
-The schematic stores parts in `symbols` and net names in `labels`.
+The schematic stores parts in `symbols`, with optional `netLabel` values on their
+pins. Module instances store numbered IO definitions in `interface` and optional
+pin assignments in `netLabels`, keyed by IO number.
 Library footprints store their component ID, placement, reference, value and BOM
 setting. Pads, body dimensions, device and package come from the current library
 definition when opened, and pad nets are rebuilt from the schematic.
@@ -407,22 +412,21 @@ Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
 Saved via layer ranges are also discarded: every via spans the current board stack.
 The board stores `solderMask`; older documents without it open with mask enabled.
-Older power and ground symbols and saved flags open as net labels, preserving
-their connection points and effective net names.
 
 ## Modularity
 
 Any `.xcb` design can be imported into another as a module. Save and edit it with
-the usual schematic and layout tools. Mark schematic connections with labels
-such as `#IN`, `#OUT` and `#ENABLE`.
-IO names are case sensitive and must be nonempty. Repeated names must resolve to
-the same internal net. Net labels can connect separate
-parts of an interface net.
+the usual schematic and layout tools. Set pin net labels in the inspector,
+such as `#1 IN`, `#2 OUT` and `#3 ENABLE`. The number immediately after `#` must
+be a positive integer, followed by whitespace and a nonempty, case-sensitive
+net name. `#1 OUT1` creates the net `OUT1` and exposes IO pin 1 named `OUT1`.
+A repeated IO number must use the same name and resolve to the same net.
+Matching net labels connect separate parts of an interface net.
 
 Save the parent design and put all module sources in the same folder. Choose
 **File → Import Module…** to add a source. Xcopper validates its dependencies and
 parks an IC block on the schematic and a matching group on the layout. The block
-lists IO pins in lexical order. A module can import other modules, provided each
+lists IO pins in ascending numeric order. A module can import other modules, provided each
 source has no more copper layers than its containing design. Circular dependencies
 and paths outside the document folder are rejected.
 
@@ -440,8 +444,9 @@ instance. Move, quarter-turn, duplicate, copy, paste or delete it using the usua
 commands. A duplicate has a new identity and both representations; deleting
 either representation removes both. `⌘J` shows the counterpart. The inspector
 edits the instance reference and each representation's position and rotation.
+In schematic mode it also edits the net label on each IO pin.
 Imported internals remain locked, including nested modules; use **Open Module
-Source** to edit them. Flipping and assigning a net to an instance are disabled.
+Source** to edit them. Flipping modules and assigning layout nets to imported internals are disabled.
 Moving a layout group keeps its geometry rigid and stretches parent traces
 attached to its pads or vias. If trace repair fails, the whole move is refused.
 Rotating a group leaves external copper in place.

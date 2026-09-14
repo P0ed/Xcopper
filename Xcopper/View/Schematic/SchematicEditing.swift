@@ -38,7 +38,7 @@ extension SchematicView {
 				case .wire:
 					state.beginWire(at: snapped(start))
 					state.updateWire(to: wireEnd(current))
-				case .label, .symbol:
+				case .symbol:
 					break
 				}
 			}
@@ -56,8 +56,6 @@ extension SchematicView {
 						undoManager.undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(contentsOf: wires) }
 						if landed { state.tool = .select }
 					}
-				case .label:
-					undoManager.undoGroup(SchematicTool.label.actionName) { placeLabel(at: current) }
 				case .symbol:
 					undoManager.undoGroup(SchematicTool.symbol.actionName) { placeSymbol(at: current) }
 				}
@@ -142,8 +140,6 @@ private extension SchematicView {
 		else { return }
 		let property: Property
 		switch ref {
-		case let .label(index) where schematic.labels.indices.contains(index):
-			property = .text
 		case let .symbol(index) where schematic.symbols.indices.contains(index):
 			guard [.resistor, .capacitor].contains(schematic.symbols[index].kind) else { return }
 			property = .value
@@ -152,13 +148,6 @@ private extension SchematicView {
 		}
 		state.selection = [ref]
 		beginEditing(property)
-	}
-
-	func placeLabel(at point: Point) {
-		let text = state.label.trimmingWhitespace
-		guard !text.isEmpty else { return }
-		schematic.labels.append(NetLabel(at: snapped(point), text: text))
-		state.selection = [.label(schematic.labels.count - 1)]
 	}
 
 	func placeSymbol(at point: Point) {

@@ -194,14 +194,6 @@ struct MenuCommands: Commands {
 				disabled: op.schematicDisabled,
 				action: { op?.editor.sheet = .symbol }
 			)
-			ActionButton(
-				name: "Place label",
-				image: "tag",
-				shortcut: "T",
-				modifiers: .command,
-				disabled: op.schematicDisabled,
-				action: { op?.editor.sheet = .label }
-			)
 			Divider()
 			ActionButton(
 				name: "New net",

@@ -59,22 +59,6 @@ struct NetDialog: View {
 	}
 }
 
-@MainActor
-struct LabelDialog: View {
-	@Binding var text: String
-	var confirm: () -> Void
-
-	@State var draft: String = ""
-
-	var body: some View {
-		PromptDialog(action: "Use", prompt: "Net name", text: $draft) { name in
-			text = name
-			confirm()
-		}
-		.onAppear { draft = text }
-	}
-}
-
 enum LengthUnit: CaseIterable, Identifiable {
 	case millimeters, inches
 

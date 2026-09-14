@@ -11,11 +11,14 @@ extension Design {
 			schematic.symbols.indices
 				.filter { index in
 					matches(query, schematic.symbols[index].reference, schematic.symbols[index].value)
+						|| schematic.symbols[index].pins.contains { matches(query, $0.netName ?? "", $0.netLabel ?? "") }
 				}
 				.map(Schematic.Ref.symbol)
 		)
-		.union(schematic.labels.indices.filter { matches(query, schematic.labels[$0].text) }.map(Schematic.Ref.label))
-		.union(modules.filter { matches(query, $0.reference, $0.filename) }.map { Schematic.Ref.module($0.id) })
+		.union(modules.filter {
+			matches(query, $0.reference, $0.filename)
+				|| $0.symbol.pins.contains { matches(query, $0.netName ?? "", $0.netLabel ?? "") }
+		}.map { Schematic.Ref.module($0.id) })
 	}
 
 	private func matches(_ query: String, _ fields: String...) -> Bool {
