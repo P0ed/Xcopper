@@ -216,6 +216,19 @@ extension Design {
 		let netlist = Netlist(electrical)
 		var footprintsByReference: [String: [Int]] = [:]
 		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }
+		var groupsByNet: [Net.ID: Set<Int>] = [:]
+		for (index, group) in netlist.groups.enumerated() {
+			if let name = group.name, let id = netIDsByName[name] { groupsByNet[id, default: []].insert(index) }
+			for node in group.nodes where node.symbol < schematic.symbols.count {
+				let symbol = electrical.symbols[node.symbol]
+				let pin = symbol.pins[node.pin].number
+				for i in footprintsByReference[symbol.reference] ?? [] {
+					for pad in board.footprints[i].pads where pad.name == pin {
+						if let id = pad.net { groupsByNet[id, default: []].insert(index) }
+					}
+				}
+			}
+		}
 		var pointNets: [Point: Int] = [:]
 		var assignments: [(Int, Int, Int)] = []
 		var wired: Set<String> = []
@@ -245,7 +258,9 @@ extension Design {
 				for i in matches {
 					for j in board.footprints[i].pads.indices where board.footprints[i].pads[j].name == pin {
 						pads.append((i, j))
-						if let id = board.footprints[i].pads[j].net { connected.append(id) }
+						if let id = board.footprints[i].pads[j].net, groupsByNet[id]?.count == 1 {
+							connected.append(id)
+						}
 					}
 				}
 			}
@@ -258,8 +273,8 @@ extension Design {
 			if nets[id] == nil { nets[id] = group.name ?? "N$\(key.isEmpty ? String(-fallback) : key)" }
 			for other in connected { merge.union(other, id) }
 			for point in group.points { pointNets[point] = id }
-			if syncNative, active {
-				result.report.assigned += pads.count
+			if active {
+				if syncNative { result.report.assigned += pads.count }
 				for (i, j) in pads { assignments.append((i, j, id)) }
 			}
 		}

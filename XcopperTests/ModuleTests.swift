@@ -183,6 +183,40 @@ final class ModuleTests: XCTestCase {
 		XCTAssertFalse(design.net(named: "M1.PRIVATE").created)
 	}
 
+	func testStaleParentPadNetsDoNotMergeSeparateModuleInputs() throws {
+		var module = Design()
+		module.place(Symbol.Spec(kind: .ic, pins: 8), at: point(20 * .mm, 20 * .mm))
+		module.schematic.symbols[0].pins[1].netLabel = "#1 A"
+		module.schematic.symbols[0].pins[5].netLabel = "#2 B"
+		_ = module.updateBoardFromSchematic()
+		for staleName in ["IN1", "IN2", "LEGACY"] {
+			var design = try imported(["Part.xcb": module])
+			design.modules[0][netLabel: "1"] = "IN1"
+			design.modules[0][netLabel: "2"] = "IN2"
+			let stale = design.addNet(name: staleName)
+			for (index, name) in ["IN1", "IN2"].enumerated() {
+				design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, (30 + index * 20) * .mm))
+				design.schematic.symbols[index].pins[0].netLabel = name
+				design.board.footprints[index].pads[0].net = stale
+			}
+			for syncNative in [false, true] {
+				let resolved = design.moduleProjection(syncNative: syncNative).design
+				let ic = try XCTUnwrap(resolved.board.footprints.first { $0.reference == "M1.U1" })
+				let input1 = try XCTUnwrap(ic.pads.first { $0.name == "2" }?.net)
+				let input2 = try XCTUnwrap(ic.pads.first { $0.name == "6" }?.net)
+				XCTAssertEqual(resolved.net(input1)?.name, "IN1")
+				XCTAssertEqual(resolved.net(input2)?.name, "IN2")
+				XCTAssertNotEqual(input1, input2)
+				XCTAssertEqual(resolved.board.footprints[0].pads[0].net, input1)
+				XCTAssertEqual(resolved.board.footprints[1].pads[0].net, input2)
+			}
+			_ = design.updateBoardFromSchematic()
+			let synced = design
+			_ = design.updateBoardFromSchematic()
+			XCTAssertEqual(design, synced)
+		}
+	}
+
 	func testOpeningRemovesUnusedNetsAndPreservesCopperLabelsAndPower() throws {
 		var design = source()
 		let unused = design.addNet(name: "UNUSED")
