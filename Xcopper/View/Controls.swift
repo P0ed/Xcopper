@@ -240,15 +240,17 @@ struct LengthRow: View {
 	var title: String
 	@Binding var value: µm?
 	var range: ClosedRange<Double> = 0.0 ... 2_000.0
+	var unit: LengthUnit = .millimeters
 	var property: Property
 	@FocusState.Binding var focus: Property?
 
-	private var millimeters: Binding<Double?> {
+	private var length: Binding<Double?> {
 		Binding(
-			get: { value.map(Double.mm) },
+			get: { value.map { Double($0) / Double(unit.scale) } },
 			set: { typed in
 				guard let typed else { return }
-				let length = µm((min(max(typed, range.lowerBound), range.upperBound) * Double(µm.mm)).rounded())
+				let millimeters = typed * Double(unit.scale) / Double(µm.mm)
+				let length = µm((min(max(millimeters, range.lowerBound), range.upperBound) * Double(µm.mm)).rounded())
 				guard length != value else { return }
 				value = length
 			}
@@ -257,15 +259,15 @@ struct LengthRow: View {
 
 	var body: some View {
 		PropertyRow(title: title) {
-			TextField(value == nil ? "Mixed" : "", value: millimeters, format: MixedNumber())
+			TextField(value == nil ? "Mixed" : "", value: length, format: MixedNumber(decimals: unit == .millimeters ? 3 : 8))
 				.textFieldStyle(.roundedBorder)
 				.modifier(PropertyEditing(property: property, focus: $focus))
-				.overlay(alignment: .trailing) { unit }
+				.overlay(alignment: .trailing) { unitLabel }
 		}
 	}
 
-	private var unit: some View {
-		Text("mm")
+	private var unitLabel: some View {
+		Text(unit.label)
 			.font(.caption)
 			.foregroundStyle(.tertiary)
 			.padding(.trailing, 5.0)
@@ -276,9 +278,10 @@ struct LengthRow: View {
 @MainActor
 struct PositionRows: View {
 	@Binding var at: Point
+	var unit: LengthUnit = .millimeters
 	@FocusState.Binding var focus: Property?
 
-	private static let span: ClosedRange<Double> = -2_000.0 ... 2_000.0
+	private static let span: ClosedRange<Double> = -1_000.0 ... 1_000.0
 
 	private var x: Binding<µm> {
 		Binding(get: { µm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
@@ -289,8 +292,8 @@ struct PositionRows: View {
 	}
 
 	var body: some View {
-		LengthRow(title: "X", value: Binding(x), range: Self.span, property: .x, focus: $focus)
-		LengthRow(title: "Y", value: Binding(y), range: Self.span, property: .y, focus: $focus)
+		LengthRow(title: "X", value: Binding(x), range: Self.span, unit: unit, property: .x, focus: $focus)
+		LengthRow(title: "Y", value: Binding(y), range: Self.span, unit: unit, property: .y, focus: $focus)
 	}
 }
 
@@ -309,17 +312,23 @@ struct ChoiceRow<Value: Hashable, Content: View>: View {
 }
 
 struct MixedNumber: ParseableFormatStyle {
-	var number: FloatingPointFormatStyle<Double> = .number.precision(.fractionLength(0 ... 3))
+	var decimals = 3
+	var number: FloatingPointFormatStyle<Double> {
+		.number.locale(Locale(identifier: "en_US_POSIX")).grouping(.never).precision(.fractionLength(0 ... decimals))
+	}
 
-	var parseStrategy: Strategy { Strategy(number: number.parseStrategy) }
+	var parseStrategy: Strategy { Strategy() }
 
 	func format(_ value: Double?) -> String { value.map(number.format) ?? "" }
 
 	struct Strategy: ParseStrategy {
-		var number: FloatingPointParseStrategy<FloatingPointFormatStyle<Double>>
-
 		func parse(_ value: String) throws -> Double? {
-			value.trimmingWhitespace.isEmpty ? nil : try number.parse(value)
+			let text = value.trimmingWhitespace
+			guard !text.isEmpty else { return nil }
+			guard let number = Double(text), number.isFinite else {
+				throw Err("Use a number with '.' as the decimal separator.")
+			}
+			return number
 		}
 	}
 }

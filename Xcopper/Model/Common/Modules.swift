@@ -28,6 +28,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var netLabels: [String: String]?
 	var size = Size(width: 20 * .mm, height: 20 * .mm)
 	var layerCount: Int = 2
+	var origin: Point = .zero
 
 	var symbol: Symbol {
 		let ports = interface.sorted(by: IODesignator.order)
@@ -52,8 +53,30 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		}
 	}
 
-	func place(_ point: Point) -> Point { point.rotated(layoutRotation) + layoutAt }
+	func place(_ point: Point) -> Point { (point - origin).rotated(layoutRotation) + layoutAt }
 	var bounds: Rect { Rect(from: place(.zero), to: place(Point(x: size.width, y: size.height))) }
+}
+
+extension ModuleInstance {
+	enum CodingKeys: String, CodingKey {
+		case id, reference, filename, schematicAt, schematicRotation, layoutAt, layoutRotation, interface, netLabels, size, layerCount, origin
+	}
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		id = try values.decode(UUID.self, forKey: .id)
+		reference = try values.decode(String.self, forKey: .reference)
+		filename = try values.decode(String.self, forKey: .filename)
+		schematicAt = try values.decode(Point.self, forKey: .schematicAt)
+		schematicRotation = try values.decode(Rotation.self, forKey: .schematicRotation)
+		layoutAt = try values.decode(Point.self, forKey: .layoutAt)
+		layoutRotation = try values.decode(Rotation.self, forKey: .layoutRotation)
+		interface = try values.decode([IODesignator].self, forKey: .interface)
+		netLabels = try values.decodeIfPresent([String: String].self, forKey: .netLabels)
+		size = try values.decode(Size.self, forKey: .size)
+		layerCount = try values.decode(Int.self, forKey: .layerCount)
+		origin = try values.decodeIfPresent(Point.self, forKey: .origin) ?? .zero
+	}
 }
 
 struct ModuleContent: Equatable {
@@ -302,6 +325,7 @@ struct ModuleResolver {
 				design.modules[index].interface = content.interface
 				design.modules[index].size = content.board.size
 				design.modules[index].layerCount = content.board.stack.count
+				design.modules[index].origin = content.board.origin
 				design.moduleCache.contents[module.id] = content
 			} catch {
 				design.moduleCache.errors[module.id] = error is Err
@@ -327,6 +351,7 @@ struct ModuleResolver {
 			let content = try resolve(child.filename, stack: source.board.stack, ancestors: ancestors + [url])
 			source.modules[i].interface = content.interface
 			source.modules[i].size = content.board.size
+			source.modules[i].origin = content.board.origin
 			source.moduleCache.contents[child.id] = content
 		}
 		let projection = source.moduleProjection(syncNative: true)

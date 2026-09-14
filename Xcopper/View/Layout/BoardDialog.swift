@@ -6,12 +6,16 @@ struct BoardDialog: View {
 	var stack: Stack
 	var rules: Rules
 	var solderMask: Bool
-	var confirm: (Size, Stack, Rules, Bool) -> Void
+	var origin: Point
+	var confirm: (Size, Stack, Rules, Bool, Point) -> Void
 
 	@State private var chosen: Size?
 	@State private var selected: Stack?
 	@State private var selectedRules: Rules?
 	@State private var selectedSolderMask: Bool?
+	@State private var selectedOrigin: Point?
+	@State private var unit: LengthUnit = .millimeters
+	@FocusState private var focus: Property?
 
 	private var stackup: Stack { selected ?? stack }
 	private var draft: Binding<Rules> {
@@ -27,11 +31,18 @@ struct BoardDialog: View {
 			action: "Apply",
 			isValid: chosen != nil && validVias,
 			confirm: {
-				if let chosen { confirm(chosen, stackup, draft.wrappedValue, selectedSolderMask ?? solderMask) }
+				if let chosen { confirm(chosen, stackup, draft.wrappedValue, selectedSolderMask ?? solderMask, selectedOrigin ?? origin) }
 			}
 		) {
 			VStack(spacing: 12.0) {
-				SizeFields(size: size, limit: 500 * .mm, value: $chosen)
+				SizeFields(size: size, limit: 500 * .mm, value: $chosen, unit: $unit)
+
+				Panel(title: "Module origin") {
+					PositionRows(at: Binding(
+						get: { selectedOrigin ?? origin },
+						set: { selectedOrigin = $0 }
+					), unit: unit, focus: $focus)
+				}
 
 				Picker("Stackup", selection: Binding(get: { stackup }, set: { selected = $0 })) {
 					ForEach(Stack.allCases, id: \.self) { stack in

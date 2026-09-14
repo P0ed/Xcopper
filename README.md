@@ -64,8 +64,9 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
-**Board → Board settings…** (`⌘B`) sets the board size, stackup, solder mask and via drill and
-pad diameters. Turn off **Solder mask** to leave both faces unmasked in the 3D
+**Board → Board settings…** (`⌘B`) sets the board size, module origin, stackup, solder mask and via drill and
+pad diameters. The **mm / in** toggle controls both size and module origin.
+All numeric inputs use `.` as the decimal separator. Turn off **Solder mask** to leave both faces unmasked in the 3D
 preview and fabrication set. This setting is saved with the board and can be undone.
 Every via uses the board's sizes, including existing vias and vias
 inside imported modules. Applying a change updates them together and can be undone.
@@ -412,6 +413,7 @@ Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
 Saved via layer ranges are also discarded: every via spans the current board stack.
 The board stores `solderMask`; older documents without it open with mask enabled.
+Boards and module instances store `origin`; older documents default to `[0, 0]`.
 
 ## Modularity
 
@@ -422,6 +424,13 @@ be a positive integer, followed by whitespace and a nonempty, case-sensitive
 net name. `#1 OUT1` creates the net `OUT1` and exposes IO pin 1 named `OUT1`.
 A repeated IO number must use the same name and resolve to the same net.
 Matching net labels connect separate parts of an interface net.
+
+In the source layout, use **Board settings** (`⌘B`) to set **Module origin** X/Y
+in millimeters or inches using the **mm / in** toggle. It defaults to `[0, 0]`. The instance's layout position places
+this source point in the parent, and rotating a single module turns around it.
+Set it to half the board width and height to rotate around the board center.
+Nested modules use their own source origins. Save the source and reload modules
+in the parent to apply origin changes.
 
 Save the parent design and put all module sources in the same folder. Choose
 **File → Import Module…** to add a source. Xcopper validates its dependencies and

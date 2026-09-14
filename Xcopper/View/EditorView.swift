@@ -123,10 +123,11 @@ struct EditorView: View {
 				size: design.board.size,
 				stack: design.board.stack,
 				rules: design.board.rules,
-				solderMask: design.board.solderMask
-			) { size, stack, rules, solderMask in
+				solderMask: design.board.solderMask,
+				origin: design.board.origin
+			) { size, stack, rules, solderMask, origin in
 				undoManager.undoGroup("Board settings") {
-					operations.configureBoard(size: size, stack: stack, rules: rules, solderMask: solderMask)
+					operations.configureBoard(size: size, stack: stack, rules: rules, solderMask: solderMask, origin: origin)
 				}
 			}
 		case .schematic:

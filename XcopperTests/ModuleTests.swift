@@ -53,6 +53,66 @@ final class ModuleTests: XCTestCase {
 		XCTAssertTrue(reopened.fabrication(named: "unresolved").isEmpty)
 	}
 
+	func testOriginsRoundTripAndDefaultToZeroInOlderDocuments() throws {
+		var source = source()
+		source.board.origin = point(8 * .mm, 6 * .mm)
+		XCTAssertEqual(try Document.decode(Document(design: source).encoded()).board.origin, source.board.origin)
+		var design = try imported(["Part.xcb": source])
+		design.board.origin = point(12 * .mm, 10 * .mm)
+		let reopened = try Document.decode(Document(design: design).encoded())
+		XCTAssertEqual(reopened.board.origin, design.board.origin)
+		XCTAssertEqual(reopened.modules[0].origin, source.board.origin)
+		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
+		var board = try XCTUnwrap(json["board"] as? [String: Any])
+		board.removeValue(forKey: "origin")
+		json["board"] = board
+		var modules = try XCTUnwrap(json["modules"] as? [[String: Any]])
+		modules[0].removeValue(forKey: "origin")
+		json["modules"] = modules
+		let legacy = try Document.decode(JSONSerialization.data(withJSONObject: json))
+		XCTAssertEqual(legacy.board.origin, .zero)
+		XCTAssertEqual(legacy.modules[0].origin, .zero)
+	}
+
+	func testModuleOriginPlacesAndRotatesGeometryAroundItsPosition() throws {
+		var source = source()
+		source.board.origin = point(8 * .mm, 6 * .mm)
+		var design = try imported(["Part.xcb": source])
+		let id = design.modules[0].id
+		design.modules[0].layoutAt = point(50 * .mm, 40 * .mm)
+		XCTAssertEqual(design.resolved.board.footprints[0].at, point(47 * .mm, 39 * .mm))
+		design.rotateLayout([.module(id)], clockwise: true)
+		XCTAssertEqual(design.modules[0].layoutAt, point(50 * .mm, 40 * .mm))
+		let board = design.resolved.board
+		XCTAssertEqual(board.footprints[0].at, point(51 * .mm, 37 * .mm))
+		XCTAssertEqual(board.traces[0].start, point(51 * .mm, 37 * .mm))
+		XCTAssertEqual(board.traces[0].end, point(51 * .mm, 42 * .mm))
+		XCTAssertEqual(board.vias[0].at, point(51 * .mm, 42 * .mm))
+		XCTAssertEqual(board.holes[0].at, point(41 * .mm, 42 * .mm))
+		XCTAssertEqual(design.modules[0].bounds, Rect(origin: point(36 * .mm, 32 * .mm), size: source.board.size))
+		source.board.origin = point(10 * .mm, 10 * .mm)
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Part.xcb": source]))
+		resolver.reload(&design, documentURL: parentURL)
+		XCTAssertEqual(design.modules[0].origin, source.board.origin)
+		XCTAssertEqual(design.modules[0].layoutAt, point(50 * .mm, 40 * .mm))
+		XCTAssertEqual(design.resolved.board.footprints[0].at, point(55 * .mm, 35 * .mm))
+	}
+
+	func testNestedModuleOriginsAreResolvedAtEveryLevel() throws {
+		var leaf = source()
+		var middle = try imported(["Part.xcb": leaf])
+		middle.board.origin = point(10 * .mm, 15 * .mm)
+		middle.modules[0].layoutAt = point(30 * .mm, 20 * .mm)
+		middle.modules[0].layoutRotation = .r90
+		leaf.board.origin = point(8 * .mm, 6 * .mm)
+		var parent = try imported(["Middle.xcb": middle, "Part.xcb": leaf], filenames: ["Middle.xcb"])
+		parent.modules[0].layoutAt = point(60 * .mm, 60 * .mm)
+		parent.modules[0].layoutRotation = .r270
+		XCTAssertEqual(parent.modules[0].origin, middle.board.origin)
+		XCTAssertEqual(parent.resolved.board.footprints[0].at, point(62 * .mm, 39 * .mm))
+		XCTAssertEqual(parent.resolved.board.footprints[0].rotation, .r0)
+	}
+
 	func testRepeatedInstancesSharePowerButIsolatePrivateNetsAndReferences() throws {
 		let source = source()
 		let design = try imported(["Part.xcb": source], filenames: ["Part.xcb", "Part.xcb"])
@@ -424,9 +484,9 @@ extension ModuleTests {
 		design.positionModule(second, at: point(60 * .mm, 60 * .mm), layout: true)
 		XCTAssertEqual(design.modules[0].reference, "M3")
 		XCTAssertEqual(design.modules[0].layoutAt, point(60 * .mm, 60 * .mm))
-		let center = design.modules[0].bounds.center
+		let center = design.modules[0].layoutAt
 		design.turnModule(second, to: .r90, layout: true)
-		XCTAssertEqual(design.modules[0].bounds.center, center)
+		XCTAssertEqual(design.modules[0].layoutAt, center)
 		XCTAssertEqual(design.modules[0].layoutRotation, .r90)
 		let schematicCenter = design.modules[0].symbol.placedExtent.center
 		design.turnModule(second, to: .r270, layout: false)

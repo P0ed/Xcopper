@@ -210,7 +210,8 @@ extension Design {
 	}
 
 	mutating func rotateLayout(_ refs: Set<Ref>, clockwise: Bool) {
-		guard let pivot = layoutBounds(refs)?.center else { return }
+		let module = refs.count == 1 ? modules.first { refs.contains(.module($0.id)) } : nil
+		guard let pivot = module?.layoutAt ?? layoutBounds(refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 		board.rotate(refs, clockwise: clockwise, around: pivot)
 		for i in modules.indices where refs.contains(.module(modules[i].id)) {
