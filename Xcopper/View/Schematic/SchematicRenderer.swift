@@ -132,7 +132,7 @@ struct SchematicRenderer {
 		Lit.fill(pickedFills, Palette.lit(Palette.symbol), in: context)
 
 		guard scale >= 2.0 else { return }
-		let size = 1.5 * scale
+		let size = 1.2 * scale
 
 		for symbol in schematic.symbols {
 			let extent = symbol.placedExtent.cg(scale, origin: origin)
@@ -141,14 +141,14 @@ struct SchematicRenderer {
 				Text(symbol.reference)
 					.font(.system(size: size, weight: .medium))
 					.foregroundStyle(Palette.symbol),
-				at: CGPoint(x: extent.midX, y: extent.minY - scale * 1.2)
+				at: CGPoint(x: extent.midX, y: extent.minY - scale * 0.8)
 			)
 			if !symbol.value.isEmpty {
 				context.draw(
 					Text(symbol.value)
 						.font(.system(size: size))
 						.foregroundStyle(Palette.symbol.opacity(0.7)),
-					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 1.2)
+					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 0.8)
 				)
 			}
 		}

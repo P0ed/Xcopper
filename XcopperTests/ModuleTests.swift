@@ -115,8 +115,10 @@ final class ModuleTests: XCTestCase {
 
 	func testRepeatedInstancesSharePowerButIsolatePrivateNetsAndReferences() throws {
 		let source = source()
-		let design = try imported(["Part.xcb": source], filenames: ["Part.xcb", "Part.xcb"])
+		var design = try imported(["Part.xcb": source], filenames: ["Part.xcb", "Part.xcb"])
+		_ = design.updateBoardFromSchematic()
 		let resolved = design.resolved
+		XCTAssertEqual(design.nets.map(\.name), ["GND", "VCC", "VEE"])
 		XCTAssertEqual(resolved.board.footprints.map(\.reference), ["M1.R1", "M2.R1"])
 		XCTAssertNotEqual(resolved.board.footprints[0].pads[0].net, resolved.board.footprints[1].pads[0].net)
 		XCTAssertNotEqual(resolved.board.footprints[0].pads[1].net, resolved.board.footprints[1].pads[1].net)

@@ -53,7 +53,7 @@ extension Design {
 			board.traces = Array(projection.design.board.traces.prefix(board.traces.count))
 			board.vias = Array(projection.design.board.vias.prefix(board.vias.count))
 			board.footprints = Array(projection.design.board.footprints.prefix(board.footprints.count))
-			nets = projection.design.nets
+			nets = projection.design.nets.filter { !projection.localNets.contains($0.id) }
 			return projection.report
 		}
 

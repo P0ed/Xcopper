@@ -97,6 +97,7 @@ struct ModuleProjection {
 	var owners: [Ref: UUID] = [:]
 	var symbolOwners: [Schematic.Ref: UUID] = [:]
 	var ports: [String: Net.ID] = [:]
+	var localNets: Set<Net.ID> = []
 	var interface: [IODesignator] = []
 	var interfaceError: String?
 	var report = Design.Report()
@@ -150,12 +151,17 @@ extension Design {
 		result.design.moduleCache = ModuleCache()
 		var nets = Dictionary(nets.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 		var portsBySymbol: [Int: [String: Int]] = [:]
+		var moduleNets: Set<Int> = []
+		var parentNets = Set(board.traces.compactMap(\.net))
+		parentNets.formUnion(board.vias.compactMap(\.net))
+		for footprint in board.footprints { parentNets.formUnion(footprint.pads.compactMap(\.net)) }
 		var merge = UnionFind<Int>()
 		let netIDsByName = Dictionary(self.nets.map { ($0.name, $0.id) }, uniquingKeysWith: { a, _ in a })
 		func global(_ name: String) -> Int? {
 			guard supplyNames.contains(name) else { return nil }
 			let id = netIDsByName[name] ?? moduleNetID("power/\(name)")
 			nets[id] = name
+			parentNets.insert(id)
 			return id
 		}
 		for module in modules {
@@ -168,8 +174,10 @@ extension Design {
 			guard status == nil, let content = moduleCache.contents[module.id] else { continue }
 			var mapping: [Int: Int] = [:]
 			for net in content.nets {
-				let id = global(net.name) ?? moduleNetID("\(module.id)/\(net.id)")
+				let shared = global(net.name)
+				let id = shared ?? moduleNetID("\(module.id)/\(net.id)")
 				mapping[net.id] = id
+				if shared == nil { moduleNets.insert(id) }
 				if nets[id] == nil { nets[id] = "\(module.reference).\(net.name)" }
 			}
 			portsBySymbol[symbolIndex] = content.ports.mapValues { mapping[$0]! }
@@ -245,6 +253,7 @@ extension Design {
 			let id = named ?? power ?? connected.first ?? fallback
 			if nets[id] == nil { nets[id] = group.name ?? "N$\(key.isEmpty ? String(-fallback) : key)" }
 			for other in connected { merge.union(other, id) }
+			if active { parentNets.insert(id) }
 			for point in group.points { pointNets[point] = id }
 			if syncNative, active {
 				result.report.assigned += pads.count
@@ -278,7 +287,9 @@ extension Design {
 		result.report.extraFootprints = board.footprints.map(\.reference).filter { !wired.contains($0) }.sorted()
 		let nativeIDs = Set(self.nets.map(\.id))
 		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.find($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
-		result.report.created = result.design.nets.filter { !nativeIDs.contains($0.id) }.map(\.name)
+		let promoted = Set(parentNets.map { merge.find($0) })
+		result.localNets = Set(moduleNets.map { merge.find($0) }).subtracting(promoted)
+		result.report.created = result.design.nets.filter { !nativeIDs.contains($0.id) && !result.localNets.contains($0.id) }.map(\.name)
 		return result
 	}
 }
