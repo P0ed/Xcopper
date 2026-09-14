@@ -38,7 +38,7 @@ extension Design {
 	}
 
 	func net(_ id: Net.ID?) -> Net? {
-		id.flatMap { id in nets.first { $0.id == id } }
+		id.flatMap { id in resolved.nets.first { $0.id == id } }
 	}
 
 	func plane(_ layer: Int) -> Net.ID? {
@@ -71,12 +71,25 @@ extension Design {
 		board.clearNet(id)
 	}
 
+	mutating func removeUnusedNets() {
+		var used = Set(board.traces.compactMap(\.net))
+		used.formUnion(board.vias.compactMap(\.net))
+		for footprint in board.footprints { used.formUnion(footprint.pads.compactMap(\.net)) }
+		let names = Set((schematic.symbols + modules.map(\.symbol)).flatMap { $0.pins.compactMap(\.netName) })
+			.union(supplyNames).union(board.stack.planeNames)
+		nets.removeAll { !used.contains($0.id) && !names.contains($0.name) }
+	}
+
 	mutating func renameNet(_ id: Net.ID, to name: String) {
 		nets.modifyEach { net in if net.id == id { net.name = name } }
 	}
 
 	mutating func net(named name: String) -> (id: Net.ID, created: Bool) {
 		if let existing = nets.first(where: { $0.name == name }) { return (existing.id, false) }
+		let projection = moduleProjection()
+		if let existing = projection.design.nets.first(where: { $0.name == name && projection.localNets.contains($0.id) }) {
+			return (existing.id, false)
+		}
 		return (addNet(name: name), true)
 	}
 }

@@ -440,9 +440,11 @@ source has no more copper layers than its containing design. Circular dependenci
 and paths outside the document folder are rejected.
 
 Wire the block's pins; the board updates automatically. Connections
-pass through module IO to imported pads, traces, vias and nested modules. Private
-nets and component references belong to their instance hierarchy. Separate
-instances share only connected IO and the `GND`, `VCC` and `VEE` supply nets.
+pass through module IO to imported pads, traces, vias and nested modules. All
+non-power nets, including IO nets, and component references belong to their
+instance hierarchy. Use qualified labels such as `M1.NET` to connect to a module's
+local nets. IO connections do not add module nets to the parent's net list.
+The `GND`, `VCC` and `VEE` supply nets are shared between instances.
 The parent supplies its stack, internal planes, clearance rules, via sizes, solder mask and 3D thickness.
 Source top and bottom copper map to the parent's outer layers, and through holes
 span the parent stack. Module rectangles are placement bounds; fabrication
@@ -460,7 +462,8 @@ Moving a layout group keeps its geometry rigid and stretches parent traces
 attached to its pads or vias. If trace repair fails, the whole move is refused.
 Rotating a group leaves external copper in place.
 
-Sources reload when the parent opens or moves. After editing a source, choose
+Unused nets are removed when a file opens; copper assignments, schematic labels
+and power nets are retained. Sources reload when the parent opens or moves. After editing a source, choose
 **File → Reload Modules** in its parent. Placements stay fixed; if the IO list
 changes, pins regenerate and a notice asks you to check the parent wires, which
 retain their coordinates. Missing, malformed, cyclic or incompatible dependencies

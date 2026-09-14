@@ -48,7 +48,7 @@ struct LayoutInspector: View {
 			TracesInspector(
 				traces: $design.board.traces,
 				indices: indices.filter { board.traces.indices.contains($0) },
-				nets: design.nets,
+				nets: design.resolved.nets,
 				stack: board.stack,
 				focus: $focus
 			)
@@ -56,7 +56,7 @@ struct LayoutInspector: View {
 			ViasInspector(
 				vias: $design.board.vias,
 				indices: indices.filter { board.vias.indices.contains($0) },
-				nets: design.nets,
+				nets: design.resolved.nets,
 				focus: $focus
 			)
 		case .hole:

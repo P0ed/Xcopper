@@ -37,7 +37,8 @@ extension Design {
 		guard board.traces.contains(where: { $0.net == nil })
 			|| board.vias.contains(where: { $0.net == nil })
 		else { return }
-		let resolved = resolved
+		let projection = moduleProjection()
+		let resolved = projection.design
 		var inherited: Set<Net.ID> = []
 		for (ref, net) in resolved.board.inheritedNets {
 			switch ref {
@@ -49,7 +50,8 @@ extension Design {
 			}
 			inherited.insert(net)
 		}
-		for net in resolved.nets where inherited.contains(net.id) && self.net(net.id) == nil {
+		for net in resolved.nets where inherited.contains(net.id)
+			&& !projection.localNets.contains(net.id) && !nets.contains(where: { $0.id == net.id }) {
 			nets.append(net)
 		}
 	}

@@ -150,6 +150,54 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(parent.moduleCache.contents[parent.modules[0].id]?.board.rules, source.board.rules)
 	}
 
+	func testConnectedIONetsStayLocalAcrossSyncAndReopen() throws {
+		let module = source()
+		var design = try imported(["Part.xcb": module])
+		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
+		design.schematic.wires = [Wire(start: design.modules[0].symbol.placedPins[0].at,
+			end: design.schematic.symbols[0].placedPins[0].at)]
+		_ = design.updateBoardFromSchematic()
+		let id = try XCTUnwrap(design.board.footprints[0].pads[0].net)
+		XCTAssertEqual(design.net(id)?.name, "M1.IN")
+		XCTAssertFalse(design.nets.contains { $0.id == id })
+		_ = design.updateBoardFromSchematic()
+		XCTAssertFalse(design.nets.contains { $0.id == id })
+		var reopened = try Document.decode(Document(design: design).encoded())
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Part.xcb": module]))
+		resolver.reload(&reopened, documentURL: parentURL)
+		XCTAssertEqual(reopened.net(id)?.name, "M1.IN")
+		XCTAssertEqual(reopened.resolved.board.footprints[1].pads[0].net, id)
+	}
+
+	func testQualifiedLabelsResolvePrivateModuleNetsWithoutPromotion() throws {
+		var design = try imported(["Part.xcb": source()], filenames: ["Part.xcb", "Part.xcb"])
+		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
+		design.schematic.symbols[0].pins[0].netLabel = "M1.PRIVATE"
+		_ = design.updateBoardFromSchematic()
+		let resolved = design.resolved
+		let id = try XCTUnwrap(design.board.footprints[0].pads[0].net)
+		XCTAssertEqual(id, resolved.board.footprints[1].pads[1].net)
+		XCTAssertNotEqual(id, resolved.board.footprints[2].pads[1].net)
+		XCTAssertEqual(design.net(id)?.name, "M1.PRIVATE")
+		XCTAssertFalse(design.nets.contains { $0.id == id })
+		XCTAssertFalse(design.net(named: "M1.PRIVATE").created)
+	}
+
+	func testOpeningRemovesUnusedNetsAndPreservesCopperLabelsAndPower() throws {
+		var design = source()
+		let unused = design.addNet(name: "UNUSED")
+		_ = design.addNet(name: "LABELED")
+		design.schematic.symbols[0].pins[0].netLabel = "#1 LABELED"
+		let via = design.addNet(name: "VIA")
+		design.board.vias.append(Via(at: .zero, net: via))
+		let trace = design.addNet(name: "TRACE")
+		design.board.traces.append(Trace(start: .zero, end: point(1000, 0), width: 300, layer: 0, net: trace))
+		let reopened = try Document.decode(Document(design: design).encoded())
+		XCTAssertEqual(reopened.nets, design.nets.filter { $0.id != unused })
+		XCTAssertEqual(reopened.board, design.board)
+		XCTAssertEqual(reopened.schematic, design.schematic)
+	}
+
 	func testBufferSupplyLabelsReachTheParentInletThroughViasAndPlanes() throws {
 		var buffer = Design(board: Board(size: Size(width: 40 * .mm, height: 40 * .mm), stack: .classic))
 		buffer.place(Symbol.Spec(component: .ad823a), at: point(40 * .mm, 40 * .mm))
@@ -278,6 +326,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertNotNil(pad.net)
 		XCTAssertEqual(harness.design.board.traces[0].net, pad.net)
 		XCTAssertNotNil(harness.design.net(pad.net))
+		XCTAssertFalse(harness.design.nets.contains { $0.id == pad.net })
 		XCTAssertEqual(harness.design.moduleCache, design.moduleCache)
 		harness.undo.undo()
 		XCTAssertEqual(harness.design, design)
