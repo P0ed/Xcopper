@@ -111,10 +111,6 @@ extension Schematic {
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
-
-	mutating func resize(size: Size) {
-		self.size = size
-	}
 }
 
 extension Pin {

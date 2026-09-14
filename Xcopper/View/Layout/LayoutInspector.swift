@@ -174,7 +174,6 @@ struct HolesInspector: View {
 		LengthRow(
 			title: "Drill",
 			value: $holes.shared(indices, \.diameter),
-			range: 0.01 ... 50.0,
 			property: .diameter,
 			focus: $focus
 		)

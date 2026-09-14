@@ -79,13 +79,6 @@ struct SizeFields: View {
 
 	var body: some View {
 		VStack(spacing: 12.0) {
-			Picker("Units", selection: unitBinding) {
-				ForEach(LengthUnit.allCases) { unit in
-					Text(unit.label).tag(unit)
-				}
-			}
-			.pickerStyle(.segmented)
-
 			HStack {
 				TextField(format(size.width, as: unit), text: $width)
 					.frame(width: 88.0)

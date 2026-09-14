@@ -239,7 +239,6 @@ struct ToggleRow: View {
 struct LengthRow: View {
 	var title: String
 	@Binding var value: µm?
-	var range: ClosedRange<Double> = 0.0 ... 2_000.0
 	var unit: LengthUnit = .millimeters
 	var property: Property
 	@FocusState.Binding var focus: Property?
@@ -250,7 +249,7 @@ struct LengthRow: View {
 			set: { typed in
 				guard let typed else { return }
 				let millimeters = typed * Double(unit.scale) / Double(µm.mm)
-				let length = µm((min(max(millimeters, range.lowerBound), range.upperBound) * Double(µm.mm)).rounded())
+				let length = µm((millimeters * Double(µm.mm)).rounded())
 				guard length != value else { return }
 				value = length
 			}
@@ -281,19 +280,17 @@ struct PositionRows: View {
 	var unit: LengthUnit = .millimeters
 	@FocusState.Binding var focus: Property?
 
-	private static let span: ClosedRange<Double> = -1_000.0 ... 1_000.0
-
 	private var x: Binding<µm> {
-		Binding(get: { µm(clamping: at.x) }, set: { at = Point(x: Int($0), y: at.y) })
+		Binding(get: { at.x }, set: { at.x = Int($0) })
 	}
 
 	private var y: Binding<µm> {
-		Binding(get: { µm(clamping: at.y) }, set: { at = Point(x: at.x, y: Int($0)) })
+		Binding(get: { at.y }, set: { at.y = Int($0) })
 	}
 
 	var body: some View {
-		LengthRow(title: "X", value: Binding(x), range: Self.span, unit: unit, property: .x, focus: $focus)
-		LengthRow(title: "Y", value: Binding(y), range: Self.span, unit: unit, property: .y, focus: $focus)
+		LengthRow(title: "X", value: Binding(x), unit: unit, property: .x, focus: $focus)
+		LengthRow(title: "Y", value: Binding(y), unit: unit, property: .y, focus: $focus)
 	}
 }
 

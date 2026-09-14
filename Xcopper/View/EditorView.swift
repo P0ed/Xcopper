@@ -118,21 +118,18 @@ struct EditorView: View {
 	@ViewBuilder
 	private func dialog(_ sheet: Sheet) -> some View {
 		switch sheet {
-		case .board:
+		case .schematic, .board:
 			BoardDialog(
-				size: design.board.size,
+				sheet: design.schematic.size,
+				board: design.board.size,
 				stack: design.board.stack,
 				rules: design.board.rules,
 				solderMask: design.board.solderMask,
 				origin: design.board.origin
-			) { size, stack, rules, solderMask, origin in
+			) { sheet, size, stack, rules, solderMask, origin in
 				undoManager.undoGroup("Board settings") {
-					operations.configureBoard(size: size, stack: stack, rules: rules, solderMask: solderMask, origin: origin)
+					operations.configureBoard(sheet: sheet, size: size, stack: stack, rules: rules, solderMask: solderMask, origin: origin)
 				}
-			}
-		case .schematic:
-			SchematicDialog(size: design.schematic.size) { size in
-				operations.resizeSheet(size: size)
 			}
 		case .footprint:
 			FootprintDialog(spec: $layout.spec) { layout.tool = .footprint }

@@ -114,6 +114,10 @@ struct Rules: Hashable, Codable {
 			viaPad: 900
 		)
 	}
+
+	var isValid: Bool {
+		viaDrill > 100 && viaDrill < viaPad
+	}
 }
 
 struct Board: Equatable, Codable {
@@ -193,10 +197,6 @@ extension Footprint {
 }
 
 extension Board {
-
-	mutating func resize(size: Size) {
-		self.size = size
-	}
 
 	mutating func restack(_ stack: Stack) {
 		let old = self.stack

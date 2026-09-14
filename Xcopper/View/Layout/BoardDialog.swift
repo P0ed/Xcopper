@@ -2,49 +2,65 @@ import SwiftUI
 
 @MainActor
 struct BoardDialog: View {
-	var size: Size
-	var stack: Stack
-	var rules: Rules
-	var solderMask: Bool
-	var origin: Point
-	var confirm: (Size, Stack, Rules, Bool, Point) -> Void
-
-	@State private var chosen: Size?
-	@State private var selected: Stack?
-	@State private var selectedRules: Rules?
-	@State private var selectedSolderMask: Bool?
-	@State private var selectedOrigin: Point?
+	@State var sheet: Size
+	@State var board: Size
+	@State var stack: Stack
+	@State var rules: Rules
+	@State var solderMask: Bool
+	@State var origin: Point
 	@State private var unit: LengthUnit = .millimeters
 	@FocusState private var focus: Property?
+	var confirm: (Size, Size, Stack, Rules, Bool, Point) -> Void
 
-	private var stackup: Stack { selected ?? stack }
-	private var draft: Binding<Rules> {
-		Binding(get: { selectedRules ?? rules }, set: { selectedRules = $0 })
-	}
-	private var validVias: Bool {
-		let rules = draft.wrappedValue
-		return rules.viaDrill > 0 && rules.viaPad > rules.viaDrill
+	init(
+		sheet: Size, board: Size, stack: Stack, rules: Rules, solderMask: Bool, origin: Point,
+		confirm: @escaping (Size, Size, Stack, Rules, Bool, Point) -> Void
+	) {
+		self.sheet = sheet
+		self.board = board
+		self.stack = stack
+		self.rules = rules
+		self.solderMask = solderMask
+		self.origin = origin
+		self.confirm = confirm
+		self.unit = unit
+		self.focus = focus
 	}
 
 	var body: some View {
 		Dialog(
 			action: "Apply",
-			isValid: chosen != nil && validVias,
+			isValid: rules.isValid,
 			confirm: {
-				if let chosen { confirm(chosen, stackup, draft.wrappedValue, selectedSolderMask ?? solderMask, selectedOrigin ?? origin) }
+				confirm(
+					sheet,
+					board,
+					stack,
+					rules,
+					solderMask,
+					origin
+				)
 			}
 		) {
 			VStack(spacing: 12.0) {
-				SizeFields(size: size, limit: 500 * .mm, value: $chosen, unit: $unit)
-
-				Panel(title: "Module origin") {
-					PositionRows(at: Binding(
-						get: { selectedOrigin ?? origin },
-						set: { selectedOrigin = $0 }
-					), unit: unit, focus: $focus)
+				Picker("Units", selection: $unit) {
+					ForEach(LengthUnit.allCases) { unit in
+						Text(unit.label).tag(unit)
+					}
+				}
+				.pickerStyle(.segmented)
+				Panel(title: "Sheet") {
+					LengthRow(title: "Width", value: Binding($sheet.width), unit: unit, property: .value, focus: $focus)
+					LengthRow(title: "Height", value: Binding($sheet.height), unit: unit, property: .value, focus: $focus)
+				}
+				Panel(title: "Board") {
+					LengthRow(title: "Width", value: Binding($board.width), unit: unit, property: .value, focus: $focus)
+					LengthRow(title: "Height", value: Binding($board.height), unit: unit, property: .value, focus: $focus)
+					LengthRow(title: "X", value: Binding($origin.x), unit: unit, property: .x, focus: $focus)
+					LengthRow(title: "Y", value: Binding($origin.y), unit: unit, property: .y, focus: $focus)
 				}
 
-				Picker("Stackup", selection: Binding(get: { stackup }, set: { selected = $0 })) {
+				Picker("Stackup", selection: $stack) {
 					ForEach(Stack.allCases, id: \.self) { stack in
 						Text(stack.name).tag(stack)
 					}
@@ -52,23 +68,20 @@ struct BoardDialog: View {
 				.pickerStyle(.segmented)
 				.labelsHidden()
 
-				Text(stackup.summary)
+				Text(stack.summary)
 					.font(.caption)
 					.foregroundStyle(.secondary)
 
-				Toggle("Solder mask", isOn: Binding(
-					get: { selectedSolderMask ?? solderMask },
-					set: { selectedSolderMask = $0 }
-				))
+				Toggle("Solder mask", isOn: $solderMask)
 				.toggleStyle(.checkbox)
 
 					Panel(title: "Globals") {
-						ValuePicker(title: "Gap", value: draft.clearance,
-							options: Set(µm.clearances + [draft.wrappedValue.clearance]).sorted())
-						ValuePicker(title: "Trace width", value: draft.traceWidth,
-							options: Set(µm.traceWidths + [draft.wrappedValue.traceWidth]).sorted())
-						ValuePicker(title: "Via drill", value: draft.viaDrill, options: [400, 500])
-						ValuePicker(title: "Via pad", value: draft.viaPad, options: [800, 900, 1_000])
+						ValuePicker(title: "Gap", value: $rules.clearance,
+							options: Set(µm.clearances + [rules.clearance]).sorted())
+						ValuePicker(title: "Trace width", value: $rules.traceWidth,
+							options: Set(µm.traceWidths + [rules.traceWidth]).sorted())
+						ValuePicker(title: "Via drill", value: $rules.viaDrill, options: [400, 500])
+						ValuePicker(title: "Via pad", value: $rules.viaPad, options: [800, 900, 1_000])
 					}
 			}
 			.frame(width: 240.0)

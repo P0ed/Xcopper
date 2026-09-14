@@ -365,27 +365,23 @@ extension Operations {
 
 extension Operations {
 
-	func configureBoard(size: Size, stack: Stack, rules: Rules, solderMask: Bool? = nil, origin: Point? = nil) {
+	func configureBoard(sheet: Size, size: Size, stack: Stack, rules: Rules, solderMask: Bool, origin: Point) {
 		guard stack == design.board.stack || design.canRestack(stack) else {
 			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
 			return
 		}
-		var next = design
-		next.board.resize(size: size)
-		next.board.rules = rules
-		if let solderMask { next.board.solderMask = solderMask }
-		if let origin { next.board.origin = origin }
-		if stack != next.board.stack {
-			next.restack(stack)
-			layout.clampLayer(next.board.stack)
+		design = modifying(design) { design in
+			design.schematic.size = sheet
+			design.board.size = size
+			design.board.rules = rules
+			design.board.solderMask = solderMask
+			design.board.origin = origin
+			if stack != design.board.stack {
+				design.restack(stack)
+				layout.clampLayer(design.board.stack)
+			}
 		}
-		design = next
 		layout.resetTransientInteractions()
-	}
-
-	func resizeSheet(size: Size) {
-		design.schematic.resize(size: size)
-		schematic.resetTransientInteractions()
 	}
 
 	func addNet(name: String) {
