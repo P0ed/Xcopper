@@ -135,24 +135,15 @@ struct MenuCommands: Commands {
 				)
 				Divider()
 			}
-			if op?.mode == .schematic {
-				ActionButton(
-					name: "Sheet size",
-					image: "doc",
-					shortcut: "B",
-					modifiers: .command,
-					disabled: op.schematicDisabled,
-					action: { op?.editor.sheet = .schematic }
-				)
-			} else if op?.mode == .layout {
-				ActionButton(
-					name: "Board settings",
-					image: "square.dashed",
-					shortcut: "B",
-					modifiers: .command,
-					disabled: op.layoutDisabled,
-					action: { op?.editor.sheet = .board }
-				)
+			ActionButton(
+				name: "Board settings",
+				image: "square.dashed",
+				shortcut: "B",
+				modifiers: .command,
+				disabled: op.actionsDisabled,
+				action: { op?.editor.sheet = .board }
+			)
+			if op?.mode == .layout {
 				Divider()
 				ActionButton(
 					name: "Previous layer",
