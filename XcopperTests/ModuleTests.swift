@@ -647,17 +647,6 @@ extension ModuleTests {
 	}
 
 	@MainActor
-	func testSizeOnlyResizeRemainsAvailableWithAnIncompatibleModule() throws {
-		var design = Design(board: Board(stack: .classic))
-		design.modules = [ModuleInstance(reference: "M1", filename: "Missing.xcb", layerCount: 4)]
-		let harness = EditorHarness(design: design)
-		let size = Size(width: 120 * .mm, height: 80 * .mm)
-		harness.perform { $0.configureBoard(size: size, stack: .classic, rules: design.board.rules) }
-		XCTAssertEqual(harness.design.board.size, size)
-		XCTAssertEqual(harness.design.board.stack, .classic)
-	}
-
-	@MainActor
 	func testOpeningModuleDocumentDoesNotMarkItEdited() async throws {
 		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

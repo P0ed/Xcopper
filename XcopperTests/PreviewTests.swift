@@ -345,6 +345,51 @@ final class PreviewTests: XCTestCase {
 		}
 	}
 
+	func testMixedDrillSizesLeaveEveryHoleOpenOnBothFaces() {
+		var holes: [[Point]] = []
+		for row in 0 ..< 2 {
+			for column in 0 ..< 4 {
+				let center = Point(x: (20 + column * 35) * .mm, y: (20 + row * 35) * .mm)
+				holes.append(circle(at: center, diameter: 6_350))
+				holes.append(circle(at: center + Point(x: 0, y: 5 * .mm), diameter: 1 * .mm))
+			}
+		}
+		for column in 0 ..< 4 {
+			for pin in 0 ..< 3 {
+				let center = Point(x: 12 * .mm + column * 35 * .mm + pin * 2_540, y: 85 * .mm)
+				holes.append(circle(at: center, diameter: 500))
+			}
+		}
+		let expected = 16_000.0 - holes.reduce(0.0) { $0 + area(of: $1) }
+		let outlines = holes.map { $0.map { SIMD2(Double.mm($0.x), Double.mm($0.y)) } }
+
+		func overlaps(_ triangle: [SIMD2<Double>], _ hole: [SIMD2<Double>]) -> Bool {
+			for polygon in [triangle, hole] {
+				for index in polygon.indices {
+					let edge = polygon[(index + 1) % polygon.count] - polygon[index]
+					let axis = SIMD2(-edge.y, edge.x)
+					let a = triangle.map { simd_dot($0, axis) }
+					let b = hole.map { simd_dot($0, axis) }
+					if a.max()! <= b.min()! + 1e-9 || b.max()! <= a.min()! + 1e-9 { return false }
+				}
+			}
+			return true
+		}
+
+		for up in [true, false] {
+			let side = Side(up: up, z: up ? 0.0 : -1.6, layer: up ? 0 : 1)
+			let normal = V3(x: 0.0, y: 0.0, z: up ? 1.0 : -1.0)
+			let face = side.loop(Rect(origin: .zero, size: Size(width: 160 * .mm, height: 100 * .mm)).corners)
+			let triangles = triangulate(face, holes: holes.reversed().map { side.loop($0) }, facing: normal)
+			XCTAssertEqual(area(of: triangles), expected, accuracy: 0.001)
+			assertFacing(triangles, normal.z)
+			for index in stride(from: 0, to: triangles.count, by: 3) {
+				let triangle = triangles[index ..< index + 3].map { SIMD2($0.x, $0.y) }
+				XCTAssertFalse(outlines.contains { overlaps(triangle, $0) }, "No triangle may cover any part of a drill")
+			}
+		}
+	}
+
 	private func area(of loop: [Point]) -> Double {
 		var sum = 0
 		var previous = loop[loop.count - 1]

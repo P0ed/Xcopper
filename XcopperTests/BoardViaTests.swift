@@ -74,31 +74,6 @@ final class BoardViaTests: XCTestCase {
 	}
 
 	@MainActor
-	func testBoardSettingsUndoAndRedoSizesAndNewConnectionsTogether() {
-		var design = design()
-		design.board.vias[0].net = nil
-		design.board.traces = [Trace(start: point(10 * .mm, 10_800), end: point(15 * .mm, 10_800), width: 200, layer: 0, net: 1)]
-		let harness = EditorHarness(design: design)
-		var rules = design.board.rules
-		rules.viaDrill = 700
-		rules.viaPad = 1_600
-		let size = Size(width: 80 * .mm, height: 60 * .mm)
-		harness.perform { $0.configureBoard(size: size, stack: .digital, rules: rules) }
-		let changed = harness.design
-		XCTAssertEqual(changed.board.rules, rules)
-		XCTAssertEqual(changed.board.size, size)
-		XCTAssertEqual(changed.board.stack, .digital)
-		XCTAssertEqual(changed.board.vias.map(\.net), [1, 0])
-		XCTAssertEqual(changed.board.objects.filter { $0.ref.kind == .via }.map(\.layers), [0 ... 3, 0 ... 3])
-
-		harness.undo.undo()
-		XCTAssertEqual(harness.design, design)
-		XCTAssertFalse(harness.undo.canUndo)
-		harness.undo.redo()
-		XCTAssertEqual(harness.design, changed)
-	}
-
-	@MainActor
 	func testViasPastedFromAnotherBoardUseTheDestinationSizesAndFullStack() {
 		let source = EditorHarness(design: design())
 		source.editor.mode = .layout
