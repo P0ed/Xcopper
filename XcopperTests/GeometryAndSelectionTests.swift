@@ -181,8 +181,8 @@ final class GeometryAndSelectionTests: XCTestCase {
 		board.holes = [Hole(at: Point(x: 5 * .mm, y: 5 * .mm), diameter: 1 * .mm)]
 		board.footprints = [Footprint(spec: .init(kind: .chip, chip: .c0805), reference: "R1", at: Point(x: 5 * .mm, y: 5 * .mm))]
 		let overlap = Point(x: 5 * .mm, y: 5 * .mm)
-		XCTAssertEqual(board.hitTest(at: overlap, layer: 0, tolerance: tolerance), .trace(0))
-		XCTAssertEqual(board.refs(at: overlap, layer: 0, tolerance: tolerance, whole: true), [.trace(0)])
+		XCTAssertEqual(board.hitTest(at: overlap, layer: 0, tolerance: tolerance), .via(0))
+		XCTAssertEqual(board.refs(at: overlap, layer: 0, tolerance: tolerance, whole: true), [.via(0)])
 		XCTAssertEqual(board.hitTest(at: overlap, layer: 1, tolerance: tolerance), .via(0))
 
 		board.vias = []
@@ -231,7 +231,8 @@ final class GeometryAndSelectionTests: XCTestCase {
 			XCTAssertEqual(board.figures(on: layer, of: [.pad(0, 0)]), [pad.figure])
 		}
 		board.traces = [trace(from: pad.at, to: pad.at + Point(x: 10 * .mm, y: 0))]
-		XCTAssertEqual(board.hitTest(at: pad.at, layer: 0, tolerance: 0, selection: [.footprint(0)]), .trace(0))
+		XCTAssertEqual(board.hitTest(at: pad.at, layer: 0, tolerance: 0), .trace(0))
+		XCTAssertEqual(board.hitTest(at: pad.at, layer: 0, tolerance: 0, selection: [.footprint(0)]), .pad(0, 0))
 	}
 
 	func testRubberBandSelectionIsLayerFilteredAndNeedsWhollyContainedTraces() {
