@@ -91,7 +91,7 @@ struct LayoutState: Equatable, SelectionState {
 	var traceSession: TraceSession?
 	var selectSession: SelectSession<Ref>?
 	var moveSession: MoveSession?
-	var viewport: Viewport = .init()
+	var viewport: LayoutViewport = .init()
 
 	init(stack: Stack = .analog) {
 		hiddenLayers = stack.internals.reduce(0) { $0 | 1 << $1 }

@@ -3,253 +3,149 @@ import SwiftUI
 @MainActor
 struct LayoutRenderer {
 	var design: Design
-	var state: LayoutState
+	var selection: Set<Ref>
+	var modules: [ModuleInstance]
+	var unresolved: Set<ModuleInstance.ID>
+	var ratsnest: [Rat]
+	var violations: [Point]
 
-	private var drawn: (LayoutDrawing, LayoutPickedDrawing) {
+	init(design: Design, state: LayoutState) {
 		var moved = design
 		var selection = state.selection
 		if let session = state.moveSession, session.didMove,
 			let next = moved.moveLayout(selection, by: session.delta, grid: state.routingGrid) { selection = next }
 		let projection = moved.moduleProjection()
-		return (
-			LayoutDrawing(design: projection.design, modules: moved.modules),
-			LayoutPickedDrawing(board: projection.design.board, selection: projection.expanded(selection))
-		)
+		self.design = projection.design
+		self.selection = projection.expanded(selection)
+		modules = moved.modules
+		unresolved = Set(moved.modules.filter { moved.moduleStatus($0.id) != nil }.map(\.id))
+		ratsnest = projection.design.board.ratsnest(planes: projection.design.planes)
+		violations = projection.design.faults().map(\.at)
 	}
 
-	func render(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
-		guard !visible.isNull, !visible.isEmpty else { return }
-		let origin = Layout.origin
-		let (drawing, picked) = drawn
-		let board = drawing.board
-		var context = context
-		context.clip(to: Path(visible))
-		let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: origin.x, ty: origin.y)
-		var geometry = context
-		geometry.concatenate(transform)
+	var board: Board { design.board }
 
-		renderSubstrate(board, in: context, scale: scale, origin: origin)
-		renderGrid(
-			board.bounds,
-			step: state.grid,
-			in: context,
-			scale: scale,
-			origin: origin,
-			visible: visible
-		)
-
-		for layer in board.stack.copper where layer != state.layer {
-			renderCopper(
-				layer,
-				drawing,
-				picked,
-				in: context,
-				geometry: geometry,
-				transform: transform,
-				visible: visible,
-				dimmed: true
-			)
+	func copper(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		let drills = board.drills
+		drawing.fill(.rect(board.bounds), color: Palette.substrate, level: 0, cutouts: drills)
+		for (index, layer) in layers(state).enumerated() {
+			let opacity = layer == state.layer ? 1.0 : 0.38
+			let level = 10 + index * 4
+			if let net = design.plane(layer) {
+				let bounds = board.bounds.outset(-Int(board.rules.clearance))
+				if bounds.size.width > 0, bounds.size.height > 0 {
+					drawing.fill(
+						.rect(bounds), color: Palette.activeCopper.opacity(opacity * 0.30), level: level,
+						cutouts: board.clearances(on: layer, net: net) + drills
+					)
+				}
+			}
+			for (figure, _) in board.figures(on: layer) {
+				drawing.fill(figure, color: Palette.activeCopper.opacity(opacity), level: level + 1, cutouts: drills)
+			}
 		}
-		renderCopper(
-			state.layer,
-			drawing,
-			picked,
-			in: context,
-			geometry: geometry,
-			transform: transform,
-			visible: visible,
-			dimmed: false
-		)
+		for drill in drills { drawing.fill(drill, color: Palette.background, level: 40) }
+		return drawing.model
+	}
 
-		geometry.fill(drawing.drills, with: .color(Palette.background))
-		Lit.stroke(picked.drills.applying(transform), Palette.lit(Palette.silk), lineWidth: 1.5, in: context)
+	func guides(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		let scale = state.viewport.magnification
+		let drills = board.drills
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / scale).rounded())) }
+
+		for layer in layers(state) {
+			let opacity = layer == state.layer ? 1.0 : 0.38
+			for figure in board.figures(on: layer, of: selection) {
+				drawing.fill(figure.outset(pixels(2)), color: Palette.halo.opacity(opacity * 0.35), level: 50, cutouts: drills)
+				drawing.fill(figure, color: Palette.lit(Palette.activeCopper).opacity(opacity), level: 51, cutouts: drills)
+			}
+		}
+		for case let .hole(index) in selection where board.holes.indices.contains(index) {
+			let hole = board.holes[index]
+			drawing.outline(.round(hole.at, hole.diameter), width: pixels(1.5), color: Palette.highlight, level: 52)
+		}
 		if state.silkscreen {
-			renderSilk(board, picked.selection, in: context, scale: scale, origin: origin, visible: visible)
-		}
-		renderRatsnest(drawing, in: geometry, scale: scale)
-
-		renderModules(drawing.modules, in: context, scale: scale, origin: origin, visible: visible)
-		renderOutline(board, in: context, scale: scale, origin: origin)
-		renderViolations(drawing.violations, in: context, scale: scale, origin: origin, visible: visible)
-	}
-
-	private func renderModules(_ modules: [ModuleInstance], in context: GraphicsContext, scale: CGFloat, origin: CGPoint, visible: CGRect) {
-		guard state.silkscreen else { return }
-		for module in modules {
-			let rect = module.bounds.cg(scale, origin: origin)
-			let unresolved = design.moduleStatus(module.id) != nil
-			let color: Color = unresolved ? .red : Palette.silk
-			let label = context.resolve(
-				Text("\(module.reference) · \(unresolved ? "Unresolved" : module.filename)")
-					.font(.system(size: 1.2 * scale))
-					.foregroundStyle(color)
-			)
-			let at = CGPoint(x: rect.midX, y: rect.minY - 0.8 * scale)
-			let size = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
-			if CGRect(x: at.x - size.width / 2, y: at.y - size.height / 2, width: size.width, height: size.height).intersects(visible) {
-				context.draw(label, at: at)
+			for (index, footprint) in board.footprints.enumerated() {
+				let color = selection.contains(.footprint(index)) ? Palette.highlight : Palette.silk.opacity(0.5)
+				if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
+					drawing.stroke(footprint.placedBody.corners, closed: true, width: pixels(1), color: color, level: 60)
+				}
+				let marker = footprint.place(footprint.pads.first?.at ?? .zero)
+				drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
+			}
+			for module in modules {
+				drawing.stroke(
+					module.bounds.corners, closed: true, width: pixels(1),
+					color: unresolved.contains(module.id) ? .red : Palette.silk.opacity(0.5), level: 60
+				)
 			}
 		}
-	}
-
-	private func renderSubstrate(
-		_ board: Board,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint
-	) {
-		context.fill(Path(board.bounds.cg(scale, origin: origin)), with: .color(Palette.substrate))
-	}
-
-	private func renderOutline(
-		_ board: Board,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint
-	) {
-		context.stroke(
-			Path(board.bounds.cg(scale, origin: origin)),
-			with: .color(Palette.outline),
-			lineWidth: 1.5
-		)
-	}
-
-	private func renderCopper(
-		_ layer: Int,
-		_ drawing: LayoutDrawing,
-		_ picked: LayoutPickedDrawing,
-		in context: GraphicsContext,
-		geometry: GraphicsContext,
-		transform: CGAffineTransform,
-		visible: CGRect,
-		dimmed: Bool
-	) {
-		guard state[visible: layer] else { return }
-		let color = Palette.activeCopper
-		let opacity = dimmed ? 0.38 : 1.0
-
-		if let clearances = drawing.clearances[layer] {
-			renderPlane(
-				drawing.board,
-				clearances: clearances,
-				in: geometry,
-				visible: visible.applying(transform.inverted()),
-				color: color.opacity(opacity * 0.30)
-			)
+		for rat in ratsnest {
+			drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
 		}
-
-		if let path = drawing.copper[layer] {
-			geometry.fill(path, with: .color(color.opacity(opacity)))
+		drawing.stroke(board.bounds.corners, closed: true, width: pixels(1.5), color: Palette.outline, level: 80)
+		for at in violations {
+			drawing.outline(.round(at, pixels(12)), width: pixels(1.5), color: Palette.violation, level: 90)
+			drawing.fill(.round(at, pixels(2.5)), color: Palette.violation, level: 90)
 		}
-		if let path = picked.copper[layer] {
-			Lit.fill(path.applying(transform), Palette.lit(color).opacity(opacity), in: context)
-		}
+		return drawing.model
 	}
 
-	private func renderPlane(
-		_ board: Board,
-		clearances: [Path],
-		in context: GraphicsContext,
-		visible: CGRect,
-		color: Color
-	) {
-		let inset = Int(board.rules.clearance)
-		let bounds = board.bounds.outset(-inset).cg(1, origin: .zero)
-		guard bounds.width > 0, bounds.height > 0 else { return }
-		let area = bounds.intersection(visible)
-		guard !area.isNull, !area.isEmpty else { return }
-
-		context.drawLayer { ctx in
-			ctx.fill(Path(area), with: .color(color))
-			ctx.blendMode = .destinationOut
-			for path in clearances where path.boundingRect.intersects(area) {
-				ctx.fill(path, with: .color(.black))
+	func grid(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		let scale = state.viewport.magnification
+		let step = Int(state.grid)
+		let spacing = CGFloat(Double.mm(step)) * scale
+		guard step > 0, spacing * 10 >= 3 else { return drawing.model }
+		let visible = state.viewport.visible
+		let minX = max(board.bounds.minX, visible.minX)
+		let maxX = min(board.bounds.maxX, visible.maxX)
+		let minY = max(board.bounds.minY, visible.minY)
+		let maxY = min(board.bounds.maxY, visible.maxY)
+		guard minX <= maxX, minY <= maxY else { return drawing.model }
+		let tileCount = ((maxX - minX) / (step * 10) + 2) * ((maxY - minY) / (step * 10) + 2)
+		guard tileCount <= 50_000 else { return drawing.model }
+		let minor = spacing >= 3 && tileCount <= 200
+		let pitch = minor ? step : step * 10
+		let minorSize = min(1.5, max(0.75, spacing / 12))
+		let majorSize = min(2.0, max(1.0, minorSize * 1.5))
+		for y in stride(from: ((minY + pitch - 1) / pitch) * pitch, through: maxY, by: pitch) {
+			for x in stride(from: ((minX + pitch - 1) / pitch) * pitch, through: maxX, by: pitch) {
+				let major = x.isMultiple(of: step * 10) && y.isMultiple(of: step * 10)
+				let size = max(1, Int((major ? majorSize : minorSize) * CGFloat(µm.mm) / scale))
+				drawing.fill(
+					.rect(Rect(center: Point(x: x, y: y), size: Size(width: size, height: size))),
+					color: major ? Palette.gridMajor : Palette.grid, level: 2
+				)
 			}
 		}
+		return drawing.model
 	}
 
-	private func renderRatsnest(
-		_ drawing: LayoutDrawing,
-		in context: GraphicsContext,
-		scale: CGFloat
-	) {
-		for (net, path) in drawing.ratsnest {
-			context.stroke(
-				path,
-				with: .color(Palette.color(of: net).opacity(0.8)),
-				style: StrokeStyle(lineWidth: 0.75 / scale, dash: [3.0 / scale, 3.0 / scale])
-			)
+	func sessions(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+		if let session = state.traceSession, session.didDraw {
+			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
+			drawing.fill(figure, color: Palette.activeCopper, level: 100)
+			drawing.outline(figure, width: pixels(0.75), color: Palette.preview, level: 101)
 		}
+		if let session = state.selectSession, session.didDrag {
+			drawing.stroke(session.rect.corners, closed: true, width: pixels(2), color: .black, level: 110)
+			drawing.stroke(session.rect.corners, closed: true, width: pixels(1), color: Palette.highlight, level: 111, dash: pixels(4))
+		}
+		if state.tool != .select {
+			let at = state.viewport.cursor
+			let arm = pixels(8)
+			drawing.stroke([at - Point(x: arm, y: 0), at + Point(x: arm, y: 0)], width: pixels(1), color: Palette.preview, level: 120)
+			drawing.stroke([at - Point(x: 0, y: arm), at + Point(x: 0, y: arm)], width: pixels(1), color: Palette.preview, level: 120)
+		}
+		return drawing.model
 	}
 
-	private func renderViolations(
-		_ violations: [Point],
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint,
-		visible: CGRect
-	) {
-		var rings = Path()
-		var dots = Path()
-		let visible = visible.insetBy(dx: -7, dy: -7)
-		for violation in violations {
-			let at = violation.cg(scale, origin: origin)
-			guard visible.contains(at) else { continue }
-			rings.addEllipse(in: CGRect(center: at, radius: 6.0))
-			dots.addEllipse(in: CGRect(center: at, radius: 1.25))
-		}
-		context.stroke(rings, with: .color(Palette.violation), lineWidth: 1.5)
-		context.fill(dots, with: .color(Palette.violation))
-	}
-
-	private func renderSilk(
-		_ board: Board,
-		_ selection: Set<Ref>,
-		in context: GraphicsContext,
-		scale: CGFloat,
-		origin: CGPoint,
-		visible: CGRect
-	) {
-		var path = Path()
-		var picked = Path()
-		for (index, footprint) in board.footprints.enumerated() {
-			let body = footprint.placedBody.cg(scale, origin: origin)
-			let marker = footprint.place(footprint.pads.first?.at ?? .zero)
-				.cg(scale, origin: origin)
-
-			let dot = CGRect(center: marker, radius: max(1.0, scale * 0.12))
-			let extent = body.union(dot).insetBy(dx: -Lit.spread, dy: -Lit.spread)
-			guard extent.intersects(visible) else { continue }
-
-			var outline = Path()
-			if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
-				outline.addRect(body)
-			}
-			outline.addEllipse(in: dot)
-			if selection.contains(.footprint(index)) {
-				picked.addPath(outline)
-			} else {
-				path.addPath(outline)
-			}
-		}
-		context.stroke(path, with: .color(Palette.silk.opacity(0.5)), lineWidth: 1.0)
-		Lit.stroke(picked, Palette.lit(Palette.silk), lineWidth: 1.0, in: context)
-
-		guard scale >= 6.0 else { return }
-		for footprint in board.footprints {
-			let body = footprint.placedBody.cg(scale, origin: origin)
-			let at = CGPoint(x: body.midX, y: body.minY - 0.8 * scale)
-			guard at.y >= visible.minY - 14, at.y <= visible.maxY + 14 else { continue }
-
-			let label = context.resolve(
-				Text(footprint.reference)
-					.font(.system(size: 1.2 * scale))
-					.foregroundStyle(Palette.silk)
-			)
-			let size = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
-			if CGRect(x: at.x - size.width / 2, y: at.y - size.height / 2, width: size.width, height: size.height).intersects(visible) {
-				context.draw(label, at: at)
-			}
-		}
+	private func layers(_ state: LayoutState) -> [Int] {
+		(board.stack.copper.filter { $0 != state.layer } + [state.layer]).filter { state[visible: $0] }
 	}
 }

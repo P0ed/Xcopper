@@ -50,7 +50,7 @@ struct PreviewView: View {
 			.modifier(ScrollWheel(
 				action: { delta in
 					scrolling = true
-					camera.zoom(by: exp(Double(delta) * 0.004), reach: state.reach)
+					camera.zoom(by: exp(Double(delta.height) * 0.004), reach: state.reach)
 				},
 				ended: {
 					scrolling = false
@@ -200,7 +200,7 @@ struct RightMouseDrag: ViewModifier {
 
 @MainActor
 struct ScrollWheel: ViewModifier {
-	var action: (CGFloat) -> Void
+	var action: (CGSize) -> Void
 	var ended: () -> Void
 
 	@State private var wheel = Wheel()
@@ -221,7 +221,7 @@ struct ScrollWheel: ViewModifier {
 	@MainActor
 	final class Wheel {
 		var over = false
-		var action: (CGFloat) -> Void = ø
+		var action: (CGSize) -> Void = ø
 		var ended: () -> Void = ø
 		private var monitor: Any?
 		private var settling: Task<Void, Never>?
@@ -231,8 +231,8 @@ struct ScrollWheel: ViewModifier {
 			guard monitor == nil else { return }
 			monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [self] event in
 				let delta = event.hasPreciseScrollingDeltas
-					? event.scrollingDeltaY
-					: event.deltaY * 6.0
+					? CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)
+					: CGSize(width: event.deltaX * 6.0, height: event.deltaY * 6.0)
 				let taken = MainActor.assumeIsolated {
 					guard over else { return false }
 					move(delta)
@@ -242,7 +242,7 @@ struct ScrollWheel: ViewModifier {
 			}
 		}
 
-		private func move(_ delta: CGFloat) {
+		private func move(_ delta: CGSize) {
 			active = true
 			action(delta)
 			settling?.cancel()

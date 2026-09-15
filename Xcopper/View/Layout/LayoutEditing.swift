@@ -4,7 +4,7 @@ import SwiftUI
 extension LayoutView {
 
 	func point(at location: CGPoint) -> Point {
-		Layout.point(location, scale: state.viewport.magnification)
+		state.viewport.point(at: location)
 	}
 
 	var snapRadius: µm { max(state.routingGrid, 400) }
