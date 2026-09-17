@@ -79,6 +79,7 @@ struct LayoutInspector: View {
 				footprint: $design.board.footprints[index, or: board.footprints[index]],
 				reference: $design.reference(of: Ref.footprint(index)),
 				value: $design.value(of: Ref.footprint(index)).orEmpty,
+				valueParameter: $design.valueParameter(of: [board.footprints[index].reference]),
 				stack: board.stack,
 				focus: $focus
 			)
@@ -188,6 +189,7 @@ struct FootprintInspector: View {
 	@Binding var footprint: Footprint
 	@Binding var reference: String
 	@Binding var value: String
+	@Binding var valueParameter: Bool
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
@@ -203,6 +205,7 @@ struct FootprintInspector: View {
 			focus: $focus
 		)
 		TextRow(title: "Value", text: $value, property: .value, focus: $focus)
+		ToggleRow(title: "Parameter", label: "Expose value", value: $valueParameter)
 		ValuePicker(
 			title: "Side",
 			value: $footprint.flipped,
@@ -234,6 +237,10 @@ struct FootprintsInspector: View {
 			text: value.orEmpty,
 			property: .value,
 			focus: $focus
+		)
+		ToggleRow(
+			title: "Parameter", label: "Expose value",
+			value: $design.valueParameter(of: Set(indices.map { footprints[$0].reference }))
 		)
 		ChoiceRow(title: "Side", value: $design.board.footprints.shared(indices, \.flipped)) {
 			Text(stack.name(of: stack.top)).tag(Bool?.some(false))

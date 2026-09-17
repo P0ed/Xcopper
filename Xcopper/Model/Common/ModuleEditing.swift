@@ -292,6 +292,17 @@ extension Design {
 }
 
 extension Binding where Value == Design {
+	func valueParameter(of references: Set<String>) -> Binding<Bool> {
+		Binding<Bool>(
+			get: {
+				!references.isEmpty && references.allSatisfy {
+					wrappedValue.symbol(of: $0)?.valueParameter == true || wrappedValue.footprint(of: $0)?.valueParameter == true
+				}
+			},
+			set: { wrappedValue.exposeValue(of: references, exposed: $0) }
+		)
+	}
+
 	func reference(of ref: Ref) -> Binding<String> {
 		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
 	}

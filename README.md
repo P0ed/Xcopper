@@ -405,6 +405,10 @@ All coordinates and lengths are stored as integer micrometers.
 The schematic stores parts in `symbols`, with optional `netLabel` values on their
 pins. Module instances store numbered IO definitions in `interface` and optional
 pin assignments in `netLabels`, keyed by IO number.
+Parts marked with `valueParameter` expose their value under their reference.
+Module instances retain parameter definitions and defaults in `parameters`, with
+per-instance overrides in `parameterValues`, keyed by parameter name. Older
+documents without these fields have no parameters or overrides.
 Library footprints store their component ID, placement, reference, value and BOM
 setting. Pads, body dimensions, device and package come from the current library
 definition when opened, and pad nets are rebuilt from the schematic.
@@ -424,6 +428,15 @@ be a positive integer, followed by whitespace and a nonempty, case-sensitive
 net name. `#1 OUT1` creates the net `OUT1` and exposes IO pin 1 named `OUT1`.
 A repeated IO number must use the same name and resolve to the same net.
 Matching net labels connect separate parts of an interface net.
+
+To expose a part's value as a module parameter, select it in the source schematic
+or layout and enable **Parameter → Expose value**. Its reference, such as `R1` or
+`R2`, becomes the parameter name and its value becomes the default. Save the source
+and reload modules in the parent. Select an instance to edit its **Parameters**;
+each instance keeps its own overrides. The reset arrow restores the source value,
+including future source changes. Parameters appear inside the schematic block as
+one `R1: 10k` line per parameter. Overrides also apply to the imported parts in the
+layout and bill of materials, including when the module is nested in another.
 
 In the source layout, use **Board settings** (`⌘B`) to set **Module origin** X/Y
 in millimeters or inches using the **mm / in** toggle. It defaults to `[0, 0]`. The instance's layout position places

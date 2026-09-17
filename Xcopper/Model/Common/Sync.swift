@@ -184,6 +184,10 @@ extension Design {
 		updateParts(references, symbol: { $0.value = value }, footprint: { $0.value = value })
 	}
 
+	mutating func exposeValue(of references: Set<String>, exposed: Bool) {
+		updateParts(references, symbol: { $0.valueParameter = exposed }, footprint: { $0.valueParameter = exposed })
+	}
+
 	mutating func rename(_ reference: String, to value: String) {
 		guard value != reference else { return }
 		updateParts([reference], symbol: { $0.reference = value }, footprint: { $0.reference = value })

@@ -66,6 +66,10 @@ struct SymbolsInspector: View {
 			property: .value,
 			focus: $focus
 		)
+		ToggleRow(
+			title: "Parameter", label: "Expose value",
+			value: $design.valueParameter(of: Set(indices.map { symbols[$0].reference }))
+		)
 		ValuePicker(rotation: $design.schematic.symbols.shared(indices, \.rotation))
 		ValuePicker(
 			title: "Facing",

@@ -194,7 +194,7 @@ final class SelectionEditingTests: XCTestCase {
 		XCTAssertEqual(width.wrappedValue, 400)
 
 		let mixed = harness.binding(\.design).board.traces.shared([0, 1], \.width)
-		XCTAssertNil(mixed.wrappedValue)
+		XCTAssertNil(mixed.wrappedValue as Any?)
 
 		width.wrappedValue = 800
 		XCTAssertEqual(harness.design.board.traces.map(\.width), [800, 1_200, 800])

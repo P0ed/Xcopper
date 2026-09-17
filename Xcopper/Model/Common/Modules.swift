@@ -16,6 +16,12 @@ final class ModuleProjectionCache: Sendable, Equatable {
 	}
 }
 
+struct ModuleParameter: Equatable, Codable, Identifiable {
+	var name: String
+	var defaultValue: String
+	var id: String { name }
+}
+
 struct ModuleInstance: Equatable, Codable, Identifiable {
 	var id = UUID()
 	var reference: String
@@ -26,6 +32,8 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var layoutRotation: Rotation = .r0
 	var interface: [IODesignator] = []
 	var netLabels: [String: String]?
+	var parameters: [ModuleParameter] = []
+	var parameterValues: [String: String] = [:]
 	var size = Size(width: 20 * .mm, height: 20 * .mm)
 	var layerCount: Int = 2
 	var origin: Point = .zero
@@ -41,7 +49,28 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 			symbol.pins[i].number = String(ports[i].number)
 			symbol.pins[i].netLabel = self[netLabel: symbol.pins[i].number]
 		}
+		if !parameters.isEmpty {
+			symbol.body.size.height += parameterHeight
+			symbol.glyph = [.rect(symbol.body)]
+		}
 		return symbol
+	}
+
+	func value(for parameter: ModuleParameter) -> String {
+		parameterValues[parameter.name] ?? parameter.defaultValue
+	}
+
+	var parameterLines: [String] {
+		parameters.flatMap { "\($0.name): \(value(for: $0))".components(separatedBy: .newlines) }
+	}
+
+	var parameterHeight: µm { (parameterLines.count + 1) * 2_540 }
+
+	func parameterBounds(in symbol: Symbol) -> Rect {
+		Rect(
+			origin: Point(x: symbol.body.minX, y: symbol.body.maxY - parameterHeight),
+			size: Size(width: symbol.body.size.width, height: parameterHeight)
+		)
 	}
 
 	subscript(netLabel number: String) -> String? {
@@ -59,7 +88,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 
 extension ModuleInstance {
 	enum CodingKeys: String, CodingKey {
-		case id, reference, filename, schematicAt, schematicRotation, layoutAt, layoutRotation, interface, netLabels, size, layerCount, origin
+		case id, reference, filename, schematicAt, schematicRotation, layoutAt, layoutRotation, interface, netLabels, parameters, parameterValues, size, layerCount, origin
 	}
 
 	init(from decoder: Decoder) throws {
@@ -73,6 +102,8 @@ extension ModuleInstance {
 		layoutRotation = try values.decode(Rotation.self, forKey: .layoutRotation)
 		interface = try values.decode([IODesignator].self, forKey: .interface)
 		netLabels = try values.decodeIfPresent([String: String].self, forKey: .netLabels)
+		parameters = try values.decodeIfPresent([ModuleParameter].self, forKey: .parameters) ?? []
+		parameterValues = try values.decodeIfPresent([String: String].self, forKey: .parameterValues) ?? [:]
 		size = try values.decode(Size.self, forKey: .size)
 		layerCount = try values.decode(Int.self, forKey: .layerCount)
 		origin = try values.decodeIfPresent(Point.self, forKey: .origin) ?? .zero
@@ -84,6 +115,7 @@ struct ModuleContent: Equatable {
 	var nets: [Net]
 	var ports: [String: Net.ID]
 	var interface: [IODesignator]
+	var parameters: [ModuleParameter] = []
 }
 
 struct ModuleCache: Equatable {
@@ -127,6 +159,18 @@ private func moduleNetID(_ key: String) -> Int {
 }
 
 extension Design {
+	var moduleParameters: [ModuleParameter] {
+		var values: [String: String] = [:]
+		for footprint in board.footprints where footprint.valueParameter == true {
+			values[footprint.reference] = footprint.value
+		}
+		for symbol in schematic.symbols where symbol.valueParameter == true {
+			values[symbol.reference] = symbol.value
+		}
+		return values.keys.sorted { $0.compare($1, options: .numeric) == .orderedAscending }
+			.map { ModuleParameter(name: $0, defaultValue: values[$0]!) }
+	}
+
 	var moduleErrors: [String] {
 		modules.compactMap { module in
 			moduleStatus(module.id).map { "\(module.reference) (\(module.filename)): \($0)" }
@@ -186,6 +230,7 @@ extension Design {
 			}
 			portsBySymbol[symbolIndex] = content.ports.mapValues { mapping[$0]! }
 			var imported = content.board
+			let parameterValues = Dictionary(content.parameters.map { ($0.name, module.value(for: $0)) }, uniquingKeysWith: { first, _ in first })
 			imported.restack(board.stack)
 			imported.mapNets { $0.flatMap { mapping[$0] } }
 			for var trace in imported.traces {
@@ -204,6 +249,7 @@ extension Design {
 				result.design.board.holes.append(hole)
 			}
 			for var footprint in imported.footprints {
+				if let value = parameterValues[footprint.reference] { footprint.value = value }
 				footprint.at = module.place(footprint.at)
 				footprint.rotation = footprint.rotation.adding(module.layoutRotation)
 				footprint.reference = "\(module.reference).\(footprint.reference)"
@@ -350,6 +396,7 @@ struct ModuleResolver {
 					design.moduleCache.notices.append("\(module.reference): module pins changed. Parent wires kept their coordinates; check connections.")
 				}
 				design.modules[index].interface = content.interface
+				design.modules[index].parameters = content.parameters
 				design.modules[index].size = content.board.size
 				design.modules[index].layerCount = content.board.stack.count
 				design.modules[index].origin = content.board.origin
@@ -377,13 +424,17 @@ struct ModuleResolver {
 			let child = source.modules[i]
 			let content = try resolve(child.filename, stack: source.board.stack, ancestors: ancestors + [url])
 			source.modules[i].interface = content.interface
+			source.modules[i].parameters = content.parameters
 			source.modules[i].size = content.board.size
 			source.modules[i].origin = content.board.origin
 			source.moduleCache.contents[child.id] = content
 		}
 		let projection = source.moduleProjection(syncNative: true)
 		if let error = projection.interfaceError { throw Err("\(filename): \(error)") }
-		let content = ModuleContent(board: projection.design.board, nets: projection.design.nets, ports: projection.ports, interface: projection.interface)
+		let content = ModuleContent(
+			board: projection.design.board, nets: projection.design.nets, ports: projection.ports,
+			interface: projection.interface, parameters: source.moduleParameters
+		)
 		contents[url] = content
 		return content
 	}

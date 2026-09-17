@@ -37,6 +37,7 @@ enum Sheet: String, Identifiable {
 enum Property: Hashable {
 	case reference, value, x, y, width, drill, pad, diameter
 	case pinNet(Int)
+	case moduleParameter(String)
 }
 
 protocol ToolKind: Hashable, CaseIterable {

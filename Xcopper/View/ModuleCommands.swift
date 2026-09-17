@@ -175,8 +175,38 @@ struct ModuleInspector: View {
 			let status = design.moduleStatus(id)
 			Text(status ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
 				.font(.caption).foregroundStyle(status == nil ? Color.secondary : Color.red)
+			if !module.parameters.isEmpty {
+				Text("Parameters").font(.caption).foregroundStyle(.secondary)
+				ForEach(module.parameters) { parameter in
+					HStack(spacing: 4.0) {
+						TextRow(
+							title: parameter.name, text: value(for: parameter),
+							property: .moduleParameter(parameter.name), focus: $focus
+						)
+						Button("Use source value", systemImage: "arrow.uturn.backward") {
+							setValue(nil, for: parameter)
+						}
+						.buttonStyle(.borderless)
+						.labelStyle(.iconOnly)
+						.disabled(module.parameterValues[parameter.name] == nil)
+						.help("Use source value: \(parameter.defaultValue)")
+					}
+				}
+			}
 			if !layout { PinNetsInspector(pins: pins, focus: $focus) }
 		}
+	}
+
+	private func value(for parameter: ModuleParameter) -> Binding<String> {
+		Binding(
+			get: { module?.value(for: parameter) ?? parameter.defaultValue },
+			set: { setValue($0, for: parameter) }
+		)
+	}
+
+	private func setValue(_ value: String?, for parameter: ModuleParameter) {
+		guard let index = design.modules.firstIndex(where: { $0.id == id }) else { return }
+		design.modules[index].parameterValues[parameter.name] = value
 	}
 
 	var pins: Binding<[Pin]> {

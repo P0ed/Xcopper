@@ -36,6 +36,7 @@ struct SchematicRenderer {
 		renderWires(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 		renderJunctions(schematic, in: context, scale: scale, origin: origin)
 		renderSymbols(schematic, selection, in: context, scale: scale, origin: origin)
+		renderParameters(projection, in: context, scale: scale, origin: origin)
 		renderPins(projection, in: context, scale: scale, origin: origin, visible: visible)
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
@@ -150,6 +151,39 @@ struct SchematicRenderer {
 						.foregroundStyle(Palette.symbol.opacity(0.7)),
 					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 0.8)
 				)
+			}
+		}
+	}
+
+	private func renderParameters(
+		_ projection: ModuleProjection,
+		in context: GraphicsContext,
+		scale: CGFloat,
+		origin: CGPoint
+	) {
+		guard scale >= 2.0 else { return }
+		let modules = Dictionary(design.modules.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+		for (ref, id) in projection.symbolOwners {
+			guard case let .symbol(index) = ref, let module = modules[id], !module.parameters.isEmpty else { continue }
+			let symbol = projection.design.schematic.symbols[index]
+			let bounds = module.parameterBounds(in: symbol)
+			let center = symbol.place(bounds.center).cg(scale, origin: origin)
+			let width = Double.mm(bounds.size.width - 2_540) * scale
+			let pitch = 2.54 * scale
+			let lines = module.parameterLines
+			var context = context
+			context.translateBy(x: center.x, y: center.y)
+			if symbol.rotation.isQuarter { context.rotate(by: .degrees(-90.0)) }
+			let labels = lines.map {
+				context.resolve(Text($0).font(.system(size: 1.2 * scale, design: .monospaced)).foregroundStyle(Palette.symbol))
+			}
+			let widest = labels.map { $0.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity)).width }.max() ?? 0.0
+			let fit = min(1.0, width / max(1.0, widest))
+			for (row, label) in labels.enumerated() {
+				var rowContext = context
+				rowContext.translateBy(x: -width / 2.0, y: (Double(row) - Double(lines.count - 1) / 2.0) * pitch)
+				rowContext.scaleBy(x: fit, y: fit)
+				rowContext.draw(label, at: .zero, anchor: .leading)
 			}
 		}
 	}

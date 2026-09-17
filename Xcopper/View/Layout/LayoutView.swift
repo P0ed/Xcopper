@@ -25,7 +25,7 @@ struct LayoutView: View {
 				content.camera = .virtual
 				content.add(scene.root)
 				var effects = content.renderingEffects
-				effects.antialiasing = .multisample4X
+				effects.antialiasing = .none
 				effects.motionBlur = .disabled
 				effects.depthOfField = .disabled
 				content.renderingEffects = effects
