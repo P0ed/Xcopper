@@ -44,7 +44,7 @@ extension µm {
 	}
 
 	static var routingGrids: [µm] {
-		[127, 254, 635]
+		[100, 127, 254, 635]
 	}
 
 	static var traceWidths: [µm] {

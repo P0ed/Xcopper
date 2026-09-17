@@ -203,11 +203,12 @@ struct FootprintInspector: View {
 			focus: $focus
 		)
 		TextRow(title: "Value", text: $value, property: .value, focus: $focus)
-		ChoiceRow(title: "Side", value: $footprint.flipped) {
-			Text(stack.name(of: stack.top)).tag(false)
-			Text(stack.name(of: stack.bottom)).tag(true)
-		}
-		RotationChoice(rotation: Binding($footprint.rotation))
+		ValuePicker(
+			title: "Side",
+			value: $footprint.flipped,
+			options: [(true, stack.name(of: stack.bottom)), (false, stack.name(of: stack.top))]
+		)
+		ValuePicker(rotation: Binding($footprint.rotation))
 		PositionRows(at: $footprint.at, focus: $focus)
 		ValueRow(title: "Pads", value: "\(footprint.pads.count)")
 		ToggleRow(title: "BOM", label: "Include", value: $footprint.inBOM)
@@ -238,7 +239,7 @@ struct FootprintsInspector: View {
 			Text(stack.name(of: stack.top)).tag(Bool?.some(false))
 			Text(stack.name(of: stack.bottom)).tag(Bool?.some(true))
 		}
-		RotationChoice(rotation: $design.board.footprints.shared(indices, \.rotation))
+		ValuePicker(rotation: $design.board.footprints.shared(indices, \.rotation))
 		ChoiceRow(title: "BOM", value: $design.board.footprints.shared(indices, \.inBOM)) {
 			Text("Include").tag(Bool?.some(true))
 			Text("Exclude").tag(Bool?.some(false))
@@ -291,19 +292,6 @@ struct NetChoice: View {
 			Text("None").tag(Net.ID??.some(nil))
 			ForEach(nets) { net in
 				Text(net.name).tag(Net.ID??.some(net.id))
-			}
-		}
-	}
-}
-
-@MainActor
-struct RotationChoice: View {
-	@Binding var rotation: Rotation?
-
-	var body: some View {
-		ChoiceRow(title: "Turned", value: $rotation) {
-			ForEach(Rotation.allCases, id: \.self) { rotation in
-				Text("\(rotation.degrees)°").tag(Rotation?.some(rotation))
 			}
 		}
 	}

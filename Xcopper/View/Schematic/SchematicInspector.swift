@@ -66,11 +66,12 @@ struct SymbolsInspector: View {
 			property: .value,
 			focus: $focus
 		)
-		RotationChoice(rotation: $design.schematic.symbols.shared(indices, \.rotation))
-		ChoiceRow(title: "Facing", value: $design.schematic.symbols.shared(indices, \.mirrored)) {
-			Text("Normal").tag(Bool?.some(false))
-			Text("Mirrored").tag(Bool?.some(true))
-		}
+		ValuePicker(rotation: $design.schematic.symbols.shared(indices, \.rotation))
+		ValuePicker(
+			title: "Facing",
+			value: $design.schematic.symbols.shared(indices, \.mirrored),
+			options: [(true, "Mirrored"), (false, "Normal")]
+		)
 		if indices.count == 1, let index = indices.first {
 			PositionRows(at: $design.schematic.symbols[index, or: symbols[index]].at, focus: $focus)
 			ValueRow(title: "Pins", value: "\(symbols[index].pins.count)")

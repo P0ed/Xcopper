@@ -9,7 +9,7 @@ extension LayoutView {
 
 	var snapRadius: µm { max(state.routingGrid, 400) }
 
-	var hitTolerance: µm { 600 / max(1, Int(state.viewport.magnification / 4)) }
+	var hitTolerance: µm { 2_400 / max(1, Int(state.viewport.magnification)) }
 
 	func snapped(_ point: Point, layer: Int) -> (Point, Net.ID?) {
 		if !modifierFlags.contains(.control),
@@ -137,7 +137,7 @@ private extension LayoutView {
 				}
 			} else {
 				let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, selection: state.selection)
-				if hit.containsPads { state.selection = selectionMode.apply(state.selection, hit) }
+				state.selection = selectionMode.apply(state.selection, hit)
 			}
 			return
 		}

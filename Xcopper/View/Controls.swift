@@ -144,18 +144,35 @@ struct Panel<Content: View>: View {
 struct ValuePicker<Value: Hashable>: View {
 	var title: String
 	@Binding var value: Value
-	var options: [Value]
-	var label: (Value) -> String
+	var options: [(value: Value, label: String)]
 
 	var body: some View {
 		PropertyRow(title: title) {
 			Picker("", selection: $value) {
-				ForEach(options, id: \.self) { option in
-					Text("\(label(option))").tag(option)
+				ForEach(options, id: \.value) { option in
+					Text(option.label).tag(option.value)
 				}
 			}
 			.labelsHidden()
 		}
+	}
+}
+
+extension ValuePicker {
+
+	init(title: String, value: Binding<Value>, options: [Value], label: (Value) -> String) {
+		self.init(title: title, value: value, options: options.map { ($0, label($0)) })
+	}
+}
+
+extension ValuePicker where Value == Rotation? {
+
+	init(rotation: Binding<Rotation?>) {
+		self.init(
+			title: "Rotation",
+			value: rotation,
+			options: Rotation.allCases.map { (.some($0), "\($0.degrees)º") }
+		)
 	}
 }
 
