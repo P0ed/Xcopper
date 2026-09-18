@@ -89,6 +89,7 @@ struct TraceSession: Equatable {
 	var layer: Int
 	var net: Net.ID?
 	var phase: RoutePhase
+	var anchors: [Point] = []
 
 	var didDraw: Bool { start != end }
 }

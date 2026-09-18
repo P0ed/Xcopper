@@ -72,6 +72,7 @@ struct LayoutView: View {
 		.onChange(of: state.viewport.center) { _, _ in refreshHover() }
 		.onChange(of: state.viewport.magnification) { _, _ in refreshHover() }
 		.onChange(of: state.viewport.size) { _, _ in refreshHover() }
+		.onChange(of: state.traceSession?.start) { _, _ in refreshHover() }
 	}
 
 	private func refreshHover() {

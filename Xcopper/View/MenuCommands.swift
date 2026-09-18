@@ -255,7 +255,7 @@ struct MenuCommands: Commands {
 				name: "Delete",
 				image: "trash",
 				shortcut: KeyEquivalent.delete.character,
-				disabled: op.objectEditingDisabled,
+				disabled: op.actionsDisabled || !(op?.canDelete ?? false),
 				action: { op?.delete() }
 			)
 		}

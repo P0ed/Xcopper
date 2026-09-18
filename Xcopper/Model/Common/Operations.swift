@@ -70,6 +70,10 @@ extension Operations {
 	}
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
+	var canDelete: Bool {
+		if mode == .layout, let session = layout.traceSession { return !session.anchors.isEmpty }
+		return hasSelection && !hasReadOnlySelection
+	}
 	var hasPadSelection: Bool { mode == .layout && layout.selection.containsPads }
 	var hasReadOnlySelection: Bool {
 		hasPadSelection || (mode == .layout && design.containsModuleParts(layout.selection))
@@ -105,6 +109,14 @@ extension Operations {
 	}
 
 	func delete() {
+		if mode == .layout, layout.traceSession != nil {
+			layout.backtrackTrace(in: &design.board)
+			return
+		}
+		deleteSelection()
+	}
+
+	private func deleteSelection() {
 		guard !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout:
@@ -260,7 +272,7 @@ extension Operations {
 
 	func cut() {
 		copy()
-		delete()
+		deleteSelection()
 	}
 
 	func copy() {

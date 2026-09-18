@@ -172,14 +172,10 @@ private extension Set where Element == Ref {
 extension LayoutState {
 
 	mutating func beginTrace(at point: Point) {
-		if let session = traceSession, session.phase == .pending {
-			traceSession = TraceSession(
-				start: session.start,
-				end: point,
-				layer: session.layer,
-				net: session.net,
-				phase: .gesture(committable: true)
-			)
+		if var session = traceSession, session.phase == .pending {
+			session.end = point
+			session.phase = .gesture(committable: true)
+			traceSession = session
 		} else if traceSession == nil {
 			traceSession = TraceSession(
 				start: point,
@@ -206,26 +202,43 @@ extension LayoutState {
 	}
 
 	mutating func endTrace() -> Trace? {
-		guard let session = traceSession, case let .gesture(committable) = session.phase else {
+		guard var session = traceSession, case let .gesture(committable) = session.phase else {
 			return nil
 		}
 		guard committable, session.didDraw else {
 			traceSession = modifying(session) { session in session.phase = .pending }
 			return nil
 		}
-		traceSession = TraceSession(
-			start: session.end,
-			end: session.end,
-			layer: session.layer,
-			net: session.net,
-			phase: .pending
-		)
-		return Trace(
+		let trace = Trace(
 			start: session.start,
 			end: session.end,
 			width: traceWidth,
 			layer: session.layer,
 			net: session.net
 		)
+		session.anchors.append(session.start)
+		session.start = session.end
+		session.phase = .pending
+		traceSession = session
+		return trace
+	}
+
+	mutating func backtrackTrace(in board: inout Board) {
+		guard var session = traceSession, let start = session.anchors.last,
+			let trace = board.traces.last,
+			trace.start == start, trace.end == session.start, trace.layer == session.layer
+		else { return }
+
+		board.traces.removeLast()
+		session.anchors.removeLast()
+		session.start = trace.start
+		session.end = trace.end
+		session.net = trace.net
+		session.phase = .pending
+		traceSession = session
+		traceWidth = trace.width
+		layer = trace.layer
+		net = trace.net
+		viewport.cursor = trace.end
 	}
 }

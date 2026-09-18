@@ -98,7 +98,9 @@ only the drawing; the fabrication set carries no silkscreen.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
-`⎋` to cancel. Landing on a pad, a via or copper already drawn ends the route
+or press Delete to remove the last placed segment and redraw it from its start.
+Repeat Delete to step back through the current route; `⎋` cancels routing.
+Landing on a pad, a via or copper already drawn ends the route
 there and hands the tool back to Select.
 
 Copper never turns a right angle. A route chaining on from a segment already
