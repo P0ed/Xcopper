@@ -447,8 +447,12 @@ Nested modules use their own source origins. Save the source and reload modules
 in the parent to apply origin changes.
 
 Save the parent design and put all module sources in the same folder. Choose
-**File → Import Module…** to add a source. Xcopper validates its dependencies and
-parks an IC block on the schematic and a matching group on the layout. The block
+**Objects → Place Module** (`M`) and select a source. After validating its
+dependencies, Xcopper shows a preview that follows the pointer in the current
+schematic or layout. Click to place it on the active placement grid; `Esc` or
+**Cancel** discards the preview. Nothing is added until the click, and placement
+is one undoable action. The counterpart in the other view is parked automatically.
+Starting from 3D switches to layout for placement. The schematic block
 lists IO pins in ascending numeric order. A module can import other modules, provided each
 source has no more copper layers than its containing design. Circular dependencies
 and paths outside the document folder are rejected.

@@ -40,11 +40,11 @@ extension EditorView {
 	private func clearSelection() -> Bool {
 		switch editor.mode {
 		case .layout:
-			guard !layout.selection.isEmpty || layout.traceSession != nil || layout.selectSession != nil || layout.moveSession != nil
+			guard !layout.selection.isEmpty || layout.traceSession != nil || layout.selectSession != nil || layout.moveSession != nil || layout.modulePlacement != nil
 			else { return false }
 			layout.resetTransientInteractions()
 		case .schematic:
-			guard !schematic.selection.isEmpty || schematic.wireSession != nil || schematic.selectSession != nil || schematic.moveSession != nil
+			guard !schematic.selection.isEmpty || schematic.wireSession != nil || schematic.selectSession != nil || schematic.moveSession != nil || schematic.modulePlacement != nil
 			else { return false }
 			schematic.resetTransientInteractions()
 		case .preview:

@@ -272,6 +272,17 @@ extension Design {
 	}
 
 	@discardableResult
+	mutating func placeModule(_ placement: ModulePlacement, at point: Point, layout: Bool) -> UUID {
+		var instance = placement.instance
+		if !referenceIsFree(instance.reference) { instance.reference = nextReference(like: instance.reference) }
+		if layout { instance.layoutAt = point }
+		else { instance.schematicAt = point }
+		modules.append(instance)
+		moduleCache.contents[instance.id] = placement.content
+		return instance.id
+	}
+
+	@discardableResult
 	mutating func importModule(filename: String, documentURL: URL, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> UUID {
 		var candidate = self
 		let instance = ModuleInstance(reference: nextReference(like: "M"), filename: filename)

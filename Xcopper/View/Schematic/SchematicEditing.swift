@@ -32,6 +32,10 @@ extension SchematicView {
 				let start = point(at: gesture.startLocation)
 				let current = point(at: Layout.reached(by: gesture))
 
+				if state.modulePlacement != nil {
+					state.viewport.cursor = current.snapped(to: state.snap)
+					return
+				}
 				switch state.tool {
 				case .select:
 					dragSelection(from: start, to: current)
@@ -46,6 +50,14 @@ extension SchematicView {
 				let start = point(at: gesture.startLocation)
 				let current = point(at: Layout.reached(by: gesture))
 
+				if let placement = state.modulePlacement {
+					undoManager.undoGroup("Place module") {
+						let id = design.placeModule(placement, at: current.snapped(to: state.snap), layout: false)
+						state.modulePlacement = nil
+						state.selection = [.module(id)]
+					}
+					return
+				}
 				switch state.tool {
 				case .select:
 					endSelection(from: start, to: current)
@@ -64,6 +76,11 @@ extension SchematicView {
 
 	func hover(at location: CGPoint) {
 		let point = point(at: location)
+		if state.modulePlacement != nil {
+			claimKeyboard()
+			state.viewport.cursor = point.snapped(to: state.snap)
+			return
+		}
 		state.viewport.cursor = state.tool == .wire && state.wireSession != nil
 			? wireEnd(point)
 			: snapped(point)
@@ -135,7 +152,7 @@ private extension SchematicView {
 	}
 
 	func edit(at point: Point) {
-		guard state.tool == .select,
+		guard state.tool == .select, state.modulePlacement == nil,
 			let ref = design.schematicRef(at: point, tolerance: hitTolerance)
 		else { return }
 		let property: Property

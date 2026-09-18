@@ -15,12 +15,16 @@ struct LayoutSideBar: View {
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				Panel(title: "Selection") {
-					LayoutInspector(design: $design, selection: state.selection, focus: $focus) { ref in
-						state.cancelSessions()
-						state.selection = [ref]
+				Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
+					if let placement = state.modulePlacement {
+						ModulePlacementInspector(placement: placement) { state.cancelSessions() }
+					} else {
+						LayoutInspector(design: $design, selection: state.selection, focus: $focus) { ref in
+							state.cancelSessions()
+							state.selection = [ref]
+						}
+						CounterpartButton(operations: operations)
 					}
-					CounterpartButton(operations: operations)
 				}
 
 				Panel(title: "Board") {

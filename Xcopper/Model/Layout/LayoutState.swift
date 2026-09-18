@@ -74,7 +74,7 @@ extension µm {
 struct LayoutState: Equatable, SelectionState {
 	var tool: Tool = .select {
 		didSet {
-			guard tool != oldValue else { return }
+			guard tool != oldValue || modulePlacement != nil else { return }
 			cancelSessions()
 		}
 	}
@@ -92,6 +92,7 @@ struct LayoutState: Equatable, SelectionState {
 	var traceSession: TraceSession?
 	var selectSession: SelectSession<Ref>?
 	var moveSession: MoveSession?
+	var modulePlacement: ModulePlacement?
 	var viewport: LayoutViewport = .init()
 
 	init(stack: Stack = .analog) {
@@ -111,7 +112,8 @@ extension LayoutState {
 	}
 
 	private var usesPlacementGrid: Bool {
-		switch tool {
+		if modulePlacement != nil { return true }
+		return switch tool {
 		case .footprint, .hole: true
 		case .trace, .via: false
 		case .select: selection.usesPlacementGrid
@@ -133,6 +135,7 @@ extension LayoutState {
 		traceSession = nil
 		selectSession = nil
 		moveSession = nil
+		modulePlacement = nil
 	}
 
 	mutating func prevLayer(_ stack: Stack) {

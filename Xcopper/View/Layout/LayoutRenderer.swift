@@ -12,6 +12,10 @@ struct LayoutRenderer {
 	init(design: Design, state: LayoutState) {
 		var moved = design
 		var selection = state.selection
+		if let placement = state.modulePlacement {
+			let id = moved.placeModule(placement, at: state.viewport.cursor.snapped(to: state.placementGrid), layout: true)
+			selection = [.module(id)]
+		}
 		if let session = state.moveSession, session.didMove,
 			let next = moved.moveLayout(selection, by: session.delta, grid: state.routingGrid) { selection = next }
 		let projection = moved.moduleProjection()
@@ -35,7 +39,7 @@ struct LayoutRenderer {
 				let bounds = board.bounds.outset(-Int(board.rules.clearance))
 				if bounds.size.width > 0, bounds.size.height > 0 {
 					drawing.fill(
-						.rect(bounds), color: Palette.inactiveCopper, level: level,
+						.rect(bounds), color: Palette.innerCopper, level: level,
 						cutouts: board.clearances(on: layer, net: net) + drills
 					)
 				}
@@ -122,6 +126,10 @@ struct LayoutRenderer {
 	func sessions(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
 		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+		if let placement = state.modulePlacement,
+			let module = modules.first(where: { $0.id == placement.instance.id }) {
+			drawing.stroke(module.bounds.corners, closed: true, width: pixels(1.5), color: Palette.preview, level: 100)
+		}
 		if let session = state.traceSession, session.didDraw {
 			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
 			drawing.fill(figure, color: Palette.activeCopper, level: 100)
@@ -131,8 +139,8 @@ struct LayoutRenderer {
 			drawing.stroke(session.rect.corners, closed: true, width: pixels(2), color: .black, level: 110)
 			drawing.stroke(session.rect.corners, closed: true, width: pixels(1), color: Palette.highlight, level: 111, dash: pixels(4))
 		}
-		if state.tool != .select {
-			let at = state.viewport.cursor
+		if state.tool != .select || state.modulePlacement != nil {
+			let at = state.modulePlacement == nil ? state.viewport.cursor : state.viewport.cursor.snapped(to: state.placementGrid)
 			let arm = pixels(8)
 			drawing.stroke([at - Point(x: arm, y: 0), at + Point(x: arm, y: 0)], width: pixels(1), color: Palette.preview, level: 120)
 			drawing.stroke([at - Point(x: 0, y: arm), at + Point(x: 0, y: arm)], width: pixels(1), color: Palette.preview, level: 120)
@@ -145,7 +153,7 @@ struct LayoutRenderer {
 	}
 }
 
-extension LayoutState {
+private extension LayoutState {
 
 	func copperColor(_ layer: Int) -> Color {
 		if layer == self.layer {

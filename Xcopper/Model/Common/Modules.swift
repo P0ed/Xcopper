@@ -64,7 +64,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		parameters.flatMap { "\($0.name): \(value(for: $0))".components(separatedBy: .newlines) }
 	}
 
-	var parameterHeight: µm { (parameterLines.count + 1) * 2_540 }
+	var parameterHeight: µm { parameterLines.count * 2_540 }
 
 	func parameterBounds(in symbol: Symbol) -> Rect {
 		Rect(
@@ -116,6 +116,11 @@ struct ModuleContent: Equatable {
 	var ports: [String: Net.ID]
 	var interface: [IODesignator]
 	var parameters: [ModuleParameter] = []
+}
+
+struct ModulePlacement: Equatable {
+	var instance: ModuleInstance
+	var content: ModuleContent
 }
 
 struct ModuleCache: Equatable {

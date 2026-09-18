@@ -88,9 +88,20 @@ extension Operations {
 			let id = try ModuleFolderAccess.withAccess(to: folder) {
 				try next.importModule(filename: source.lastPathComponent, documentURL: documentURL)
 			}
-			design = next
-			layout.selection = [.module(id)]
-			schematic.selection = [.module(id)]
+			guard let instance = next.modules.first(where: { $0.id == id }),
+				let content = next.moduleCache.contents[id] else { return }
+			let placement = ModulePlacement(instance: instance, content: content)
+			layout.resetTransientInteractions()
+			schematic.resetTransientInteractions()
+			editor.editing = nil
+			if mode == .schematic {
+				schematic.tool = .select
+				schematic.modulePlacement = placement
+			} else {
+				layout.tool = .select
+				layout.modulePlacement = placement
+				editor.mode = .layout
+			}
 		} catch { moduleAlert("Could not import module", error.localizedDescription) }
 	}
 
@@ -155,6 +166,20 @@ extension Operations {
 			moduleAlert("Could not paste modules", error.localizedDescription)
 			return nil
 		}
+	}
+}
+
+@MainActor
+struct ModulePlacementInspector: View {
+	var placement: ModulePlacement
+	var cancel: () -> Void
+
+	var body: some View {
+		ValueRow(title: "Source", value: placement.instance.filename)
+		ValueRow(title: "Ref", value: placement.instance.reference)
+		Text("Move the pointer and click to place. Press Esc to cancel.")
+			.font(.caption).foregroundStyle(.secondary)
+		Button("Cancel", action: cancel).buttonStyle(.borderless)
 	}
 }
 

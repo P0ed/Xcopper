@@ -25,6 +25,8 @@ final class LayoutScene {
 			|| previous?.moveSession != state.moveSession
 			|| previous?.selection != state.selection
 			|| previous?.routingGrid != state.routingGrid
+			|| previous?.modulePlacement != state.modulePlacement
+			|| (state.modulePlacement != nil && (previous?.viewport.cursor != state.viewport.cursor || previous?.placementGrid != state.placementGrid))
 		if changed { renderer = LayoutRenderer(design: design, state: state) }
 		guard let renderer else { return }
 		let layers = previous?.layer != state.layer || previous?.hiddenLayers != state.hiddenLayers

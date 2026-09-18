@@ -14,8 +14,10 @@ struct SchematicSideBar: View {
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				Panel(title: "Selection") {
-					if state.selection.count == 1, let id = state.selection.moduleIDs.first {
+				Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
+					if let placement = state.modulePlacement {
+						ModulePlacementInspector(placement: placement) { state.cancelSessions() }
+					} else if state.selection.count == 1, let id = state.selection.moduleIDs.first {
 						ModuleInspector(design: $design, id: id, layout: false, focus: $focus)
 					} else {
 						SchematicInspector(

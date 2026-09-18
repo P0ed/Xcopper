@@ -20,8 +20,9 @@ struct SchematicView: View {
 			ViewportCanvas(viewport: state.viewport) { context, scale, visible in
 				renderer.render(in: context, scale: scale, visible: visible)
 				renderSessions(in: context, scale: scale, origin: Layout.origin)
-				if state.tool != .select {
-					renderCursor(state.viewport.cursor, in: context, scale: scale, origin: Layout.origin)
+				if state.tool != .select || state.modulePlacement != nil {
+					let cursor = state.modulePlacement == nil ? state.viewport.cursor : state.viewport.cursor.snapped(to: state.snap)
+					renderCursor(cursor, in: context, scale: scale, origin: Layout.origin)
 				}
 			}
 			.contentShape(Rectangle())

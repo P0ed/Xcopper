@@ -8,6 +8,10 @@ struct SchematicRenderer {
 	private var drawn: (projection: ModuleProjection, selection: Set<Schematic.Ref>) {
 		var moved = design
 		var selection = state.selection
+		if let placement = state.modulePlacement {
+			let id = moved.placeModule(placement, at: state.viewport.cursor.snapped(to: state.snap), layout: false)
+			selection = [.module(id)]
+		}
 		if let session = state.moveSession, session.didMove,
 			let next = moved.moveSchematic(selection, by: session.delta, grid: state.snap) { selection = next }
 		let projection = moved.moduleProjection()
@@ -162,7 +166,8 @@ struct SchematicRenderer {
 		origin: CGPoint
 	) {
 		guard scale >= 2.0 else { return }
-		let modules = Dictionary(design.modules.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+		let instances = design.modules + (state.modulePlacement.map { [$0.instance] } ?? [])
+		let modules = Dictionary(instances.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 		for (ref, id) in projection.symbolOwners {
 			guard case let .symbol(index) = ref, let module = modules[id], !module.parameters.isEmpty else { continue }
 			let symbol = projection.design.schematic.symbols[index]

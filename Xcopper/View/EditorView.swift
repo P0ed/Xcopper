@@ -34,12 +34,20 @@ struct EditorView: View {
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
 		.onChange(of: configuration?.fileURL, initial: true) { _, _ in
+			layout.modulePlacement = nil
+			schematic.modulePlacement = nil
 			undoManager?.disableUndoRegistration()
 			defer { undoManager?.enableUndoRegistration() }
 			operations.reloadModules(automatic: true)
 		}
 		.onChange(of: editor.editing) { _, editing in if editing == nil { focused = true } }
+		.onChange(of: editor.mode) { previous, _ in
+			if previous == .layout { layout.modulePlacement = nil }
+			if previous == .schematic { schematic.modulePlacement = nil }
+		}
 		.onChange(of: design) { previous, next in
+			layout.modulePlacement = nil
+			schematic.modulePlacement = nil
 			guard previous.containsModuleParts(layout.selection) else { return }
 			if previous.board.footprints.count != next.board.footprints.count
 				|| previous.board.traces.count != next.board.traces.count

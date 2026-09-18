@@ -32,7 +32,7 @@ extension SchematicTool {
 struct SchematicState: Equatable, SelectionState {
 	var tool: SchematicTool = .select {
 		didSet {
-			guard tool != oldValue else { return }
+			guard tool != oldValue || modulePlacement != nil else { return }
 			cancelSessions()
 		}
 	}
@@ -43,6 +43,7 @@ struct SchematicState: Equatable, SelectionState {
 	var wireSession: WireSession?
 	var selectSession: SelectSession<Schematic.Ref>?
 	var moveSession: MoveSession?
+	var modulePlacement: ModulePlacement?
 	var viewport: Viewport = .init()
 }
 
@@ -52,6 +53,7 @@ extension SchematicState {
 		wireSession = nil
 		selectSession = nil
 		moveSession = nil
+		modulePlacement = nil
 	}
 
 	mutating func beginWire(at point: Point) {
