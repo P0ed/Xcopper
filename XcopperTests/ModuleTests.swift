@@ -440,7 +440,8 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(moved.vias[0].at, before.vias[0].at + delta)
 		XCTAssertEqual(moved.footprints[0].at, before.footprints[0].at + delta)
 		XCTAssertEqual(design.modules[0].schematicAt, originalSchematic)
-		XCTAssertEqual(design.layoutRefs(at: moved.footprints[0].placedPads[0].at, layer: 0, tolerance: 1), [.module(id)])
+		XCTAssertEqual(design.layoutRefs(at: moved.footprints[0].placedPads[0].at, layer: 0, tolerance: 1), [.pad(0, 0)])
+		XCTAssertEqual(design.layoutRefs(at: moved.footprints[0].placedPads[0].at, layer: 0, tolerance: 1, whole: true), [.module(id)])
 		let pad = moved.footprints[0].placedPads[0]
 		XCTAssertEqual(design.layoutRefs(in: Rect(center: pad.at, size: Size(width: 100, height: 100)), layer: 0), [.module(id)])
 		XCTAssertEqual(design.schematicRef(at: design.modules[0].symbol.at, tolerance: 1), .module(id))

@@ -116,7 +116,10 @@ private extension LayoutView {
 		}
 		if state.selectSession == nil, !picksRun {
 			let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance).first
-			if let hit, state.selection.contains(hit), !state.selection.containsPads {
+				?? design.modules.last(where: { state.selection.contains(.module($0.id)) && $0.bounds.contains(start) }).map { Ref.module($0.id) }
+			if let hit,
+				state.selection.contains(hit) || state.selection.contains(design.moduleProjection().owner(hit)),
+				!state.selection.containsPads, !design.containsModuleParts(state.selection) {
 				state.beginMove(at: start.snapped(to: state.selectionGrid))
 				return state.updateMove(to: current.snapped(to: state.selectionGrid))
 			}

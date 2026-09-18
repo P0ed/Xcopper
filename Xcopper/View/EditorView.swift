@@ -39,6 +39,17 @@ struct EditorView: View {
 			operations.reloadModules(automatic: true)
 		}
 		.onChange(of: editor.editing) { _, editing in if editing == nil { focused = true } }
+		.onChange(of: design) { previous, next in
+			guard previous.containsModuleParts(layout.selection) else { return }
+			if previous.board.footprints.count != next.board.footprints.count
+				|| previous.board.traces.count != next.board.traces.count
+				|| previous.board.vias.count != next.board.vias.count
+				|| previous.board.holes.count != next.board.holes.count
+				|| previous.modules.map(\.id) != next.modules.map(\.id)
+				|| previous.moduleCache != next.moduleCache {
+				layout.resetTransientInteractions()
+			}
+		}
 		.onKeyPress(action: keyboardController)
 		.sheet(item: $editor.sheet, content: dialog)
 	}

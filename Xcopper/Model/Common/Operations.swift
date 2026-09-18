@@ -71,8 +71,11 @@ extension Operations {
 
 	var canPaste: Bool { !clipboard.isEmpty(in: mode) }
 	var hasPadSelection: Bool { mode == .layout && layout.selection.containsPads }
+	var hasReadOnlySelection: Bool {
+		hasPadSelection || (mode == .layout && design.containsModuleParts(layout.selection))
+	}
 	var canAssignNet: Bool {
-		mode == .layout && !layout.selection.isEmpty
+		mode == .layout && !layout.selection.isEmpty && !hasReadOnlySelection
 			&& layout.selection.allSatisfy { $0.kind == .trace || $0.kind == .via }
 	}
 
@@ -102,7 +105,7 @@ extension Operations {
 	}
 
 	func delete() {
-		guard !hasPadSelection else { return }
+		guard !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout:
 			let counterparts = design.deleteLayout(layout.selection)
@@ -117,7 +120,7 @@ extension Operations {
 	}
 
 	func rotate(clockwise: Bool) {
-		guard !hasPadSelection else { return }
+		guard !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout: design.rotateLayout(layout.selection, clockwise: clockwise)
 		case .schematic: design.rotateSchematic(schematic.selection, clockwise: clockwise)
@@ -126,7 +129,7 @@ extension Operations {
 	}
 
 	func flip() {
-		guard !hasModuleSelection, !hasPadSelection else { return }
+		guard !hasModuleSelection, !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout: design.board.flip(layout.selection)
 		case .schematic: design.schematic.mirror(schematic.selection)
@@ -135,7 +138,7 @@ extension Operations {
 	}
 
 	func duplicate() {
-		guard !hasPadSelection else { return }
+		guard !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout: layout.selection = design.duplicateLayout(layout.selection, by: offset)
 		case .schematic: schematic.selection = design.duplicateSchematic(schematic.selection, by: offset)
@@ -152,7 +155,7 @@ extension Operations {
 	}
 
 	func nudge(dx: Int = 0, dy: Int = 0) {
-		guard !hasPadSelection else { return }
+		guard !hasReadOnlySelection else { return }
 		let delta = Point(x: dx * Int(snap), y: dy * Int(snap))
 		switch mode {
 		case .layout:
@@ -261,7 +264,7 @@ extension Operations {
 	}
 
 	func copy() {
-		guard !hasPadSelection else { return }
+		guard !hasReadOnlySelection else { return }
 		let ids = selectedModuleIDs
 		var next = Clipboard()
 		next.modules = design.modules.filter { ids.contains($0.id) }

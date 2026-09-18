@@ -37,7 +37,7 @@ struct SchematicState: Equatable, SelectionState {
 		}
 	}
 	var snap: µm = .sheetSnapGrids.last!
-	var grid: µm = .displayGrids.first!
+	var grid: µm = .displayGrids.last!
 	var spec: Symbol.Spec = .default
 	var selection: Set<Schematic.Ref> = []
 	var wireSession: WireSession?

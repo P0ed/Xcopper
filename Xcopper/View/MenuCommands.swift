@@ -8,7 +8,7 @@ extension FocusedValues {
 extension Operations? {
 	var actionsDisabled: Bool { !(self?.editor.keysAvailable ?? false) }
 	var selectionDisabled: Bool { actionsDisabled || !(self?.hasSelection ?? false) }
-	var objectEditingDisabled: Bool { selectionDisabled || (self?.hasPadSelection ?? false) }
+	var objectEditingDisabled: Bool { selectionDisabled || (self?.hasReadOnlySelection ?? false) }
 	var pasteDisabled: Bool { actionsDisabled || !(self?.canPaste ?? false) }
 	var layoutDisabled: Bool { actionsDisabled || self?.mode != .layout }
 	var counterpartDisabled: Bool { actionsDisabled || (self?.counterpartCount ?? 0) == 0 }

@@ -7,7 +7,9 @@ struct LayoutInspector: View {
 	@FocusState.Binding var focus: Property?
 	var selectOwner: (Ref) -> Void
 
-	private var board: Board { design.board }
+	private var readOnly: Bool { design.containsModuleParts(selection) }
+	private var inspected: Binding<Design> { readOnly ? .constant(design.resolved) : $design }
+	private var board: Board { inspected.wrappedValue.board }
 
 	var body: some View {
 		if selection.count == 1, let ref = selection.first, ref.kind == .module || ref.kind == .pad {
@@ -16,10 +18,23 @@ struct LayoutInspector: View {
 			PadsInspector(design: design.resolved, refs: selection)
 		} else if let group = selection.group {
 			properties(of: group.kind, group.indices)
+				.disabled(readOnly)
 		} else {
 			Text(selection.isEmpty ? "Nothing selected" : "\(selection.count) objects selected")
 				.font(.caption)
 				.foregroundStyle(.secondary)
+		}
+		if readOnly {
+			let projection = design.moduleProjection()
+			let owners = Set(selection.map { projection.owner($0) }).moduleIDs
+			Text("Module parts are read-only. ⌘-click to select the module.")
+				.font(.caption).foregroundStyle(.secondary)
+			if owners.count == 1, let id = owners.first,
+				let module = design.modules.first(where: { $0.id == id }) {
+				ValueRow(title: "Module", value: module.reference)
+				Button("Select module") { selectOwner(.module(id)) }
+					.buttonStyle(.borderless)
+			}
 		}
 	}
 
@@ -31,9 +46,8 @@ struct LayoutInspector: View {
 		case let .pad(index, _):
 			let projection = design.moduleProjection()
 			if projection.design.board.placedPad(ref) != nil {
-				let owner = projection.owner(.footprint(index))
 				PadsInspector(design: projection.design, refs: [ref])
-				Button(owner.kind == .module ? "Select module" : "Select footprint") { selectOwner(owner) }
+				Button("Select footprint") { selectOwner(.footprint(index)) }
 					.buttonStyle(.borderless)
 			}
 		default:
@@ -46,7 +60,7 @@ struct LayoutInspector: View {
 		switch kind {
 		case .trace:
 			TracesInspector(
-				traces: $design.board.traces,
+				traces: inspected.board.traces,
 				indices: indices.filter { board.traces.indices.contains($0) },
 				nets: design.resolved.nets,
 				stack: board.stack,
@@ -54,14 +68,14 @@ struct LayoutInspector: View {
 			)
 		case .via:
 			ViasInspector(
-				vias: $design.board.vias,
+				vias: inspected.board.vias,
 				indices: indices.filter { board.vias.indices.contains($0) },
 				nets: design.resolved.nets,
 				focus: $focus
 			)
 		case .hole:
 			HolesInspector(
-				holes: $design.board.holes,
+				holes: inspected.board.holes,
 				indices: indices.filter { board.holes.indices.contains($0) },
 				focus: $focus
 			)
@@ -76,15 +90,15 @@ struct LayoutInspector: View {
 	private func footprints(_ indices: [Int]) -> some View {
 		if indices.count == 1, let index = indices.first {
 			FootprintInspector(
-				footprint: $design.board.footprints[index, or: board.footprints[index]],
-				reference: $design.reference(of: Ref.footprint(index)),
-				value: $design.value(of: Ref.footprint(index)).orEmpty,
-				valueParameter: $design.valueParameter(of: [board.footprints[index].reference]),
+				footprint: inspected.board.footprints[index, or: board.footprints[index]],
+				reference: inspected.reference(of: Ref.footprint(index)),
+				value: inspected.value(of: Ref.footprint(index)).orEmpty,
+				valueParameter: inspected.valueParameter(of: [board.footprints[index].reference]),
 				stack: board.stack,
 				focus: $focus
 			)
 		} else {
-			FootprintsInspector(design: $design, indices: indices, stack: board.stack, focus: $focus)
+			FootprintsInspector(design: inspected, indices: indices, stack: board.stack, focus: $focus)
 		}
 	}
 }

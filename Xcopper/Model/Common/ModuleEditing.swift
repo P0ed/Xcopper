@@ -48,8 +48,22 @@ extension Design {
 
 	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
 		let projection = moduleProjection()
-		let hit = projection.design.board.refs(at: point, layer: layer, tolerance: tolerance, whole: whole, selection: projection.expanded(selection))
-		return Set(hit.map { $0.kind == .pad ? $0 : projection.owner($0) })
+		let board = projection.design.board
+		let padSelection = selection.union(projection.owners.keys.filter { $0.kind == .footprint })
+		guard let hit = board.hitTest(at: point, layer: layer, tolerance: tolerance, selection: padSelection) else {
+			guard whole, let module = modules.last(where: { $0.bounds.outset(tolerance).contains(point) }) else { return [] }
+			return [.module(module.id)]
+		}
+		guard whole else { return [hit] }
+		let owner = projection.owner(hit)
+		if owner.kind == .module { return [owner] }
+		return Set(board.refs(at: point, layer: layer, tolerance: tolerance, whole: true, selection: padSelection).map { projection.owner($0) })
+	}
+
+	func containsModuleParts(_ refs: Set<Ref>) -> Bool {
+		guard !modules.isEmpty, !refs.isEmpty else { return false }
+		let projection = moduleProjection()
+		return refs.contains { projection.owner($0) != $0 }
 	}
 
 	func layoutRefs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
@@ -91,6 +105,7 @@ extension Design {
 
 	@discardableResult
 	mutating func deleteLayout(_ refs: Set<Ref>) -> Bool {
+		guard !containsModuleParts(refs) else { return false }
 		let counterparts = symbols(for: refs)
 		removeModules(refs.moduleIDs)
 		board.remove(refs)
@@ -108,6 +123,7 @@ extension Design {
 	}
 
 	mutating func duplicateLayout(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
+		guard !containsModuleParts(refs) else { return refs }
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		let created = board.duplicate(refs, by: delta)
 		var taken = schematic.occupied
@@ -160,9 +176,10 @@ extension Design {
 
 	@discardableResult
 	mutating func moveLayout(_ refs: Set<Ref>, by delta: Point, grid: µm) -> Set<Ref>? {
+		guard !containsModuleParts(refs) else { return nil }
 		guard !modules.isEmpty else { return board.move(refs, by: delta, grid: grid) }
 		let projection = moduleProjection()
-		let selection = Set(refs.map { projection.owner($0) })
+		let selection = refs
 		var repair = board
 		var moving = selection
 		for (index, footprint) in projection.design.board.footprints.enumerated() {
@@ -210,6 +227,7 @@ extension Design {
 	}
 
 	mutating func rotateLayout(_ refs: Set<Ref>, clockwise: Bool) {
+		guard !containsModuleParts(refs) else { return }
 		let module = refs.count == 1 ? modules.first { refs.contains(.module($0.id)) } : nil
 		guard let pivot = module?.layoutAt ?? layoutBounds(refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270

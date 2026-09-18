@@ -60,7 +60,7 @@ extension µm {
 	}
 
 	static var displayGrids: [µm] {
-		[12_700, 25_400]
+		[10_000, 12_700, 25_400]
 	}
 
 	var label: String {
@@ -78,11 +78,12 @@ struct LayoutState: Equatable, SelectionState {
 			cancelSessions()
 		}
 	}
+	var stack: Stack
 	var layer: Int = 0
 	var net: Net.ID?
 	var placementGrid: µm = .placementGrids.first!
 	var routingGrid: µm = .routingGrids.last!
-	var grid: µm = .displayGrids.first!
+	var grid: µm = .displayGrids.last!
 	var hiddenLayers: Int
 	var silkscreen = false
 	var traceWidth: µm?
@@ -94,6 +95,7 @@ struct LayoutState: Equatable, SelectionState {
 	var viewport: LayoutViewport = .init()
 
 	init(stack: Stack = .analog) {
+		self.stack = stack
 		hiddenLayers = stack.internals.reduce(0) { $0 | 1 << $1 }
 	}
 }

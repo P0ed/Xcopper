@@ -120,8 +120,9 @@ Box selection selects whole objects and never individual pads. The inspector
 shows a pad's number, dimensions, layer, position and net as read-only values.
 Assign pad nets with net labels in the schematic; the board updates automatically
 as the schematic changes. Layout net assignment applies only to traces and vias. Choose **Select footprint**
-in the inspector to move or edit the whole part. Pads inside imported modules
-select the locked module instance.
+in the inspector to move or edit the whole part. Module pads can be clicked directly
+to inspect their resolved net, dimensions and position.
+`⌘`-click an imported object to select its whole module instance.
 
 A click is still a click when the hand is not quite still. The pointer has to
 travel a few points across the screen before a press counts as a drag, so a
@@ -463,8 +464,11 @@ Source top and bottom copper map to the parent's outer layers, and through holes
 span the parent stack. Module rectangles are placement bounds; fabrication
 exports only the parent's outline.
 
-Click imported copper, a block or its layout rectangle to select the whole
-instance. Move, quarter-turn, duplicate, copy, paste or delete it using the usual
+Click an imported layout part to inspect it individually, or click a pad directly
+to inspect its net and dimensions. `⌘`-click any imported object or
+empty space inside its layout rectangle to select the whole instance. Schematic
+blocks and layout box selection select whole instances. Move, quarter-turn,
+duplicate, copy, paste or delete a selected instance using the usual
 commands. A duplicate has a new identity and both representations; deleting
 either representation removes both. `⌘J` shows the counterpart. The inspector
 edits the instance reference and each representation's position and rotation.

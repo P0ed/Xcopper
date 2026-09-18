@@ -124,39 +124,28 @@ func renderGrid(
 	let rows = lastRow - firstRow + 1
 	guard columns > 0, rows > 0, columns * rows <= 50_000 else { return }
 
-	let tileCount = columns * rows
-	let drawMinor = step >= 3.0 && tileCount <= 200
-	let minorSize = min(1.5, max(0.75, step / 12.0))
-	let majorSize = min(2.0, max(1.0, minorSize * 1.5))
-	let minorDot = CGRect(center: .zero, radius: minorSize / 2.0)
-	let majorDot = CGRect(center: .zero, radius: majorSize / 2.0)
+	let size = min(1.5, max(0.75, step / 12.0))
+	let dot = CGRect(center: .zero, radius: size / 2.0)
 
 	var tile = Path()
-	if drawMinor {
-		for row in 0 ..< 10 {
-			for column in 0 ..< 10 where row != 0 || column != 0 {
-				tile.addRect(minorDot.offsetBy(dx: CGFloat(column) * step, dy: CGFloat(row) * step))
-			}
+	for row in 0 ..< 10 {
+		for column in 0 ..< 10 where row != 0 || column != 0 {
+			tile.addRect(dot.offsetBy(dx: CGFloat(column) * step, dy: CGFloat(row) * step))
 		}
 	}
 
 	var minor = Path()
-	var major = Path()
 	for row in firstRow ... lastRow {
 		for column in firstColumn ... lastColumn {
 			let x = bounds.minX + CGFloat(column) * tileSpan
 			let y = bounds.minY + CGFloat(row) * tileSpan
-			if drawMinor {
-				minor.addPath(tile, transform: CGAffineTransform(translationX: x, y: y))
-			}
-			major.addRect(majorDot.offsetBy(dx: x, dy: y))
+			minor.addPath(tile, transform: .identity.translatedBy(x: x, y: y))
 		}
 	}
 
 	var context = context
 	context.clip(to: Path(visible))
-	if drawMinor { context.fill(minor, with: .color(Palette.grid)) }
-	context.fill(major, with: .color(Palette.gridMajor))
+	context.fill(minor, with: .color(Palette.grid))
 }
 
 func marching(_ path: Path, in context: GraphicsContext) {

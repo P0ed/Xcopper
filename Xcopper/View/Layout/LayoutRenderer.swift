@@ -30,19 +30,19 @@ struct LayoutRenderer {
 		let drills = board.drills
 		drawing.fill(.rect(board.bounds), color: Palette.substrate, level: 0, cutouts: drills)
 		for (index, layer) in layers(state).enumerated() {
-			let opacity = layer == state.layer ? 1.0 : 0.38
 			let level = 10 + index * 4
 			if let net = design.plane(layer) {
 				let bounds = board.bounds.outset(-Int(board.rules.clearance))
 				if bounds.size.width > 0, bounds.size.height > 0 {
 					drawing.fill(
-						.rect(bounds), color: Palette.activeCopper.opacity(opacity * 0.30), level: level,
+						.rect(bounds), color: Palette.inactiveCopper, level: level,
 						cutouts: board.clearances(on: layer, net: net) + drills
 					)
 				}
 			}
+			let color = state.copperColor(layer)
 			for (figure, _) in board.figures(on: layer) {
-				drawing.fill(figure, color: Palette.activeCopper.opacity(opacity), level: level + 1, cutouts: drills)
+				drawing.fill(figure, color: color, level: level + 1, cutouts: drills)
 			}
 		}
 		for drill in drills { drawing.fill(drill, color: Palette.background, level: 40) }
@@ -56,10 +56,10 @@ struct LayoutRenderer {
 		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / scale).rounded())) }
 
 		for layer in layers(state) {
-			let opacity = layer == state.layer ? 1.0 : 0.38
+			let color = Palette.lit(state.copperColor(layer))
 			for figure in board.figures(on: layer, of: selection) {
-				drawing.fill(figure.outset(pixels(2)), color: Palette.halo.opacity(opacity * 0.35), level: 50, cutouts: drills)
-				drawing.fill(figure, color: Palette.lit(Palette.activeCopper).opacity(opacity), level: 51, cutouts: drills)
+				drawing.fill(figure.outset(pixels(2)), color: Palette.halo, level: 50, cutouts: drills)
+				drawing.fill(figure, color: color, level: 51, cutouts: drills)
 			}
 		}
 		for case let .hole(index) in selection where board.holes.indices.contains(index) {
@@ -99,27 +99,22 @@ struct LayoutRenderer {
 		let step = Int(state.grid)
 		let spacing = CGFloat(Double.mm(step)) * scale
 		guard step > 0, spacing * 10 >= 3 else { return drawing.model }
-		let visible = state.viewport.visible
-		let minX = max(board.bounds.minX, visible.minX)
-		let maxX = min(board.bounds.maxX, visible.maxX)
-		let minY = max(board.bounds.minY, visible.minY)
-		let maxY = min(board.bounds.maxY, visible.maxY)
-		guard minX <= maxX, minY <= maxY else { return drawing.model }
-		let tileCount = ((maxX - minX) / (step * 10) + 2) * ((maxY - minY) / (step * 10) + 2)
-		guard tileCount <= 50_000 else { return drawing.model }
-		let minor = spacing >= 3 && tileCount <= 200
-		let pitch = minor ? step : step * 10
-		let minorSize = min(1.5, max(0.75, spacing / 12))
-		let majorSize = min(2.0, max(1.0, minorSize * 1.5))
-		for y in stride(from: ((minY + pitch - 1) / pitch) * pitch, through: maxY, by: pitch) {
-			for x in stride(from: ((minX + pitch - 1) / pitch) * pitch, through: maxX, by: pitch) {
-				let major = x.isMultiple(of: step * 10) && y.isMultiple(of: step * 10)
-				let size = max(1, Int((major ? majorSize : minorSize) * CGFloat(µm.mm) / scale))
-				drawing.fill(
-					.rect(Rect(center: Point(x: x, y: y), size: Size(width: size, height: size))),
-					color: major ? Palette.gridMajor : Palette.grid, level: 2
-				)
-			}
+
+		let bounds = board.bounds
+		let pitch = step
+		let size = max(1, Int(1.0 * CGFloat(µm.mm) / scale))
+
+		for x in stride(from: ((bounds.minX + pitch - 1) / pitch) * pitch, through: bounds.maxX, by: pitch) {
+			drawing.fill(
+				.rect(Rect(origin: Point(x: x, y: 0), size: Size(width: size, height: bounds.size.height))),
+				color: Palette.grid, level: 2
+			)
+		}
+		for y in stride(from: ((bounds.minY + pitch - 1) / pitch) * pitch, through: bounds.maxY, by: pitch) {
+			drawing.fill(
+				.rect(Rect(origin: Point(x: 0, y: y), size: Size(width: bounds.size.width, height: size))),
+				color: Palette.grid, level: 2
+			)
 		}
 		return drawing.model
 	}
@@ -147,5 +142,18 @@ struct LayoutRenderer {
 
 	private func layers(_ state: LayoutState) -> [Int] {
 		(board.stack.copper.filter { $0 != state.layer } + [state.layer]).filter { state[visible: $0] }
+	}
+}
+
+extension LayoutState {
+
+	func copperColor(_ layer: Int) -> Color {
+		if layer == self.layer {
+			Palette.activeCopper
+		} else if layer == stack.top || layer == stack.bottom {
+			Palette.inactiveCopper
+		} else {
+			Palette.innerCopper
+		}
 	}
 }
