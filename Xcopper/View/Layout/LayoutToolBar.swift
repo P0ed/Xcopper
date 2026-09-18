@@ -38,7 +38,7 @@ struct LayerButton: View {
 
 	var body: some View {
 		Button(stack.name(of: layer), systemImage: image) { state.layer = layer }
-		.foregroundStyle(isActive ? Palette.color(of: layer, in: stack) : .primary)
+			.foregroundStyle(isActive ? Color.accentColor : .primary)
 		.modifier(Shortcut(shortcut: shortcut, modifiers: []))
 	}
 

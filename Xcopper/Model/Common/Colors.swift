@@ -6,7 +6,7 @@ enum Palette {
 	static let substrate = Color(white: 0.068)
 	static let activeCopper = Color(white: 0.91)
 	static let inactiveCopper = Color(white: 0.56)
-	static let innerCopper = Color(white: 0.56, opacity: 0.33)
+	static let innerCopper = Color(white: 0.33)
 	static let outline = Color(red: 0.82, green: 0.82, blue: 0.56)
 	static let grid = Color(white: 0.82, opacity: 0.22)
 	static let silk = Color(white: 0.91)

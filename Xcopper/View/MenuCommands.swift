@@ -221,16 +221,16 @@ struct MenuCommands: Commands {
 			ActionButton(
 				name: "Rotate left",
 				image: "rotate.left",
-				shortcut: "R",
-				modifiers: [.command, .shift],
+				shortcut: "Z",
+				modifiers: [.shift],
 				disabled: op.objectEditingDisabled,
 				action: { op?.rotate(clockwise: false) }
 			)
 			ActionButton(
 				name: "Rotate right",
 				image: "rotate.right",
-				shortcut: "R",
-				modifiers: .command,
+				shortcut: "Z",
+				modifiers: [],
 				disabled: op.objectEditingDisabled,
 				action: { op?.rotate(clockwise: true) }
 			)

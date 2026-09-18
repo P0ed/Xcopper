@@ -97,34 +97,6 @@ struct Shortcut: ViewModifier {
 }
 
 @MainActor
-struct NetRow: View {
-	var name: String
-	var color: Color
-	var selected: Bool
-	var select: () -> Void
-	var remove: (() -> Void)?
-
-	var body: some View {
-		HStack(spacing: 6.0) {
-			Circle().fill(color).frame(width: 10.0, height: 10.0)
-			Text(name).lineLimit(1)
-			Spacer(minLength: 0.0)
-			if let remove {
-				Button("Delete", systemImage: "xmark", action: remove)
-					.buttonStyle(.borderless)
-					.labelStyle(.iconOnly)
-					.foregroundStyle(.tertiary)
-			}
-		}
-		.padding(.horizontal, 6.0)
-		.padding(.vertical, 3.0)
-		.background(selected ? Color.accentColor.opacity(0.25) : .clear, in: .rect(cornerRadius: 5.0))
-		.contentShape(.rect)
-		.onTapGesture(perform: select)
-	}
-}
-
-@MainActor
 struct Panel<Content: View>: View {
 	var title: String
 	@ViewBuilder var content: () -> Content

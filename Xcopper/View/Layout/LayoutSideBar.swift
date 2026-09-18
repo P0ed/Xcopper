@@ -42,17 +42,13 @@ struct LayoutSideBar: View {
 				Panel(title: "Layers") {
 					LayerRow(
 						text: "Silkscreen",
-						color: .primary,
 						shortcut: editor.keysAvailable ? "§" : nil,
 						toggle: $state.silkscreen
 					)
 					ForEach(Array(stack.copper), id: \.self) { layer in
-						let text = stack.name(of: layer) + ": "
-							+ (design.net(design.plane(layer))?.name ?? "SIG")
-						let color = Palette.color(of: layer, in: stack)
+						let text = design.net(design.plane(layer))?.name ?? "SIG"
 						LayerRow(
 							text: text,
-							color: color,
 							shortcut: editor.keysAvailable ? "\(layer + 1)".first : nil,
 							toggle: $state[visible: layer]
 						)
@@ -60,34 +56,6 @@ struct LayoutSideBar: View {
 				}
 
 				ModulePanel(operations: operations)
-
-				Panel(title: "Nets") {
-					NetRow(
-						name: "None",
-						color: .secondary,
-						selected: state.net == nil,
-						select: { state.net = nil }
-					)
-					ForEach(design.nets) { net in
-						NetRow(
-							name: net.name,
-							color: Palette.color(of: net.id),
-							selected: state.net == net.id,
-							select: { state.net = net.id },
-							remove: design.isPlaneNet(net.id)
-								? nil
-								: { operations.removeNet(net.id) }
-						)
-					}
-					HStack {
-						Button("Add", systemImage: "plus") { editor.sheet = .net }
-						Spacer()
-						Button("Assign", systemImage: "link") { operations.assignNet(state.net) }
-							.disabled(!operations.canAssignNet)
-					}
-					.buttonStyle(.borderless)
-					.padding(.top, 2.0)
-				}
 			}
 			.padding(12.0)
 		}
@@ -173,7 +141,7 @@ extension Violation.Kind {
 @MainActor
 struct LayerRow: View {
 	var text: String
-	var color: Color
+	var color: Color = .primary
 	var shortcut: Character?
 	@Binding var toggle: Bool
 
