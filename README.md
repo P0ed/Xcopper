@@ -485,7 +485,8 @@ identity, reference, positions, rotations, pin labels and parameter overrides.
 The replacement and its dependencies are validated before the change is applied;
 if its IO changes, check the parent wires, which keep their coordinates.
 Imported internals remain locked, including nested modules; use **Open Module
-Source** to edit them. Flipping modules and assigning layout nets to imported internals are disabled.
+Source** to edit them, or select a single module in schematic mode and press `Enter`.
+Flipping modules and assigning layout nets to imported internals are disabled.
 Moving a layout group keeps its geometry rigid and stretches parent traces
 attached to its pads or vias. If trace repair fails, the whole move is refused.
 Rotating a group leaves external copper in place.

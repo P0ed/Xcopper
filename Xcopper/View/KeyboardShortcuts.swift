@@ -12,6 +12,13 @@ extension EditorView {
 				return .handled
 			}
 
+			if keys.key == .return || keys.key.character == "\u{3}", modifiers.isEmpty,
+				editor.mode == .schematic, schematic.selection.count == 1,
+				let id = schematic.selection.moduleIDs.first {
+				Task { operations.openModuleSource(id) }
+				return .handled
+			}
+
 			@MainActor
 			func step(dx: Int = 0, dy: Int = 0) {
 				if editor.mode == .preview {

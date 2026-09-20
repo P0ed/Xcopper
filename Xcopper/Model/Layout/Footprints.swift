@@ -271,10 +271,10 @@ extension Footprint {
 		make(
 			.led5mm,
 			pads: [
-				through(1, 0, -1_270, drill: 800, pad: 1_700),
-				through(2, 0, 1_270, drill: 800, pad: 1_700),
+				through(1, 0, 1_270, drill: 900, pad: 1_800),
+				through(2, 0, -1_270, drill: 900, pad: 1_800),
 			],
-			body: Size(width: 5_800, height: 5_800)
+			body: Size(width: 5_000, height: 5_000)
 		)
 	}
 
@@ -363,7 +363,7 @@ extension Footprint {
 		return make(
 			.nkkMNPC,
 			pads: (0 ..< 3).map { index in
-				through(index + 1, 0, (index - 1) * pitch, drill: 1_600, pad: 2_800)
+				through(index + 1, 0, (1 - index) * pitch, drill: 1_600, pad: 2_800)
 			},
 			body: Size(width: 7_900, height: 13 * .mm)
 		)
