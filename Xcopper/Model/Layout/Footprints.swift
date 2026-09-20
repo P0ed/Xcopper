@@ -314,7 +314,7 @@ extension Footprint {
 			pads: (0 ..< 3).map { index in
 				through(
 					index + 1,
-					(index - 1) * pitch,
+					(1 - index) * pitch,
 					-7_500,
 					drill: 900,
 					pad: 1_800
