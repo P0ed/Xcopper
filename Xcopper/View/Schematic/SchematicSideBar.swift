@@ -18,7 +18,9 @@ struct SchematicSideBar: View {
 					if let placement = state.modulePlacement {
 						ModulePlacementInspector(placement: placement) { state.cancelSessions() }
 					} else if state.selection.count == 1, let id = state.selection.moduleIDs.first {
-						ModuleInspector(design: $design, id: id, layout: false, focus: $focus)
+						ModuleInspector(design: $design, id: id, layout: false, focus: $focus) {
+							operations.selectModuleSource(id)
+						}
 					} else {
 						SchematicInspector(
 							design: $design,

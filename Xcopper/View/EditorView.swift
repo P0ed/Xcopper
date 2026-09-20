@@ -143,11 +143,10 @@ struct EditorView: View {
 				board: design.board.size,
 				stack: design.board.stack,
 				rules: design.board.rules,
-				solderMask: design.board.solderMask,
-				origin: design.board.origin
-			) { sheet, size, stack, rules, solderMask, origin in
+				solderMask: design.board.solderMask
+			) { sheet, size, stack, rules, solderMask in
 				undoManager.undoGroup("Board settings") {
-					operations.configureBoard(sheet: sheet, size: size, stack: stack, rules: rules, solderMask: solderMask, origin: origin)
+					operations.configureBoard(sheet: sheet, size: size, stack: stack, rules: rules, solderMask: solderMask)
 				}
 			}
 		case .footprint:

@@ -132,13 +132,12 @@ struct Board: Equatable, Codable {
 	var footprints: [Footprint]
 	var rules: Rules
 	var solderMask = true
-	var origin: Point = .zero
 }
 
 extension Board {
 
 	enum CodingKeys: String, CodingKey {
-		case size, stack, traces, vias, holes, footprints, rules, solderMask, origin
+		case size, stack, traces, vias, holes, footprints, rules, solderMask
 	}
 
 	init(from decoder: Decoder) throws {
@@ -151,7 +150,6 @@ extension Board {
 		footprints = try values.decode([Footprint].self, forKey: .footprints)
 		rules = try values.decode(Rules.self, forKey: .rules)
 		solderMask = try values.decodeIfPresent(Bool.self, forKey: .solderMask) ?? true
-		origin = try values.decodeIfPresent(Point.self, forKey: .origin) ?? .zero
 	}
 
 	init(size: Size = .init(width: 4 * .inch, height: 6 * .inch), stack: Stack = .analog) {

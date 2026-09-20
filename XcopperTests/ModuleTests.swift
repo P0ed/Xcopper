@@ -53,62 +53,64 @@ final class ModuleTests: XCTestCase {
 		XCTAssertTrue(reopened.fabrication(named: "unresolved").isEmpty)
 	}
 
-	func testOriginsRoundTripAndDefaultToZeroInOlderDocuments() throws {
-		var source = source()
-		source.board.origin = point(8 * .mm, 6 * .mm)
-		XCTAssertEqual(try Document.decode(Document(design: source).encoded()).board.origin, source.board.origin)
-		var design = try imported(["Part.xcb": source])
-		design.board.origin = point(12 * .mm, 10 * .mm)
+	func testOriginsAreNotStoredAndOlderOriginFieldsAreIgnored() throws {
+		let design = try imported(["Part.xcb": source()])
 		let reopened = try Document.decode(Document(design: design).encoded())
-		XCTAssertEqual(reopened.board.origin, design.board.origin)
-		XCTAssertEqual(reopened.modules[0].origin, source.board.origin)
+		XCTAssertEqual(reopened.board, design.board)
+		XCTAssertEqual(reopened.modules, design.modules)
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Document(design: design).encoded()) as? [String: Any])
 		var board = try XCTUnwrap(json["board"] as? [String: Any])
-		board.removeValue(forKey: "origin")
+		XCTAssertNil(board["origin"])
+		board["origin"] = [12 * µm.mm, 10 * µm.mm]
 		json["board"] = board
 		var modules = try XCTUnwrap(json["modules"] as? [[String: Any]])
-		modules[0].removeValue(forKey: "origin")
+		XCTAssertNil(modules[0]["origin"])
+		modules[0]["origin"] = [8 * µm.mm, 6 * µm.mm]
 		json["modules"] = modules
 		let legacy = try Document.decode(JSONSerialization.data(withJSONObject: json))
-		XCTAssertEqual(legacy.board.origin, .zero)
-		XCTAssertEqual(legacy.modules[0].origin, .zero)
+		XCTAssertEqual(legacy.board, design.board)
+		XCTAssertEqual(legacy.modules, design.modules)
+		XCTAssertEqual(legacy.modules[0].place(point(10 * .mm, 10 * .mm)), design.modules[0].layoutAt)
 	}
 
-	func testModuleOriginPlacesAndRotatesGeometryAroundItsPosition() throws {
+	func testModuleCenterPlacesAndRotatesGeometryAroundItsPosition() throws {
 		var source = source()
-		source.board.origin = point(8 * .mm, 6 * .mm)
+		let opened = try Document.decode(Document(design: source).encoded())
+		XCTAssertEqual(opened.resolved.board.bounds.origin, .zero)
+		XCTAssertEqual(opened.resolved.board.footprints[0].at, point(5 * .mm, 5 * .mm))
 		var design = try imported(["Part.xcb": source])
 		let id = design.modules[0].id
 		design.modules[0].layoutAt = point(50 * .mm, 40 * .mm)
-		XCTAssertEqual(design.resolved.board.footprints[0].at, point(47 * .mm, 39 * .mm))
+		XCTAssertEqual(design.resolved.board.footprints[0].at, point(45 * .mm, 35 * .mm))
 		design.rotateLayout([.module(id)], clockwise: true)
 		XCTAssertEqual(design.modules[0].layoutAt, point(50 * .mm, 40 * .mm))
 		let board = design.resolved.board
-		XCTAssertEqual(board.footprints[0].at, point(51 * .mm, 37 * .mm))
-		XCTAssertEqual(board.traces[0].start, point(51 * .mm, 37 * .mm))
-		XCTAssertEqual(board.traces[0].end, point(51 * .mm, 42 * .mm))
-		XCTAssertEqual(board.vias[0].at, point(51 * .mm, 42 * .mm))
-		XCTAssertEqual(board.holes[0].at, point(41 * .mm, 42 * .mm))
-		XCTAssertEqual(design.modules[0].bounds, Rect(origin: point(36 * .mm, 32 * .mm), size: source.board.size))
-		source.board.origin = point(10 * .mm, 10 * .mm)
+		XCTAssertEqual(board.footprints[0].at, point(55 * .mm, 35 * .mm))
+		XCTAssertEqual(board.traces[0].start, point(55 * .mm, 35 * .mm))
+		XCTAssertEqual(board.traces[0].end, point(55 * .mm, 40 * .mm))
+		XCTAssertEqual(board.vias[0].at, point(55 * .mm, 40 * .mm))
+		XCTAssertEqual(board.holes[0].at, point(45 * .mm, 40 * .mm))
+		XCTAssertEqual(design.modules[0].bounds, Rect(origin: point(40 * .mm, 30 * .mm), size: source.board.size))
+		source.board.size = Size(width: 16 * .mm, height: 12 * .mm)
 		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Part.xcb": source]))
 		resolver.reload(&design, documentURL: parentURL)
-		XCTAssertEqual(design.modules[0].origin, source.board.origin)
+		XCTAssertEqual(design.modules[0].size, source.board.size)
 		XCTAssertEqual(design.modules[0].layoutAt, point(50 * .mm, 40 * .mm))
-		XCTAssertEqual(design.resolved.board.footprints[0].at, point(55 * .mm, 35 * .mm))
+		XCTAssertEqual(design.resolved.board.footprints[0].at, point(51 * .mm, 37 * .mm))
+		XCTAssertEqual(design.modules[0].bounds, Rect(origin: point(44 * .mm, 32 * .mm), size: source.board.size.swapped))
 	}
 
-	func testNestedModuleOriginsAreResolvedAtEveryLevel() throws {
+	func testNestedModuleCentersAreResolvedAtEveryLevel() throws {
 		var leaf = source()
 		var middle = try imported(["Part.xcb": leaf])
-		middle.board.origin = point(10 * .mm, 15 * .mm)
+		middle.board.size = Size(width: 20 * .mm, height: 30 * .mm)
 		middle.modules[0].layoutAt = point(30 * .mm, 20 * .mm)
 		middle.modules[0].layoutRotation = .r90
-		leaf.board.origin = point(8 * .mm, 6 * .mm)
+		leaf.board.size = Size(width: 16 * .mm, height: 12 * .mm)
 		var parent = try imported(["Middle.xcb": middle, "Part.xcb": leaf], filenames: ["Middle.xcb"])
 		parent.modules[0].layoutAt = point(60 * .mm, 60 * .mm)
 		parent.modules[0].layoutRotation = .r270
-		XCTAssertEqual(parent.modules[0].origin, middle.board.origin)
+		XCTAssertEqual(parent.modules[0].size, middle.board.size)
 		XCTAssertEqual(parent.resolved.board.footprints[0].at, point(62 * .mm, 39 * .mm))
 		XCTAssertEqual(parent.resolved.board.footprints[0].rotation, .r0)
 	}
@@ -425,6 +427,62 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.schematic.wires, [wire])
 		XCTAssertFalse(design.moduleCache.notices.isEmpty)
 		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, old.board.footprints[0].pads[0].net)
+	}
+
+	func testSelectingRenamedSourceRecoversOnlyTheSelectedInstance() throws {
+		var source = source()
+		source.schematic.symbols[0].valueParameter = true
+		var design = try imported(["Part.xcb": source, "Other.xcb": source], filenames: ["Part.xcb", "Other.xcb"])
+		let id = design.modules[0].id
+		let otherID = design.modules[1].id
+		design.modules[0].layoutAt = point(50 * .mm, 40 * .mm)
+		design.modules[0].layoutRotation = .r90
+		design.modules[0].schematicAt = point(60 * .mm, 50 * .mm)
+		design.modules[0].schematicRotation = .r270
+		design.modules[0][netLabel: "1"] = "BUS"
+		design.modules[0].parameterValues["R1"] = "10k"
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Other.xcb": source]))
+		resolver.reload(&design, documentURL: parentURL)
+		XCTAssertNotNil(design.moduleStatus(id))
+		let before = design
+		var expected = design.modules[0]
+		expected.filename = "Renamed.xcb"
+		try design.replaceModuleSource(id, filename: expected.filename, documentURL: parentURL, read: reader([expected.filename: source]))
+		XCTAssertNil(design.moduleStatus(id))
+		XCTAssertEqual(design.modules[0], expected)
+		XCTAssertEqual(design.modules[1], before.modules[1])
+		XCTAssertEqual(design.moduleCache.contents[otherID], before.moduleCache.contents[otherID])
+		XCTAssertEqual(design.resolved.board.footprints[0].value, "10k")
+		XCTAssertEqual(try Document.decode(Document(design: design).encoded()).modules[0], expected)
+	}
+
+	func testReplacingImplementationValidatesBeforeChangingInstance() throws {
+		var design = try imported(["Part.xcb": source()], stack: .classic)
+		let id = design.modules[0].id
+		let instance = design.modules[0]
+		let wire = Wire(start: instance.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
+		design.schematic.wires = [wire]
+		let before = design
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Missing.xcb", documentURL: parentURL, read: reader([:])))
+		XCTAssertEqual(design, before)
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Large.xcb", documentURL: parentURL, read: reader(["Large.xcb": source(.analog)])))
+		XCTAssertEqual(design, before)
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: parentURL.lastPathComponent, documentURL: parentURL, read: reader([parentURL.lastPathComponent: source()])))
+		XCTAssertEqual(design, before)
+		var replacement = source()
+		replacement.board.size = Size(width: 30 * .mm, height: 40 * .mm)
+		replacement.schematic.symbols[0].pins[1].netLabel = "#2 EXTRA"
+		let notices = try design.replaceModuleSource(id, filename: "New.xcb", documentURL: parentURL, read: reader(["New.xcb": replacement]))
+		XCTAssertFalse(notices.isEmpty)
+		XCTAssertEqual(design.modules[0].id, instance.id)
+		XCTAssertEqual(design.modules[0].reference, instance.reference)
+		XCTAssertEqual(design.modules[0].layoutAt, instance.layoutAt)
+		XCTAssertEqual(design.modules[0].schematicAt, instance.schematicAt)
+		XCTAssertEqual(design.modules[0].size, replacement.board.size)
+		XCTAssertEqual(design.modules[0].interface.map(\.name), ["IN", "EXTRA"])
+		XCTAssertEqual(design.modules[0].bounds.center, instance.layoutAt)
+		XCTAssertEqual(design.schematic.wires, [wire])
+		XCTAssertNil(design.moduleStatus(id))
 	}
 
 	func testRigidTranslationRotationSelectionAndCounterparts() throws {

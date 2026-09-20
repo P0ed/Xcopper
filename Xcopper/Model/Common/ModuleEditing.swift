@@ -283,6 +283,25 @@ extension Design {
 	}
 
 	@discardableResult
+	mutating func replaceModuleSource(_ id: UUID, filename: String, documentURL: URL,
+		read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> [String] {
+		guard let index = modules.firstIndex(where: { $0.id == id }) else { return [] }
+		var candidate = self
+		candidate.modules = [modules[index]]
+		candidate.modules[0].filename = filename
+		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), read: read)
+		resolver.reload(&candidate, documentURL: documentURL)
+		if let error = candidate.moduleStatus(id) { throw Err(error) }
+		modules[index] = candidate.modules[0]
+		moduleCache.contents[id] = candidate.moduleCache.contents[id]
+		moduleCache.errors[id] = nil
+		for notice in candidate.moduleCache.notices where !moduleCache.notices.contains(notice) {
+			moduleCache.notices.append(notice)
+		}
+		return candidate.moduleCache.notices
+	}
+
+	@discardableResult
 	mutating func importModule(filename: String, documentURL: URL, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> UUID {
 		var candidate = self
 		let instance = ModuleInstance(reference: nextReference(like: "M"), filename: filename)

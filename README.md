@@ -64,8 +64,8 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
-**Board → Board settings…** (`⌘B`) sets the board size, module origin, stackup, solder mask and via drill and
-pad diameters. The **mm / in** toggle controls both size and module origin.
+**Board → Board settings…** (`⌘B`) sets the board size, stackup, solder mask and via drill and
+pad diameters. The **mm / in** toggle controls the size units.
 All numeric inputs use `.` as the decimal separator. Turn off **Solder mask** to leave both faces unmasked in the 3D
 preview and fabrication set. This setting is saved with the board and can be undone.
 Every via uses the board's sizes, including existing vias and vias
@@ -420,7 +420,8 @@ Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
 Saved via layer ranges are also discarded: every via spans the current board stack.
 The board stores `solderMask`; older documents without it open with mask enabled.
-Boards and module instances store `origin`; older documents default to `[0, 0]`.
+Module origins are derived from the source board center and are not stored.
+Saved `origin` fields in older documents are ignored.
 
 ## Modularity
 
@@ -441,12 +442,11 @@ including future source changes. Parameters appear inside the schematic block as
 one `R1: 10k` line per parameter. Overrides also apply to the imported parts in the
 layout and bill of materials, including when the module is nested in another.
 
-In the source layout, use **Board settings** (`⌘B`) to set **Module origin** X/Y
-in millimeters or inches using the **mm / in** toggle. It defaults to `[0, 0]`. The instance's layout position places
-this source point in the parent, and rotating a single module turns around it.
-Set it to half the board width and height to rotate around the board center.
-Nested modules use their own source origins. Save the source and reload modules
-in the parent to apply origin changes.
+The instance's layout position places the center of its source board in the parent.
+Rotating a single module turns around that center. Nested modules also use their
+own source board centers. Resizing a source board and reloading keeps the instance's
+position fixed and centers the resized board there. Opening a source directly keeps
+the root board's origin at `[0, 0]`.
 
 Save the parent design and put all module sources in the same folder. Choose
 **Objects → Place Module** (`M`) and select a source. After validating its
@@ -478,7 +478,12 @@ duplicate, copy, paste or delete a selected instance using the usual
 commands. A duplicate has a new identity and both representations; deleting
 either representation removes both. `⌘J` shows the counterpart. The inspector
 edits the instance reference and each representation's position and rotation.
-In schematic mode it also edits the net label on each IO pin.
+In schematic mode it also edits the net label on each IO pin. Click the **Source**
+filename to select another `.xcb` file in the parent document's folder, including
+a renamed source or an alternate implementation. The selected instance keeps its
+identity, reference, positions, rotations, pin labels and parameter overrides.
+The replacement and its dependencies are validated before the change is applied;
+if its IO changes, check the parent wires, which keep their coordinates.
 Imported internals remain locked, including nested modules; use **Open Module
 Source** to edit them. Flipping modules and assigning layout nets to imported internals are disabled.
 Moving a layout group keeps its geometry rigid and stretches parent traces
@@ -499,6 +504,6 @@ folder before adding any instances.
 macOS may ask you to select the containing folder to grant sibling-file access.
 Xcopper retains that grant in its preferences, outside the design. Moving the
 parent to another folder resolves dependencies there and may require a new grant.
-Import, movement, rotation, duplication, deletion, paste and explicit reload are
+Import, source replacement, movement, rotation, duplication, deletion, paste and explicit reload are
 undoable. Undo restores the previous resolved snapshot even if sources have since
 changed or disappeared; source files are never modified by parent edits.

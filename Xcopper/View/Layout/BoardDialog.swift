@@ -7,21 +7,19 @@ struct BoardDialog: View {
 	@State var stack: Stack
 	@State var rules: Rules
 	@State var solderMask: Bool
-	@State var origin: Point
 	@State private var unit: LengthUnit = .millimeters
 	@FocusState private var focus: Property?
-	var confirm: (Size, Size, Stack, Rules, Bool, Point) -> Void
+	var confirm: (Size, Size, Stack, Rules, Bool) -> Void
 
 	init(
-		sheet: Size, board: Size, stack: Stack, rules: Rules, solderMask: Bool, origin: Point,
-		confirm: @escaping (Size, Size, Stack, Rules, Bool, Point) -> Void
+		sheet: Size, board: Size, stack: Stack, rules: Rules, solderMask: Bool,
+		confirm: @escaping (Size, Size, Stack, Rules, Bool) -> Void
 	) {
 		self.sheet = sheet
 		self.board = board
 		self.stack = stack
 		self.rules = rules
 		self.solderMask = solderMask
-		self.origin = origin
 		self.confirm = confirm
 		self.unit = unit
 		self.focus = focus
@@ -37,8 +35,7 @@ struct BoardDialog: View {
 					board,
 					stack,
 					rules,
-					solderMask,
-					origin
+					solderMask
 				)
 			}
 		) {
@@ -56,8 +53,6 @@ struct BoardDialog: View {
 				Panel(title: "Board") {
 					LengthRow(title: "Width", value: Binding($board.width), unit: unit, property: .value, focus: $focus)
 					LengthRow(title: "Height", value: Binding($board.height), unit: unit, property: .value, focus: $focus)
-					LengthRow(title: "X", value: Binding($origin.x), unit: unit, property: .x, focus: $focus)
-					LengthRow(title: "Y", value: Binding($origin.y), unit: unit, property: .y, focus: $focus)
 				}
 
 				Picker("Stackup", selection: $stack) {

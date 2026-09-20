@@ -36,7 +36,6 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var parameterValues: [String: String] = [:]
 	var size = Size(width: 20 * .mm, height: 20 * .mm)
 	var layerCount: Int = 2
-	var origin: Point = .zero
 
 	var symbol: Symbol {
 		let ports = interface.sorted(by: IODesignator.order)
@@ -82,13 +81,15 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		}
 	}
 
-	func place(_ point: Point) -> Point { (point - origin).rotated(layoutRotation) + layoutAt }
+	func place(_ point: Point) -> Point {
+		(point - Point(x: size.width / 2, y: size.height / 2)).rotated(layoutRotation) + layoutAt
+	}
 	var bounds: Rect { Rect(from: place(.zero), to: place(Point(x: size.width, y: size.height))) }
 }
 
 extension ModuleInstance {
 	enum CodingKeys: String, CodingKey {
-		case id, reference, filename, schematicAt, schematicRotation, layoutAt, layoutRotation, interface, netLabels, parameters, parameterValues, size, layerCount, origin
+		case id, reference, filename, schematicAt, schematicRotation, layoutAt, layoutRotation, interface, netLabels, parameters, parameterValues, size, layerCount
 	}
 
 	init(from decoder: Decoder) throws {
@@ -106,7 +107,6 @@ extension ModuleInstance {
 		parameterValues = try values.decodeIfPresent([String: String].self, forKey: .parameterValues) ?? [:]
 		size = try values.decode(Size.self, forKey: .size)
 		layerCount = try values.decode(Int.self, forKey: .layerCount)
-		origin = try values.decodeIfPresent(Point.self, forKey: .origin) ?? .zero
 	}
 }
 
@@ -184,7 +184,7 @@ extension Design {
 
 	func moduleStatus(_ id: UUID) -> String? {
 		if let error = moduleCache.errors[id] { return error }
-		guard let content = moduleCache.contents[id] else { return "Unresolved. Use Reload Modules to locate the source." }
+		guard let content = moduleCache.contents[id] else { return "Unresolved. Select a source or use Reload Modules." }
 		return content.board.stack.count > board.stack.count ? "Source needs more copper layers. Increase the board stack and reload." : nil
 	}
 
@@ -404,12 +404,11 @@ struct ModuleResolver {
 				design.modules[index].parameters = content.parameters
 				design.modules[index].size = content.board.size
 				design.modules[index].layerCount = content.board.stack.count
-				design.modules[index].origin = content.board.origin
 				design.moduleCache.contents[module.id] = content
 			} catch {
 				design.moduleCache.errors[module.id] = error is Err
 					? error.localizedDescription
-					: error.localizedDescription + " Restore the source in the document folder and reload."
+					: error.localizedDescription + " Restore the source in the document folder and reload, or select a replacement source."
 			}
 		}
 	}
@@ -431,7 +430,6 @@ struct ModuleResolver {
 			source.modules[i].interface = content.interface
 			source.modules[i].parameters = content.parameters
 			source.modules[i].size = content.board.size
-			source.modules[i].origin = content.board.origin
 			source.moduleCache.contents[child.id] = content
 		}
 		let projection = source.moduleProjection(syncNative: true)

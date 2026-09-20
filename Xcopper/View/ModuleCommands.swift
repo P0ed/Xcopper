@@ -105,6 +105,35 @@ extension Operations {
 		} catch { moduleAlert("Could not import module", error.localizedDescription) }
 	}
 
+	func selectModuleSource(_ id: UUID) {
+		guard design.modules.contains(where: { $0.id == id }) else { return }
+		guard let documentURL else {
+			moduleAlert("Save this design before selecting a source", "Module sources are resolved in the saved document's folder.")
+			return
+		}
+		let folder = documentURL.deletingLastPathComponent()
+		let panel = NSOpenPanel()
+		panel.title = "Select Module Source"
+		panel.prompt = "Select"
+		panel.allowedContentTypes = [.xcb]
+		panel.directoryURL = folder
+		guard panel.runModal() == .OK, let source = panel.url else { return }
+		do {
+			var next = design
+			let notices = try ModuleFolderAccess.withAccess(to: folder) {
+				guard try ModuleResolver(folder: folder).url(for: source.lastPathComponent)
+					== source.resolvingSymlinksInPath().standardizedFileURL else {
+					throw Err("Move the module and its dependencies into the parent document's folder before selecting it.")
+				}
+				return try next.replaceModuleSource(id, filename: source.lastPathComponent, documentURL: documentURL)
+			}
+			design = next
+			layout.cancelSessions()
+			schematic.cancelSessions()
+			if !notices.isEmpty { moduleAlert("Module Source Changed", notices.joined(separator: "\n\n")) }
+		} catch { moduleAlert("Could not change module source", error.localizedDescription) }
+	}
+
 	func reloadModules(automatic: Bool = false) {
 		guard !design.modules.isEmpty else { return }
 		guard let documentURL else {
@@ -189,11 +218,25 @@ struct ModuleInspector: View {
 	var id: UUID
 	var layout: Bool
 	@FocusState.Binding var focus: Property?
+	var selectSource: (() -> Void)? = nil
+	@Environment(\.undoManager) private var undoManager
 
 	private var module: ModuleInstance? { design.modules.first { $0.id == id } }
 	var body: some View {
 		if let module {
-			ValueRow(title: "Source", value: module.filename)
+			if let selectSource {
+				PropertyRow(title: "Source") {
+					Button {
+						focus = nil
+						undoManager.undoGroup("Change module source", selectSource)
+					} label: {
+						Text(module.filename).lineLimit(1).truncationMode(.middle)
+					}
+					.help("Select a replacement module source")
+				}
+			} else {
+				ValueRow(title: "Source", value: module.filename)
+			}
 			TextRow(title: "Ref", text: $design.reference(of: Ref.module(id)), property: .reference, focus: $focus)
 			PositionRows(at: position, focus: $focus)
 			ValuePicker(rotation: Binding(rotation))
