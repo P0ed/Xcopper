@@ -16,12 +16,12 @@ enum Palette {
 	static let violation = Color(red: 1.0, green: 0.36, blue: 0.30)
 
 	static let sheet = Color(white: 0.11)
-	static let symbol = Color(white: 0.86)
-	static let pin = Color(red: 0.85, green: 0.74, blue: 0.35)
-	static let wire = Color(red: 0.55, green: 0.80, blue: 0.60)
-	static let junction = Color(red: 0.95, green: 0.95, blue: 0.90)
+	static let symbol = Color(white: 0.82)
+	static let pin = Color(red: 0.82, green: 0.75, blue: 0.33)
+	static let wire = Color(red: 0.56, green: 0.82, blue: 0.68)
+	static let junction = Color(white: 0.91)
 
-	static let bareCopper = RGBA(r: 0.72, g: 0.45, b: 0.20)
+	static let bareCopper = RGBA(r: 0.75, g: 0.47, b: 0.22)
 	static let laminate = RGBA(r: 0.56, g: 0.47, b: 0.33)
 	static let solder = RGBA(r: 0.70, g: 0.71, b: 0.73)
 	static let moulding = RGBA(r: 0.13, g: 0.13, b: 0.14)

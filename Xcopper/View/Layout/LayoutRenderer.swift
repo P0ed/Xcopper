@@ -79,12 +79,6 @@ struct LayoutRenderer {
 				let marker = footprint.place(footprint.pads.first?.at ?? .zero)
 				drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
 			}
-			for module in modules {
-				drawing.stroke(
-					module.bounds.corners, closed: true, width: pixels(1),
-					color: unresolved.contains(module.id) ? .red : Palette.silk.opacity(0.5), level: 60
-				)
-			}
 		}
 		for rat in ratsnest {
 			drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
