@@ -86,6 +86,7 @@ struct LayoutState: Equatable, SelectionState {
 	var grid: µm = .displayGrids.last!
 	var hiddenLayers: Int
 	var silkscreen = false
+	var ratsnest = true
 	var traceWidth: µm?
 	var spec: Footprint.Spec = .default
 	var selection: Set<Ref> = []

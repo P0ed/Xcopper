@@ -53,6 +53,7 @@ struct LayoutSideBar: View {
 							toggle: $state[visible: layer]
 						)
 					}
+					LayerRow(text: "Ratsnest", toggle: $state.ratsnest)
 				}
 
 				ModulePanel(operations: operations)

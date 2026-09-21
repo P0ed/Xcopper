@@ -80,8 +80,10 @@ struct LayoutRenderer {
 				drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
 			}
 		}
-		for rat in ratsnest {
-			drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
+		if state.ratsnest {
+			for rat in ratsnest {
+				drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
+			}
 		}
 		drawing.stroke(board.bounds.corners, closed: true, width: pixels(1.5), color: Palette.outline, level: 80)
 		for at in violations {

@@ -32,7 +32,7 @@ final class LayoutScene {
 		let layers = previous?.layer != state.layer || previous?.hiddenLayers != state.hiddenLayers
 		let scale = previous?.viewport.magnification != state.viewport.magnification
 		if changed || layers { replace(copper, with: renderer.copper(state)) }
-		if changed || layers || scale || previous?.silkscreen != state.silkscreen {
+		if changed || layers || scale || previous?.silkscreen != state.silkscreen || previous?.ratsnest != state.ratsnest {
 			replace(guides, with: renderer.guides(state))
 		}
 		if changed || scale || previous?.grid != state.grid

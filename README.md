@@ -96,6 +96,8 @@ it counterclockwise.
 The sidebar's **Display → Silkscreen** checkbox shows or hides footprint outlines,
 pin-one markers and reference text on the layout. It starts enabled and controls
 only the drawing; the fabrication set carries no silkscreen.
+The **Layers → Ratsnest** toggle follows the copper layer toggles and shows or hides
+unrouted connection lines. It starts enabled.
 
 While routing, segments snap to 45° and chain from the previous endpoint —
 click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,

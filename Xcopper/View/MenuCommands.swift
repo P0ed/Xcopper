@@ -69,8 +69,16 @@ struct MenuCommands: Commands {
 			}
 		}
 		CommandGroup(replacing: .importExport) {
-			Button("Reload Modules") { op?.reloadModules() }.disabled(op.modulesDisabled)
-			Button("Open Module Source") { op?.openModuleSource() }.disabled(op.actionsDisabled || !op.hasModuleSelection)
+			ActionButton(
+				name: "Reload Modules",
+				image: "arrow.clockwise",
+				shortcut: "R",
+				modifiers: .command,
+				disabled: op.modulesDisabled,
+				action: { op?.reloadModules() }
+			)
+			Button("Open Module Source") { op?.openModuleSource() }
+				.disabled(op.actionsDisabled || !op.hasModuleSelection)
 			Divider()
 			ActionButton(
 				name: "Export for fabrication…",
