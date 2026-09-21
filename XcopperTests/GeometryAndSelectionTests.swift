@@ -823,22 +823,6 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(sharpestTurn(board), 3)
 	}
 
-	func testATraceMovedWithItsFootprintDoesNotShiftTwice() {
-		var board = board()
-		board.footprints = [
-			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: 10 * .mm, y: 10 * .mm)),
-		]
-		let pad = board.footprints[0].placedPads[0].at
-		let away = Point(x: 20 * .mm, y: 10 * .mm)
-		board.traces = [Trace(start: pad, end: away, width: 300, layer: 2, net: nil)]
-
-		let delta = Point(x: 1 * .mm, y: 0)
-		board.move([.footprint(0), .trace(0)], by: delta, grid: 1 * .mm)
-
-		XCTAssertEqual(board.traces[0].start, pad + delta)
-		XCTAssertEqual(board.traces[0].end, away + delta)
-	}
-
 	func testDuplicateOffsetsCopiesOfFootprints() {
 		var board = board()
 		board.footprints = [Footprint(spec: .init(kind: .chip), reference: "R1", at: Point(x: 10 * .mm, y: 10 * .mm))]

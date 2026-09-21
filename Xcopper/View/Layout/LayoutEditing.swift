@@ -57,10 +57,9 @@ extension LayoutView {
 					endSelection(from: start, to: current)
 				case .trace:
 					state.updateTrace(to: routeEnd(current))
-					if let trace = state.endTrace() {
-						let landed = design.resolved.board.isConnection(trace.end, layer: trace.layer)
-						undoManager.undoGroup(Tool.trace.actionName) { board.traces.append(trace) }
-						if landed { state.tool = .select }
+					var routed = design
+					if state.endTrace(in: &routed) {
+						undoManager.undoGroup(Tool.trace.actionName) { design = routed }
 					}
 				case .via:
 					undoManager.undoGroup(Tool.via.actionName) { placeVia(at: current) }

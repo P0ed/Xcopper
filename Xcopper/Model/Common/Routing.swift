@@ -115,6 +115,32 @@ extension RouteGeometry {
 		}
 	}
 
+	mutating func straighten(_ refs: Set<Int>, grid: µm) -> Bool {
+		let stored = self
+		let ends = Set(refs.filter { segments.indices.contains($0) }.map {
+			RouteEnd(segment: $0, isStart: true)
+		})
+		let headings = headings(of: ends, straightening: true)
+		let joints = ends.flatMap { end in
+			[end, end.other].map { Junction(point: self[point: $0], layer: segments[$0.segment].layer) }
+		}
+		for end in ends.sorted(by: RouteEnd.order) {
+			guard let heading = headings[end] else { continue }
+			realign(end, heading: heading, moving: [], with: refs)
+		}
+
+		let changed = disturbed(from: stored.segments) + joints
+		_ = fuse(touching: stored.segments, disturbed: changed)
+		var seen: Set<Junction> = []
+		for junction in changed where seen.insert(junction).inserted {
+			guard chamfer(at: junction, grid: grid) else {
+				self = stored
+				return false
+			}
+		}
+		return true
+	}
+
 	@discardableResult
 	mutating func move(_ refs: Set<Int>, by delta: Point, grid: µm) -> [Int: Int]? {
 		let stored = self
@@ -476,6 +502,26 @@ extension RouteGeometry {
 		return heading
 	}
 
+}
+
+extension Design {
+
+	mutating func finishRoute(with trace: Trace, grid: µm) -> Bool {
+		let resolved = resolved.board
+		var route = resolved.routing()
+		route.segments = board.traces
+		for copper in resolved.traces.dropFirst(board.traces.count) {
+			route.terminals.append(RouteTerminal(
+				figure: .segment(copper.start, copper.end, copper.width ?? board.rules.traceWidth),
+				layers: copper.layer ... copper.layer
+			))
+		}
+		let index = route.segments.count
+		route.segments.append(trace)
+		guard route.straighten(route.run(of: index), grid: grid) else { return false }
+		board.traces = route.segments
+		return true
+	}
 }
 
 private extension Figure {

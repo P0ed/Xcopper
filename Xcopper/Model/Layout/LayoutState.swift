@@ -224,6 +224,23 @@ extension LayoutState {
 		return trace
 	}
 
+	mutating func endTrace(in design: inout Design) -> Bool {
+		let previous = traceSession
+		guard let trace = endTrace() else { return false }
+		let landed = design.resolved.board.isConnection(trace.end, layer: trace.layer)
+		if landed {
+			guard design.finishRoute(with: trace, grid: routingGrid) else {
+				traceSession = previous.map { modifying($0) { $0.phase = .pending } }
+				return false
+			}
+			selection = []
+			tool = .select
+		} else {
+			design.board.traces.append(trace)
+		}
+		return true
+	}
+
 	mutating func backtrackTrace(in board: inout Board) {
 		guard var session = traceSession, let start = session.anchors.last,
 			let trace = board.traces.last,

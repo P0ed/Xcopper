@@ -104,7 +104,11 @@ click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
 or press Delete to remove the last placed segment and redraw it from its start.
 Repeat Delete to step back through the current route; `⎋` cancels routing.
 Landing on a pad, a via or copper already drawn ends the route
-there and hands the tool back to Select.
+there, straightens the connected run into horizontal, vertical and 45° legs,
+and hands the tool back to Select. Compatible segments in a straight line merge,
+while pad, via and branch connections stay fixed. Finishing and straightening
+share one undo step. If there is no room for the required bends, routing stays
+active so the last segment can be adjusted.
 
 Copper never turns a right angle. A route chaining on from a segment already
 drawn keeps to the three headings that carry straight on or bend 45° either

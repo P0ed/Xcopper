@@ -30,6 +30,30 @@ final class ModuleTests: XCTestCase {
 		return design
 	}
 
+	func testFinishingAtAModuleTraceStraightensOnlyTheParentCopper() throws {
+		var design = try imported(["Part.xcb": source()])
+		let resolved = design.resolved.board
+		let target = resolved.traces[0]
+		let start = target.start - point(10 * .mm, 3 * .mm)
+		let cache = design.moduleCache
+		var state = LayoutState(stack: design.board.stack)
+		state.tool = .trace
+		state.layer = target.layer
+		state.net = target.net
+		state.routingGrid = 500
+		state.beginTrace(at: start)
+		state.updateTrace(to: target.start)
+
+		XCTAssertTrue(state.endTrace(in: &design))
+
+		XCTAssertTrue(design.board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertEqual(design.board.traces.count { $0.start == target.start || $0.end == target.start }, 1)
+		XCTAssertEqual(Array(design.resolved.board.traces.dropFirst(design.board.traces.count)), resolved.traces)
+		XCTAssertEqual(design.moduleCache, cache)
+		XCTAssertEqual(state.tool, .select)
+		XCTAssertNil(state.traceSession)
+	}
+
 	func testLegacyJSONAndBoardDocumentRoundTripWithoutEmbeddingSources() throws {
 		var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(source())) as? [String: Any])
 		json.removeValue(forKey: "modules")
