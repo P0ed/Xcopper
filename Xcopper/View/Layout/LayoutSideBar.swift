@@ -124,7 +124,7 @@ extension Violation.Kind {
 	var color: Color {
 		switch self {
 		case .short: Palette.violation
-		case .clearance, .hole, .edge: .orange
+		case .clearance, .hole, .edge, .traceLength: .orange
 		case .unrouted: .secondary
 		}
 	}
@@ -132,7 +132,7 @@ extension Violation.Kind {
 	var systemImage: String {
 		switch self {
 		case .short: "exclamationmark.triangle.fill"
-		case .clearance, .hole, .edge: "exclamationmark.circle.fill"
+		case .clearance, .hole, .edge, .traceLength: "exclamationmark.circle.fill"
 		case .unrouted: "point.3.connected.trianglepath.dotted"
 		}
 	}

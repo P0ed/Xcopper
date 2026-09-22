@@ -64,8 +64,9 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
-**Board → Board settings…** (`⌘B`) sets the board size, stackup, solder mask and via drill and
-pad diameters. The **mm / in** toggle controls the size units.
+**Design → Board settings** (`⌘B`) sets the board size, stackup, solder mask, clearance,
+trace width, minimum trace length and via drill and pad diameters. The **mm / in** toggle
+controls the size units.
 All numeric inputs use `.` as the decimal separator. Turn off **Solder mask** to leave both faces unmasked in the 3D
 preview and fabrication set. This setting is saved with the board and can be undone.
 Every via uses the board's sizes, including existing vias and vias
@@ -134,8 +135,8 @@ rather than on the board, since it is the hand that wanders and not the design,
 so the same wobble is forgiven at any magnification, and a pointer brought back
 inside it is a click again. The sheet reads a press the same way.
 
-Dragging a segment stretches the copper it is soldered to rather than carrying
-it along. Both sides keep the heading they were drawn at and the joint slides to
+Dragging a segment straightens it and the neighbours it stretches to horizontal,
+vertical or 45° legs. Copper already on those headings keeps its direction, and the joint slides to
 where those headings now cross, so the segment dragged changes length and so does
 the one it hangs off, while the far end of it stays put: drag the bottom of a U
 towards the top and it comes out longer, the legs either side of it shorter. A
@@ -148,8 +149,9 @@ and where there is no corner to slide, a pad, a via or a branch, the segment
 folds into two legs instead. The fold picks the leg order that leaves the joint
 it hangs off gently, rather than the one that would meet it square. A joint no
 stretch can work out is carried and folded the same way: one at a branch, which
-has no single heading to keep, or between two headings that never meet. Copper
-drawn at a free angle keeps it.
+has no single heading to keep, or between two headings that never meet. A segment
+drag also folds copper drawn at a free angle into 45° legs, keeping the far
+connections in place. Moving a footprint alone preserves free-angle copper.
 
 No drag leaves copper turning a right angle either. Where a corner comes out
 square anyway, it comes apart into the two 45° bends it is really made of: each
@@ -293,6 +295,12 @@ of one net is free to touch itself. A hole carries no net at all, so everything
 has to stand clear of one, and so it does of the cut edge. What the netlist asks
 for and no copper joins is listed too — the same connections the ratsnest draws.
 
+Each routed trace segment must meet **Min trace length** in Board settings (`⌘B`),
+including traces inside imported modules and traces without a net. Length is measured
+between the segment's endpoints. The picker offers **Disabled**, **0.1 mm** (the default)
+and **0.5 mm**. Shorter segments appear in the sidebar, on the layout and in fabrication
+preflight alongside the other violations.
+
 Every line is a place to go. Clicking one picks up the copper at fault, turns to
 the layer it stands on and scrolls it into the middle of the view. Everything
 but an unrouted connection is also ringed where it stands on the layout, and the
@@ -418,6 +426,7 @@ definition when opened, and pad nets are rebuilt from the schematic.
 Generic and custom footprints retain their stored geometry.
 Via diameters are stored once in the board's rules. Older documents use their
 saved board via sizes; per-via drill and pad overrides are discarded when opened.
+The rules also store `minTraceLength`; older documents default to 100 µm (0.1 mm).
 Saved via layer ranges are also discarded: every via spans the current board stack.
 The board stores `solderMask`; older documents without it open with mask enabled.
 Module origins are derived from the source board center and are not stored.

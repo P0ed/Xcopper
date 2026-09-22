@@ -121,7 +121,11 @@ extension RouteGeometry {
 		let held = heldPoints()
 		let attached = attachedEnds(to: refs)
 		let stretched = stretchedJoints(of: refs, following: attached, by: delta)
-		let headings = headings(of: attached)
+		let straightening = angles == .octilinear && !refs.isEmpty
+		let adjusting = attached.union(straightening ? refs.filter { segments.indices.contains($0) }.map {
+			RouteEnd(segment: $0, isStart: true)
+		} : [])
+		let headings = headings(of: adjusting, straightening: straightening)
 		let anchored = angles == .orthogonal ? (0 ..< segments.count).flatMap { index in
 			[true, false].compactMap { isStart -> RouteEnd? in
 				let end = RouteEnd(segment: index, isStart: isStart)
@@ -145,7 +149,7 @@ extension RouteGeometry {
 		for (end, point) in stretched {
 			self[point: end] = point
 		}
-		for end in attached.sorted(by: RouteEnd.order) where stretched[end] == nil {
+		for end in adjusting.sorted(by: RouteEnd.order) where stretched[end] == nil {
 			guard let heading = headings[end] else { continue }
 			realign(end, heading: heading, moving: attached, with: refs)
 		}
@@ -217,6 +221,7 @@ extension RouteGeometry {
 			let point = self[point: moved]
 			let leg = point - self[point: moved.other]
 			let stem = point - self[point: stayed.other]
+			guard angles != .octilinear || (angles.allows(leg) && angles.allows(stem)) else { return [:] }
 			guard let crossing = crossing(line: point + delta, leg, line: point, stem)
 			else { return [:] }
 
@@ -365,13 +370,13 @@ extension RouteGeometry {
 		return (first, second)
 	}
 
-	private func headings(of ends: Set<RouteEnd>) -> [RouteEnd: Point] {
+	private func headings(of ends: Set<RouteEnd>, straightening: Bool) -> [RouteEnd: Point] {
 		var headings: [RouteEnd: Point] = [:]
 		for end in ends {
 			let offset = self[point: end.other] - self[point: end]
-			guard angles.allows(offset) || angles == .orthogonal else { continue }
+			guard angles.allows(offset) || angles == .orthogonal || straightening else { continue }
 			headings[end] = angles == .orthogonal
-				? (snapped90(from: .zero, to: offset)).heading : offset.heading
+				? snapped90(from: .zero, to: offset).heading : snapped45(from: .zero, to: offset).heading
 		}
 		return headings
 	}

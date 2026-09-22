@@ -7,6 +7,7 @@ struct Violation: Hashable {
 		case clearance
 		case hole
 		case edge
+		case traceLength
 		case unrouted
 
 		static func < (lhs: Kind, rhs: Kind) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -44,7 +45,7 @@ extension Design {
 
 		return board.stack.copper.flatMap { layer in
 			clashes(among: objects, on: layer, clearance: clearance)
-		} + strays(among: objects, clearance: clearance)
+		} + strays(among: objects, clearance: clearance) + shortTraces()
 	}
 }
 
@@ -126,6 +127,25 @@ extension Board {
 }
 
 private extension Design {
+
+	func shortTraces() -> [Violation] {
+		let minimum = Double.mm(board.rules.minTraceLength)
+		guard minimum > 0 else { return [] }
+
+		return board.traces.enumerated().compactMap { index, trace in
+			guard board.stack.contains(trace.layer) else { return nil }
+			let actual = length(from: trace.start, to: trace.end)
+			guard actual < minimum else { return nil }
+
+			return Violation(
+				kind: .traceLength,
+				at: Rect(from: trace.start, to: trace.end).center,
+				layer: trace.layer,
+				refs: [.trace(index)],
+				text: "\(label(trace.net)) trace \(mm(actual * 1_000)) below minimum \(mm(Double(board.rules.minTraceLength)))"
+			)
+		}
+	}
 
 	func clashes(among objects: [BoardObject], on layer: Int, clearance: Int) -> [Violation] {
 		let here = objects.filter { $0.layers.contains(layer) }

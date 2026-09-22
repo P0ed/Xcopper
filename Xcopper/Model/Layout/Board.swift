@@ -106,6 +106,7 @@ extension Footprint {
 struct Rules: Hashable, Codable {
 	var clearance: µm
 	var traceWidth: µm
+	var minTraceLength: µm
 	var viaDrill: µm
 	var viaPad: µm
 
@@ -113,13 +114,30 @@ struct Rules: Hashable, Codable {
 		Rules(
 			clearance: 300,
 			traceWidth: 400,
+			minTraceLength: 100,
 			viaDrill: 500,
 			viaPad: 900
 		)
 	}
 
 	var isValid: Bool {
-		viaDrill > 100 && viaDrill < viaPad
+		minTraceLength >= 0 && viaDrill > 100 && viaDrill < viaPad
+	}
+}
+
+extension Rules {
+
+	enum CodingKeys: String, CodingKey {
+		case clearance, traceWidth, minTraceLength, viaDrill, viaPad
+	}
+
+	init(from decoder: Decoder) throws {
+		let values = try decoder.container(keyedBy: CodingKeys.self)
+		clearance = try values.decode(µm.self, forKey: .clearance)
+		traceWidth = try values.decode(µm.self, forKey: .traceWidth)
+		minTraceLength = try values.decodeIfPresent(µm.self, forKey: .minTraceLength) ?? Self.default.minTraceLength
+		viaDrill = try values.decode(µm.self, forKey: .viaDrill)
+		viaPad = try values.decode(µm.self, forKey: .viaPad)
 	}
 }
 

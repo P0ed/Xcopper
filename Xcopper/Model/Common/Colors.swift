@@ -12,7 +12,7 @@ enum Palette {
 	static let silk = Color(white: 0.91)
 	static let highlight = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.9)
 	static let preview = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.55)
-	static let halo = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.35)
+	static let halo = Color.accent.opacity(0.22)
 	static let violation = Color(red: 1.0, green: 0.36, blue: 0.30)
 
 	static let sheet = Color(white: 0.11)

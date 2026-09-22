@@ -625,7 +625,7 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
 	}
 
-	func testASegmentDrawnAtAFreeAngleKeepsIt() {
+	func testMovingAFootprintPreservesFreeAngleCopper() {
 		var board = board()
 		board.footprints = [
 			Footprint(spec: .init(kind: .header, pins: 2), reference: "J1", at: Point(x: 10 * .mm, y: 10 * .mm)),
@@ -640,6 +640,54 @@ final class GeometryAndSelectionTests: XCTestCase {
 		XCTAssertEqual(board.traces.count, 1)
 		XCTAssertEqual(board.traces[0].start, pad + delta)
 		XCTAssertEqual(board.traces[0].end, away)
+	}
+
+	func testDraggingAFreeAngleSegmentStraightensItWithoutChangingUnrelatedCopper() {
+		var board = board()
+		let start = Point(x: 10 * .mm, y: 10 * .mm)
+		let end = Point(x: 30 * .mm, y: 15 * .mm)
+		let untouched = trace(from: Point(x: 5 * .mm, y: 30 * .mm), to: Point(x: 25 * .mm, y: 35 * .mm))
+		board.traces = [
+			Trace(start: start, end: end, width: 500, layer: 3, net: 1),
+			untouched,
+		]
+		let delta = Point(x: 1 * .mm, y: 2 * .mm)
+
+		XCTAssertEqual(board.move([.trace(0)], by: delta, grid: 1 * .mm), [.trace(0)])
+
+		let run = board.run(of: 0).map { board.traces[$0] }
+		XCTAssertEqual(run.count, 2)
+		XCTAssertTrue(run.allSatisfy { ($0.end - $0.start).isOctilinear })
+		XCTAssertTrue(run.allSatisfy { $0.width == 500 && $0.layer == 3 && $0.net == 1 })
+		XCTAssertEqual(run.count { $0.start == start + delta || $0.end == start + delta }, 1)
+		XCTAssertEqual(run.count { $0.start == end + delta || $0.end == end + delta }, 1)
+		XCTAssertEqual(board.traces[1], untouched)
+		XCTAssertEqual(sharpestTurn(board), 1)
+	}
+
+	func testDraggingASegmentStraightensFreeAngleNeighboursAndKeepsTheirFarConnections() {
+		for rise in [0, 4 * µm.mm] {
+			var board = board()
+			let start = Point(x: 0, y: 0)
+			let first = Point(x: 10 * .mm, y: 3 * .mm)
+			let last = Point(x: 20 * .mm, y: 3 * .mm + rise)
+			let end = Point(x: 30 * .mm, y: 6 * .mm + rise)
+			board.vias = [Via(at: start, net: nil), Via(at: end, net: nil)]
+			board.traces = [
+				trace(from: start, to: first),
+				trace(from: first, to: last),
+				trace(from: last, to: end),
+			]
+
+			XCTAssertNotNil(board.move([.trace(1)], by: Point(x: 0, y: 1 * .mm), grid: 1 * .mm))
+
+			XCTAssertTrue(board.traces.allSatisfy { ($0.end - $0.start).isOctilinear })
+			XCTAssertEqual(board.run(of: 1), Set(board.traces.indices))
+			XCTAssertEqual(board.traces.count { $0.start == start || $0.end == start }, 1)
+			XCTAssertEqual(board.traces.count { $0.start == end || $0.end == end }, 1)
+			XCTAssertEqual(board.vias.map(\.at), [start, end])
+			XCTAssertEqual(sharpestTurn(board), 1)
+		}
 	}
 
 	func testMovingOneSegmentStretchesTheNeighboursItHangsOff() {
