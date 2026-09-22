@@ -2,36 +2,40 @@ import SwiftUI
 
 @MainActor
 struct LayoutRenderer {
-	var design: Design
-	var selection: Set<Ref>
-	var modules: [ModuleInstance]
-	var unresolved: Set<ModuleInstance.ID>
-	var ratsnest: [Rat]
-	var violations: [Point]
+	private var projection: ModuleProjection
+	private var previewSelection: Set<Ref>?
+	private var modules: [ModuleInstance]
+	private var drills: [Figure]
+	private var ratsnest: [Rat]
+	private var violations: [Point]
 
 	init(design: Design, state: LayoutState) {
 		var moved = design
-		var selection = state.selection
+		var selection: Set<Ref>?
 		if let placement = state.modulePlacement {
 			let id = moved.placeModule(placement, at: state.viewport.cursor.snapped(to: state.placementGrid), layout: true)
 			selection = [.module(id)]
 		}
 		if let session = state.moveSession, session.didMove,
-			let next = moved.moveLayout(selection, by: session.delta, grid: state.routingGrid) { selection = next }
+			let next = moved.moveLayout(selection ?? state.selection, by: session.delta, grid: state.routingGrid) { selection = next }
 		let projection = moved.moduleProjection()
-		self.design = projection.design
-		self.selection = projection.expanded(selection)
+		self.projection = projection
+		previewSelection = selection
 		modules = moved.modules
-		unresolved = Set(moved.modules.filter { moved.moduleStatus($0.id) != nil }.map(\.id))
+		drills = projection.design.board.drills
 		ratsnest = projection.design.board.ratsnest(planes: projection.design.planes)
 		violations = projection.design.faults().map(\.at)
 	}
 
+	private var design: Design { projection.design }
 	var board: Board { design.board }
+
+	func selection(_ refs: Set<Ref>) -> Set<Ref> {
+		projection.expanded(previewSelection ?? refs)
+	}
 
 	func copper(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
-		let drills = board.drills
 		drawing.fill(.rect(board.bounds), color: Palette.substrate, level: 0, cutouts: drills)
 		for (index, layer) in layers(state).enumerated() {
 			let level = 10 + index * 4
@@ -53,10 +57,9 @@ struct LayoutRenderer {
 		return drawing.model
 	}
 
-	func guides(_ state: LayoutState) -> Model {
+	func highlights(_ state: LayoutState, selection: Set<Ref>) -> Model {
 		var drawing = LayoutDrawing()
 		let scale = state.viewport.magnification
-		let drills = board.drills
 		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / scale).rounded())) }
 
 		for layer in layers(state) {
@@ -70,22 +73,48 @@ struct LayoutRenderer {
 			let hole = board.holes[index]
 			drawing.outline(.round(hole.at, hole.diameter), width: pixels(1.5), color: Palette.highlight, level: 52)
 		}
-		if state.silkscreen {
-			for (index, footprint) in board.footprints.enumerated() {
-				let color = selection.contains(.footprint(index)) ? Palette.highlight : Palette.silk.opacity(0.5)
-				if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
-					drawing.stroke(footprint.placedBody.corners, closed: true, width: pixels(1), color: color, level: 60)
-				}
-				let marker = footprint.place(footprint.pads.first?.at ?? .zero)
-				drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
+		return drawing.model
+	}
+
+	func silkscreen(_ state: LayoutState, selection: Set<Ref>) -> Model {
+		var drawing = LayoutDrawing()
+		guard state.silkscreen else { return drawing.model }
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+
+		for (index, footprint) in board.footprints.enumerated() {
+			let color = selection.contains(.footprint(index)) ? Palette.highlight : Palette.silk.opacity(0.5)
+			if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
+				drawing.stroke(footprint.placedBody.corners, closed: true, width: pixels(1), color: color, level: 60)
 			}
+			let marker = footprint.place(footprint.pads.first?.at ?? .zero)
+			drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
 		}
-		if state.ratsnest {
-			for rat in ratsnest {
-				drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
-			}
+		return drawing.model
+	}
+
+	func connections(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		guard state.ratsnest else { return drawing.model }
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+
+		for rat in ratsnest {
+			drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
 		}
+		return drawing.model
+	}
+
+	func outline(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+
 		drawing.stroke(board.bounds.corners, closed: true, width: pixels(1.5), color: Palette.outline, level: 80)
+		return drawing.model
+	}
+
+	func faults(_ state: LayoutState) -> Model {
+		var drawing = LayoutDrawing()
+		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+
 		for at in violations {
 			drawing.outline(.round(at, pixels(12)), width: pixels(1.5), color: Palette.violation, level: 90)
 			drawing.fill(.round(at, pixels(2.5)), color: Palette.violation, level: 90)
