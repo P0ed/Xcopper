@@ -112,6 +112,10 @@ extension LayoutState {
 		}
 	}
 
+	func selectionLayers(in stack: Stack) -> [Int] {
+		[layer] + stack.copper.reversed().filter { $0 != layer && self[visible: $0] }
+	}
+
 	private var usesPlacementGrid: Bool {
 		if modulePlacement != nil { return true }
 		return switch tool {

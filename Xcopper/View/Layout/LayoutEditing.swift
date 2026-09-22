@@ -131,7 +131,7 @@ private extension LayoutView {
 			return state.updateMove(to: current.snapped(to: state.selectionGrid))
 		}
 		if state.selectSession == nil, !picksRun {
-			let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance).first
+			let hit = design.layoutRefs(at: start, layers: state.selectionLayers(in: board.stack), tolerance: hitTolerance).first
 				?? design.modules.last(where: { state.selection.contains(.module($0.id)) && $0.bounds.contains(start) }).map { Ref.module($0.id) }
 			if let hit,
 				state.selection.contains(hit) || state.selection.contains(design.moduleProjection().owner(hit)),
@@ -155,7 +155,7 @@ private extension LayoutView {
 					}
 				}
 			} else {
-				let hit = design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, selection: state.selection)
+				let hit = design.layoutRefs(at: start, layers: state.selectionLayers(in: board.stack), tolerance: hitTolerance, selection: state.selection)
 				state.selection = selectionMode.apply(state.selection, hit)
 			}
 			return
@@ -164,8 +164,8 @@ private extension LayoutView {
 
 		let whole = picksRun
 		let hit: Set<Ref> = session.didDrag
-			? design.layoutRefs(in: session.rect, layer: state.layer, whole: whole)
-			: design.layoutRefs(at: start, layer: state.layer, tolerance: hitTolerance, whole: whole, selection: session.initial)
+			? design.layoutRefs(in: session.rect, layers: state.selectionLayers(in: board.stack), whole: whole)
+			: design.layoutRefs(at: start, layers: state.selectionLayers(in: board.stack), tolerance: hitTolerance, whole: whole, selection: session.initial)
 
 		state.selection = session.mode.apply(session.initial, hit)
 	}

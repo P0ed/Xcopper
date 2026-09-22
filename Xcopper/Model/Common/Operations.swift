@@ -160,7 +160,7 @@ extension Operations {
 
 	func selectAll() {
 		switch mode {
-		case .layout: layout.selection = design.layoutRefs(in: design.board.bounds, layer: layout.layer)
+		case .layout: layout.selection = design.layoutRefs(in: design.board.bounds, layers: layout.selectionLayers(in: design.board.stack))
 		case .schematic: schematic.selection = design.schematicRefs(in: design.schematic.bounds)
 		case .preview: break
 		}

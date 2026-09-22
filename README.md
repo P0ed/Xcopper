@@ -117,6 +117,8 @@ and there is no heading at all straight back the way the route came. Copper
 joined on a pad or a via is joined rather than bent, and so is copper the route
 branches off, so neither ties down which way the next segment leaves.
 
+Selection includes both top and bottom copper when visible, including Select All.
+Overlapping traces prefer the active layer.
 Clicking picks up the one segment under the pointer, and a rubber band takes
 every segment that fits inside it whole. Where objects overlap, clicks prefer
 traces, then vias, holes and footprints. Hold `⌘` to take the run instead — the
@@ -488,7 +490,8 @@ exports only the parent's outline.
 Click an imported layout part to inspect it individually, or click a pad directly
 to inspect its net and dimensions. `⌘`-click any imported object or
 empty space inside its layout rectangle to select the whole instance. Schematic
-blocks and layout box selection select whole instances. Move, quarter-turn,
+blocks and layout box selection select whole instances. A layout selection box
+must contain a part's center; overlapping its body or pads is insufficient. Move, quarter-turn,
 duplicate, copy, paste or delete a selected instance using the usual
 commands. A duplicate has a new identity and both representations; deleting
 either representation removes both. `⌘J` shows the counterpart. The inspector

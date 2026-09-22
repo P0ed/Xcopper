@@ -47,17 +47,22 @@ extension Design {
 	}
 
 	func layoutRefs(at point: Point, layer: Int, tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
+		layoutRefs(at: point, layers: [layer], tolerance: tolerance, whole: whole, selection: selection)
+	}
+
+	func layoutRefs(at point: Point, layers: [Int], tolerance: Int, whole: Bool = false, selection: Set<Ref> = []) -> Set<Ref> {
 		let projection = moduleProjection()
 		let board = projection.design.board
 		let padSelection = selection.union(projection.owners.keys.filter { $0.kind == .footprint })
-		guard let hit = board.hitTest(at: point, layer: layer, tolerance: tolerance, selection: padSelection) else {
+		guard let hit = board.hitTest(at: point, layers: layers, tolerance: tolerance, selection: padSelection) else {
 			guard whole, let module = modules.last(where: { $0.bounds.outset(tolerance).contains(point) }) else { return [] }
 			return [.module(module.id)]
 		}
 		guard whole else { return [hit] }
 		let owner = projection.owner(hit)
 		if owner.kind == .module { return [owner] }
-		return Set(board.refs(at: point, layer: layer, tolerance: tolerance, whole: true, selection: padSelection).map { projection.owner($0) })
+		guard case let .trace(index) = hit else { return [hit] }
+		return Set(board.run(of: index).map { projection.owner(.trace($0)) })
 	}
 
 	func containsModuleParts(_ refs: Set<Ref>) -> Bool {
@@ -67,17 +72,12 @@ extension Design {
 	}
 
 	func layoutRefs(in rect: Rect, layer: Int, whole: Bool = false) -> Set<Ref> {
+		layoutRefs(in: rect, layers: [layer], whole: whole)
+	}
+
+	func layoutRefs(in rect: Rect, layers: [Int], whole: Bool = false) -> Set<Ref> {
 		let projection = moduleProjection()
-		return Set(projection.design.board.refs(in: rect, layer: layer, whole: whole).map { projection.owner($0) })
-			.union(projection.design.board.footprints.enumerated().compactMap { index, footprint in
-				guard let owner = projection.owners[.footprint(index)],
-					rect.intersects(footprint.placedBody) || footprint.placedPads.contains(where: { pad in
-						(pad.isThrough || footprint.layer(of: pad, in: board.stack) == layer)
-							&& rect.intersects(pad.figure.bounds)
-					})
-				else { return nil }
-				return .module(owner)
-			})
+		return Set(projection.design.board.refs(in: rect, layers: layers, whole: whole).map { projection.owner($0) })
 	}
 
 	func schematicRef(at point: Point, tolerance: Int) -> Schematic.Ref? {
