@@ -8,7 +8,7 @@ struct EditorView: View {
 	@State var editor: EditorState = .init()
 	@State var layout: LayoutState
 	@State var schematic: SchematicState = .init()
-	@State var preview: PreviewState = .init()
+	@State var preview: PreviewState
 
 	@FocusState private(set) var focused: Bool
 	@Environment(\.documentConfiguration) private var configuration
@@ -17,7 +17,9 @@ struct EditorView: View {
 	init(design: Binding<Design>, clipboard: Binding<Clipboard>) {
 		_design = design
 		_clipboard = clipboard
-		_layout = State(initialValue: LayoutState(stack: design.wrappedValue.board.stack))
+		let board = design.wrappedValue.board
+		_layout = State(initialValue: LayoutState(stack: board.stack))
+		_preview = State(initialValue: PreviewState(finish: Finish(mask: board.solderMask ? .green : nil)))
 	}
 
 	var body: some View {
@@ -48,6 +50,9 @@ struct EditorView: View {
 		.onChange(of: design) { previous, next in
 			layout.modulePlacement = nil
 			schematic.modulePlacement = nil
+			if previous.board.solderMask != next.board.solderMask {
+				preview.finish.mask = next.board.solderMask ? preview.finish.mask ?? .green : nil
+			}
 			guard previous.containsModuleParts(layout.selection) else { return }
 			if previous.board.footprints.count != next.board.footprints.count
 				|| previous.board.traces.count != next.board.traces.count

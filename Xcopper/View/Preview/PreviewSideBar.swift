@@ -9,11 +9,12 @@ struct PreviewSideBar: View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
 				Panel(title: "Finish") {
-					ChoiceRow(title: "Mask", value: $state.finish.mask) {
-						ForEach(Mask.allCases) { mask in
-							Text(mask.name).tag(mask)
-						}
-					}
+					ValuePicker(
+						title: "Mask",
+						value: $state.finish.mask,
+						options: [nil] + Mask.allCases.map { Optional($0) },
+						label: { $0?.name ?? "None" }
+					)
 					ChoiceRow(title: "Pads", value: $state.finish.plating) {
 						ForEach(Plating.allCases) { plating in
 							Text(plating.name).tag(plating)
@@ -29,8 +30,6 @@ struct PreviewSideBar: View {
 				Panel(title: "Show") {
 					Toggle("Copper", isOn: $state.finish.copper)
 					Toggle("Components", isOn: $state.finish.components)
-						.keyboardShortcut(.init(.init("C"), modifiers: []))
-					Toggle("Soldermask", isOn: $state.finish)
 						.keyboardShortcut(.init(.init("C"), modifiers: []))
 				}
 				.toggleStyle(.checkbox)

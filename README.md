@@ -356,8 +356,11 @@ the mask, pads left open and plated, holes drilled through and lined, and every
 part standing where the layout puts it. Nothing is approximated away: the copper
 drawn is the copper on the board, and no legend is drawn because the fabrication
 set carries none. With solder mask turned off in Board settings, the faces show
-bare laminate and exposed plated copper. The preview's mask color picker appears
-only while solder mask is enabled.
+bare laminate and exposed plated copper. The preview starts with the board's
+solder-mask setting. Its **Mask** picker offers **None**, **Green** and **Black**
+to override the preview appearance without changing the saved board or fabrication
+output. Preview choices persist when switching views; changing the board's
+solder-mask setting updates the preview too.
 
 | Key | View |
 | --- | --- |

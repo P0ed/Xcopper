@@ -1,7 +1,7 @@
 import Foundation
 
 struct Finish: Equatable {
-	var mask: Mask = .green
+	var mask: Mask? = .green
 	var plating: Plating = .gold
 	var thickness: µm = .thicknesses[1]
 	var copper = true
@@ -23,7 +23,7 @@ extension Finish {
 	var shape: Shape { Shape(thickness: thickness, copper: copper, components: components) }
 
 	var coating: RGBA {
-		mask.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20)
+		mask.map { $0.rgb.mixed(with: Palette.bareCopper, 0.18).scaled(1.20) } ?? plating.rgb
 	}
 }
 
@@ -41,7 +41,7 @@ extension Shade {
 
 	func rgb(_ finish: Finish) -> RGBA {
 		switch self {
-		case .mask: finish.mask.rgb
+		case .mask: finish.mask?.rgb ?? Palette.laminate
 		case .laminate: Palette.laminate
 		case .bore: Palette.laminate.scaled(0.55)
 		case .plating: finish.plating.rgb
@@ -197,7 +197,7 @@ extension Board {
 			model.add(
 				side.loop(outline),
 				holes: punched.map { hole in side.loop(hole) },
-				shade: solderMask ? .mask : .laminate,
+				shade: .mask,
 				level: side.mask
 			)
 		}
@@ -229,7 +229,7 @@ extension Board {
 				.segment(trace.start, trace.end, trace.width ?? rules.traceWidth),
 				arc: 2,
 				drills: punches,
-				shade: solderMask ? .coating : .plating,
+				shade: .coating,
 				level: side.copper,
 				side: side,
 				into: &model
@@ -239,7 +239,7 @@ extension Board {
 			lay(
 				.round(via.at, rules.viaPad),
 				drills: punches,
-				shade: solderMask ? .coating : .plating,
+				shade: .coating,
 				level: side.copper,
 				side: side,
 				into: &model
