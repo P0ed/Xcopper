@@ -312,3 +312,51 @@ struct SchematicRenderer {
 		}
 	}
 }
+
+private func renderGrid(
+	_ bounds: Rect,
+	step: µm,
+	in context: GraphicsContext,
+	scale: CGFloat,
+	origin: CGPoint,
+	visible: CGRect
+) {
+	let step = CGFloat(Double.mm(step)) * scale
+	let tileSpan = step * 10.0
+	guard step > 0.0, tileSpan >= 3.0 else { return }
+
+	let bounds = bounds.cg(scale, origin: origin)
+	let visible = bounds.intersection(visible)
+	guard !visible.isNull, !visible.isEmpty else { return }
+
+	let firstColumn = Int(floor((visible.minX - bounds.minX) / tileSpan))
+	let lastColumn = Int(floor((visible.maxX - bounds.minX) / tileSpan))
+	let firstRow = Int(floor((visible.minY - bounds.minY) / tileSpan))
+	let lastRow = Int(floor((visible.maxY - bounds.minY) / tileSpan))
+	let columns = lastColumn - firstColumn + 1
+	let rows = lastRow - firstRow + 1
+	guard columns > 0, rows > 0, columns * rows <= 50_000 else { return }
+
+	let size = min(1.5, max(0.75, step / 12.0))
+	let dot = CGRect(center: .zero, radius: size / 2.0)
+
+	var tile = Path()
+	for row in 0 ..< 10 {
+		for column in 0 ..< 10 where row != 0 || column != 0 {
+			tile.addRect(dot.offsetBy(dx: CGFloat(column) * step, dy: CGFloat(row) * step))
+		}
+	}
+
+	var minor = Path()
+	for row in firstRow ... lastRow {
+		for column in firstColumn ... lastColumn {
+			let x = bounds.minX + CGFloat(column) * tileSpan
+			let y = bounds.minY + CGFloat(row) * tileSpan
+			minor.addPath(tile, transform: .identity.translatedBy(x: x, y: y))
+		}
+	}
+
+	var context = context
+	context.clip(to: Path(visible))
+	context.fill(minor, with: .color(Palette.grid))
+}

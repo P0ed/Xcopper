@@ -31,6 +31,9 @@ struct SchematicView: View {
 				if case let .active(location) = phase { hover(at: location) }
 			}
 		}
+		.onAppear {
+			state.viewport.frame.origin = .zero
+		}
 	}
 
 	private func renderSessions(in context: GraphicsContext, scale: CGFloat, origin: CGPoint) {
@@ -44,4 +47,13 @@ struct SchematicView: View {
 			marching(Path(session.rect.cg(scale, origin: origin)), in: context)
 		}
 	}
+}
+
+private func marching(_ path: Path, in context: GraphicsContext) {
+	context.stroke(path, with: .color(.black), lineWidth: 2.0)
+	context.stroke(
+		path,
+		with: .color(Palette.highlight),
+		style: StrokeStyle(lineWidth: 1.0, dash: [4.0, 4.0])
+	)
 }
