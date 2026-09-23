@@ -455,7 +455,7 @@ final class ModuleTests: XCTestCase {
 
 	func testSelectingRenamedSourceRecoversOnlyTheSelectedInstance() throws {
 		var source = source()
-		source.schematic.symbols[0].valueParameter = true
+		source.setValue([Schematic.Ref.symbol(0)], to: "#R1")
 		var design = try imported(["Part.xcb": source, "Other.xcb": source], filenames: ["Part.xcb", "Other.xcb"])
 		let id = design.modules[0].id
 		let otherID = design.modules[1].id

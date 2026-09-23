@@ -64,9 +64,10 @@ hole. NKK MN12/MN15 use the G03 straight-PC terminal pattern.
 
 ## Layout
 
-**Design → Board settings** (`⌘B`) sets the board size, stackup, solder mask, clearance,
-trace width, minimum trace length and via drill and pad diameters. The **mm / in** toggle
-controls the size units.
+**Design → Board settings** (`⌘B`) sets the board size, stackup and solder mask.
+The **mm / in** toggle controls the size units. With nothing selected, the layout
+inspector's **Globals** panel sets clearance, trace width, minimum trace length
+and via drill and pad diameters.
 All numeric inputs use `.` as the decimal separator. Turn off **Solder mask** to leave both faces unmasked in the 3D
 preview and fabrication set. This setting is saved with the board and can be undone.
 Every via uses the board's sizes, including existing vias and vias
@@ -303,10 +304,10 @@ of one net is free to touch itself. A hole carries no net at all, so everything
 has to stand clear of one, and so it does of the cut edge. What the netlist asks
 for and no copper joins is listed too — the same connections the ratsnest draws.
 
-Each routed trace segment must meet **Min trace length** in Board settings (`⌘B`),
+Each routed trace segment must meet **Min trace length** in the layout inspector's **Globals** panel,
 including traces inside imported modules and traces without a net. Length is measured
-between the segment's endpoints. The picker offers **Disabled**, **0.1 mm** (the default)
-and **0.5 mm**. Shorter segments appear in the sidebar, on the layout and in fabrication
+between the segment's endpoints. The picker offers **None**, **0.1 mm** (the default)
+and **0.3 mm**. Shorter segments appear in the sidebar, on the layout and in fabrication
 preflight alongside the other violations.
 
 Every line is a place to go. Clicking one picks up the copper at fault, turns to
@@ -424,10 +425,14 @@ All coordinates and lengths are stored as integer micrometers.
 The schematic stores parts in `symbols`, with optional `netLabel` values on their
 pins. Module instances store numbered IO definitions in `interface` and optional
 pin assignments in `netLabels`, keyed by IO number.
-Parts marked with `valueParameter` expose their value under their reference.
+Each design stores its parameter names and defaults in a `parameters` array.
+Names are derived from schematic values beginning with `#NAME`; repeated names
+share one parameter. Legacy `valueParameter` flags migrate to `#REFERENCE` values
+and module-level defaults when opened.
 Module instances retain parameter definitions and defaults in `parameters`, with
 per-instance overrides in `parameterValues`, keyed by parameter name. Older
-documents without these fields have no parameters or overrides.
+documents without these fields derive parameters from their schematic values and
+have no overrides.
 Library footprints store their component ID, placement, reference, value and BOM
 setting. Pads, body dimensions, device and package come from the current library
 definition when opened, and pad nets are rebuilt from the schematic.
@@ -450,14 +455,19 @@ net name. `#1 OUT1` creates the net `OUT1` and exposes IO pin 1 named `OUT1`.
 A repeated IO number must use the same name and resolve to the same net.
 Matching net labels connect separate parts of an interface net.
 
-To expose a part's value as a module parameter, select it in the source schematic
-or layout and enable **Parameter → Expose value**. Its reference, such as `R1` or
-`R2`, becomes the parameter name and its value becomes the default. Save the source
-and reload modules in the parent. Select an instance to edit its **Parameters**;
+To use a module parameter, set a schematic part's value to `#NAME`, such as
+`#RESISTANCE`. The name runs from `#` to the next whitespace or the end of the
+value. Repeated, case-sensitive names share one parameter. With nothing selected,
+the inspector's **Parameters** panel lists these names and their editable defaults.
+New parameters start with an empty default; names disappear when no schematic
+value uses them. Save the source and reload modules in the parent.
+Select an instance to edit its **Parameters**;
 each instance keeps its own overrides. The reset arrow restores the source value,
 including future source changes. Parameters appear inside the schematic block as
-one `R1: 10k` line per parameter. Overrides also apply to the imported parts in the
-layout and bill of materials, including when the module is nested in another.
+one `RESISTANCE: 10k` line per parameter. Defaults apply to the source layout and
+bill of materials; instance overrides apply to imported parts, including nested
+modules. A child instance's parameter override can use `#NAME` to forward a
+parameter from its containing module.
 
 The instance's layout position places the center of its source board in the parent.
 Rotating a single module turns around that center. Nested modules also use their

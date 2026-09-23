@@ -1,6 +1,27 @@
 import SwiftUI
 
 @MainActor
+struct GlobalsPanel: View {
+	@Binding var rules: Rules
+
+	var body: some View {
+		Panel(title: "Globals") {
+			ValuePicker(title: "Gap", value: $rules.clearance,
+				options: Set(µm.clearances + [rules.clearance]).sorted())
+			ValuePicker(title: "Trace width", value: $rules.traceWidth,
+				options: Set(µm.traceWidths + [rules.traceWidth]).sorted())
+			ValuePicker(title: "Via drill", value: $rules.viaDrill,
+				options: Set([400, 500, rules.viaDrill]).sorted().filter { $0 > 100 && $0 < rules.viaPad })
+			ValuePicker(title: "Via pad", value: $rules.viaPad,
+				options: Set([800, 900, 1_000, rules.viaPad]).sorted().filter { $0 > rules.viaDrill })
+			ValuePicker(title: "Min trace length", value: $rules.minTraceLength,
+				options: Set([0, 100, 300, rules.minTraceLength]).sorted(),
+				label: { $0 == 0 ? "None" : "\($0.label) mm" })
+		}
+	}
+}
+
+@MainActor
 struct LayoutInspector: View {
 	@Binding var design: Design
 	var selection: Set<Ref>
@@ -93,7 +114,6 @@ struct LayoutInspector: View {
 				footprint: inspected.board.footprints[index, or: board.footprints[index]],
 				reference: inspected.reference(of: Ref.footprint(index)),
 				value: inspected.value(of: Ref.footprint(index)).orEmpty,
-				valueParameter: inspected.valueParameter(of: [board.footprints[index].reference]),
 				stack: board.stack,
 				focus: $focus
 			)
@@ -203,7 +223,6 @@ struct FootprintInspector: View {
 	@Binding var footprint: Footprint
 	@Binding var reference: String
 	@Binding var value: String
-	@Binding var valueParameter: Bool
 	var stack: Stack
 	@FocusState.Binding var focus: Property?
 
@@ -219,7 +238,6 @@ struct FootprintInspector: View {
 			focus: $focus
 		)
 		TextRow(title: "Value", text: $value, property: .value, focus: $focus)
-		ToggleRow(title: "Parameter", label: "Expose value", value: $valueParameter)
 		ValuePicker(
 			title: "Side",
 			value: $footprint.flipped,
@@ -251,10 +269,6 @@ struct FootprintsInspector: View {
 			text: value.orEmpty,
 			property: .value,
 			focus: $focus
-		)
-		ToggleRow(
-			title: "Parameter", label: "Expose value",
-			value: $design.valueParameter(of: Set(indices.map { footprints[$0].reference }))
 		)
 		ChoiceRow(title: "Side", value: $design.board.footprints.shared(indices, \.flipped)) {
 			Text(stack.name(of: stack.top)).tag(Bool?.some(false))

@@ -47,13 +47,12 @@ struct Footprint: Hashable, Codable {
 	var package: Package = .custom
 	var component: Component?
 	var inBOM: Bool = true
-	var valueParameter: Bool = false
 }
 
 extension Footprint {
 
 	enum CodingKeys: String, CodingKey {
-		case reference, value, at, rotation, flipped, pads, body, device, package, component, inBOM, valueParameter
+		case reference, value, at, rotation, flipped, pads, body, device, package, component, inBOM
 	}
 
 	init(from decoder: Decoder) throws {
@@ -65,7 +64,6 @@ extension Footprint {
 		flipped = try values.decode(Bool.self, forKey: .flipped)
 		component = try values.decodeIfPresent(Component.self, forKey: .component)
 		inBOM = try values.decodeIfPresent(Bool.self, forKey: .inBOM) ?? true
-		valueParameter = (try values.decodeIfPresent(Bool.self, forKey: .valueParameter)) ?? false
 		if let component {
 			guard let footprint = component.makeFootprint() else {
 				throw DecodingError.dataCorruptedError(forKey: .component, in: values, debugDescription: "Component has no footprint")
@@ -93,7 +91,6 @@ extension Footprint {
 		try values.encode(flipped, forKey: .flipped)
 		try values.encodeIfPresent(component, forKey: .component)
 		try values.encode(inBOM, forKey: .inBOM)
-		try values.encodeIfPresent(valueParameter, forKey: .valueParameter)
 		if component == nil {
 			try values.encode(pads, forKey: .pads)
 			try values.encode(body, forKey: .body)

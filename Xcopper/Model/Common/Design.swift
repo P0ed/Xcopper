@@ -1,17 +1,24 @@
 struct Design: Equatable, Codable {
 	var nets: [Net] { didSet { projectionCache = ModuleProjectionCache() } }
 	var board: Board { didSet { projectionCache = ModuleProjectionCache() } }
-	var schematic: Schematic { didSet { projectionCache = ModuleProjectionCache() } }
-	var modules: [ModuleInstance] = [] { didSet { projectionCache = ModuleProjectionCache() } }
+	var schematic: Schematic { didSet { synchronizeParameters(); projectionCache = ModuleProjectionCache() } }
+	var modules: [ModuleInstance] = [] { didSet { synchronizeParameters(); projectionCache = ModuleProjectionCache() } }
+	var parameters: [ModuleParameter] = [] { didSet { projectionCache = ModuleProjectionCache() } }
 	var moduleCache = ModuleCache() { didSet { projectionCache = ModuleProjectionCache() } }
 	private var projectionCache = ModuleProjectionCache()
 
-	func moduleProjection(syncNative: Bool = false) -> ModuleProjection {
-		if modules.isEmpty && !syncNative { return ModuleProjection(design: self) }
-		return projectionCache.value(syncNative: syncNative) { buildModuleProjection(syncNative: syncNative) }
+	func moduleProjection(syncNative: Bool = false, resolvingParameters: Bool = true) -> ModuleProjection {
+		if modules.isEmpty && !syncNative {
+			var projection = ModuleProjection(design: self)
+			if resolvingParameters { applyParameterDefaults(to: &projection.design.board) }
+			return projection
+		}
+		return projectionCache.value(syncNative: syncNative, resolvingParameters: resolvingParameters) {
+			buildModuleProjection(syncNative: syncNative, resolvingParameters: resolvingParameters)
+		}
 	}
 
-	enum CodingKeys: String, CodingKey { case nets, board, schematic, modules }
+	enum CodingKeys: String, CodingKey { case nets, board, schematic, modules, parameters }
 
 	init(from decoder: Decoder) throws {
 		let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -19,6 +26,19 @@ struct Design: Equatable, Codable {
 		board = try values.decode(Board.self, forKey: .board)
 		schematic = try values.decode(Schematic.self, forKey: .schematic)
 		modules = try values.decodeIfPresent([ModuleInstance].self, forKey: .modules) ?? []
+		parameters = try values.decodeIfPresent([ModuleParameter].self, forKey: .parameters) ?? []
+		if !values.contains(.parameters) {
+			let legacyBoard = try values.decode(LegacyParameterParts.self, forKey: .board)
+			let legacySchematic = try values.decode(LegacyParameterParts.self, forKey: .schematic)
+			for part in (legacySchematic.symbols ?? []) + (legacyBoard.footprints ?? [])
+			where part.valueParameter == true {
+				guard !parameters.contains(where: { $0.name == part.reference }) else { continue }
+				parameters.append(ModuleParameter(name: part.reference, defaultValue: part.value))
+				schematic.symbols.modifyEach { if $0.reference == part.reference { $0.value = "#" + part.reference } }
+				board.footprints.modifyEach { if $0.reference == part.reference { $0.value = "#" + part.reference } }
+			}
+		}
+		synchronizeParameters()
 		if board.footprints.contains(where: { $0.component != nil }) {
 			_ = updateBoardFromSchematic()
 		}
@@ -35,6 +55,7 @@ extension Design {
 		]
 		self.board = board
 		self.schematic = schematic
+		synchronizeParameters()
 	}
 
 	func net(_ id: Net.ID?) -> Net? {

@@ -4,13 +4,19 @@ import Synchronization
 final class ModuleProjectionCache: Sendable, Equatable {
 	static func == (_: ModuleProjectionCache, _: ModuleProjectionCache) -> Bool { true }
 
-	private let projections = Mutex<[Bool: ModuleProjection]>([:])
+	private struct Key: Hashable {
+		var syncNative: Bool
+		var resolvingParameters: Bool
+	}
 
-	func value(syncNative: Bool, build: () -> ModuleProjection) -> ModuleProjection {
+	private let projections = Mutex<[Key: ModuleProjection]>([:])
+
+	func value(syncNative: Bool, resolvingParameters: Bool, build: () -> ModuleProjection) -> ModuleProjection {
 		projections.withLock { values in
-			if let cached = values[syncNative] { return cached }
+			let key = Key(syncNative: syncNative, resolvingParameters: resolvingParameters)
+			if let cached = values[key] { return cached }
 			let projection = build()
-			values[syncNative] = projection
+			values[key] = projection
 			return projection
 		}
 	}
@@ -20,6 +26,23 @@ struct ModuleParameter: Equatable, Codable, Identifiable {
 	var name: String
 	var defaultValue: String
 	var id: String { name }
+
+	static func name(in value: String) -> String? {
+		guard value.hasPrefix("#") else { return nil }
+		let name = value.dropFirst().prefix { !$0.isWhitespace }
+		return name.isEmpty ? nil : String(name)
+	}
+}
+
+struct LegacyParameterParts: Decodable {
+	struct Part: Decodable {
+		var reference: String
+		var value: String
+		var valueParameter: Bool?
+	}
+
+	var symbols: [Part]?
+	var footprints: [Part]?
 }
 
 struct ModuleInstance: Equatable, Codable, Identifiable {
@@ -164,16 +187,36 @@ private func moduleNetID(_ key: String) -> Int {
 }
 
 extension Design {
-	var moduleParameters: [ModuleParameter] {
-		var values: [String: String] = [:]
-		for footprint in board.footprints where footprint.valueParameter == true {
-			values[footprint.reference] = footprint.value
+	mutating func synchronizeParameters() {
+		let values = schematic.symbols.map(\.value) + modules.flatMap { module in
+			module.parameters.compactMap { module.parameterValues[$0.name] }
 		}
-		for symbol in schematic.symbols where symbol.valueParameter == true {
-			values[symbol.reference] = symbol.value
+		let names = Set(values.compactMap(ModuleParameter.name(in:)))
+		let defaults = Dictionary(parameters.map { ($0.name, $0.defaultValue) }, uniquingKeysWith: { first, _ in first })
+		let next = names.sorted {
+			let order = $0.compare($1, options: .numeric)
+			return order == .orderedSame ? $0 < $1 : order == .orderedAscending
 		}
-		return values.keys.sorted { $0.compare($1, options: .numeric) == .orderedAscending }
-			.map { ModuleParameter(name: $0, defaultValue: values[$0]!) }
+			.map { ModuleParameter(name: $0, defaultValue: defaults[$0] ?? "") }
+		if parameters != next { parameters = next }
+	}
+
+	private var parameterReferences: [String: String] {
+		Dictionary(schematic.symbols.compactMap { symbol in
+			ModuleParameter.name(in: symbol.value).map { (symbol.reference, $0) }
+		}, uniquingKeysWith: { first, _ in first })
+	}
+
+	func applyParameterDefaults(to board: inout Board) {
+		guard !parameters.isEmpty else { return }
+		let references = parameterReferences
+		let defaults = Dictionary(parameters.map { ($0.name, $0.defaultValue) }, uniquingKeysWith: { first, _ in first })
+		board.footprints.modifyEach { footprint in
+			if let name = references[footprint.reference] ?? ModuleParameter.name(in: footprint.value),
+				let value = defaults[name] {
+				footprint.value = value
+			}
+		}
 	}
 
 	var moduleErrors: [String] {
@@ -194,10 +237,16 @@ extension Design {
 
 	var resolved: Design { moduleProjection().design }
 
-	func buildModuleProjection(syncNative: Bool) -> ModuleProjection {
+	func buildModuleProjection(syncNative: Bool, resolvingParameters: Bool) -> ModuleProjection {
 		var result = ModuleProjection(design: self)
 		result.design.modules = []
 		result.design.moduleCache = ModuleCache()
+		let parameterReferences = self.parameterReferences
+		for index in result.design.board.footprints.indices {
+			if let name = parameterReferences[result.design.board.footprints[index].reference] {
+				result.design.board.footprints[index].value = "#" + name
+			}
+		}
 		var nets = Dictionary(nets.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 		var portsBySymbol: [Int: [String: Int]] = [:]
 		var merge = UnionFind<Int>()
@@ -254,7 +303,9 @@ extension Design {
 				result.design.board.holes.append(hole)
 			}
 			for var footprint in imported.footprints {
-				if let value = parameterValues[footprint.reference] { footprint.value = value }
+				if let name = ModuleParameter.name(in: footprint.value), let value = parameterValues[name] {
+					footprint.value = value
+				}
 				footprint.at = module.place(footprint.at)
 				footprint.rotation = footprint.rotation.adding(module.layoutRotation)
 				footprint.reference = "\(module.reference).\(footprint.reference)"
@@ -357,6 +408,9 @@ extension Design {
 		let nativeIDs = Set(self.nets.map(\.id))
 		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.find($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
 		result.report.created = result.design.nets.filter { !nativeIDs.contains($0.id) && !result.localNets.contains($0.id) }.map(\.name)
+		if resolvingParameters {
+			applyParameterDefaults(to: &result.design.board)
+		}
 		return result
 	}
 }
@@ -432,11 +486,11 @@ struct ModuleResolver {
 			source.modules[i].size = content.board.size
 			source.moduleCache.contents[child.id] = content
 		}
-		let projection = source.moduleProjection(syncNative: true)
+		let projection = source.moduleProjection(syncNative: true, resolvingParameters: false)
 		if let error = projection.interfaceError { throw Err("\(filename): \(error)") }
 		let content = ModuleContent(
 			board: projection.design.board, nets: projection.design.nets, ports: projection.ports,
-			interface: projection.interface, parameters: source.moduleParameters
+			interface: projection.interface, parameters: source.parameters
 		)
 		contents[url] = content
 		return content

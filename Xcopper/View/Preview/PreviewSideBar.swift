@@ -30,6 +30,8 @@ struct PreviewSideBar: View {
 					Toggle("Copper", isOn: $state.finish.copper)
 					Toggle("Components", isOn: $state.finish.components)
 						.keyboardShortcut(.init(.init("C"), modifiers: []))
+					Toggle("Soldermask", isOn: $state.finish)
+						.keyboardShortcut(.init(.init("C"), modifiers: []))
 				}
 				.toggleStyle(.checkbox)
 

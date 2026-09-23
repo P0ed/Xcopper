@@ -15,16 +15,10 @@ struct LayoutSideBar: View {
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
-					if let placement = state.modulePlacement {
-						ModulePlacementInspector(placement: placement) { state.cancelSessions() }
-					} else {
-						LayoutInspector(design: $design, selection: state.selection, focus: $focus) { ref in
-							state.cancelSessions()
-							state.selection = [ref]
-						}
-						CounterpartButton(operations: operations)
-					}
+				if state.selection.isEmpty && state.modulePlacement == nil {
+					GlobalsPanel(rules: $design.board.rules)
+				} else {
+					selectionPanel
 				}
 
 				Panel(title: "Board") {
@@ -65,6 +59,20 @@ struct LayoutSideBar: View {
 		.onChange(of: focus) { _, field in editor.editing = field }
 		.onChange(of: editor.editing) { _, editing in focus = editing }
 		.onDisappear { editor.editing = nil }
+	}
+
+	private var selectionPanel: some View {
+		Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
+			if let placement = state.modulePlacement {
+				ModulePlacementInspector(placement: placement) { state.cancelSessions() }
+			} else {
+				LayoutInspector(design: $design, selection: state.selection, focus: $focus) { ref in
+					state.cancelSessions()
+					state.selection = [ref]
+				}
+				CounterpartButton(operations: operations)
+			}
+		}
 	}
 }
 

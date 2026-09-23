@@ -49,7 +49,7 @@ extension Design {
 
 	mutating func updateBoardFromSchematic() -> Report {
 		if !modules.isEmpty {
-			let projection = moduleProjection(syncNative: true)
+			let projection = moduleProjection(syncNative: true, resolvingParameters: false)
 			board.traces = Array(projection.design.board.traces.prefix(board.traces.count))
 			board.vias = Array(projection.design.board.vias.prefix(board.vias.count))
 			board.footprints = Array(projection.design.board.footprints.prefix(board.footprints.count))
@@ -182,10 +182,6 @@ extension Design {
 
 	private mutating func setValue(of references: Set<String>, to value: String) {
 		updateParts(references, symbol: { $0.value = value }, footprint: { $0.value = value })
-	}
-
-	mutating func exposeValue(of references: Set<String>, exposed: Bool) {
-		updateParts(references, symbol: { $0.valueParameter = exposed }, footprint: { $0.valueParameter = exposed })
 	}
 
 	mutating func rename(_ reference: String, to value: String) {

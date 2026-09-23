@@ -14,22 +14,10 @@ struct SchematicSideBar: View {
 	var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .leading, spacing: 12.0) {
-				Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
-					if let placement = state.modulePlacement {
-						ModulePlacementInspector(placement: placement) { state.cancelSessions() }
-					} else if state.selection.count == 1, let id = state.selection.moduleIDs.first {
-						ModuleInspector(design: $design, id: id, layout: false, focus: $focus) {
-							operations.selectModuleSource(id)
-						}
-					} else {
-						SchematicInspector(
-							design: $design,
-							netlist: netlist,
-							selection: state.selection,
-							focus: $focus
-						)
-					}
-					CounterpartButton(operations: operations)
+				if state.selection.isEmpty && state.modulePlacement == nil {
+					ParametersPanel(design: $design, focus: $focus)
+				} else {
+					selectionPanel
 				}
 				Panel(title: "Sheet") {
 					ValuePicker(title: "Snap", value: $state.snap, options: µm.sheetSnapGrids)
@@ -43,5 +31,25 @@ struct SchematicSideBar: View {
 		.onChange(of: focus) { _, field in editor.editing = field }
 		.onChange(of: editor.editing) { _, editing in focus = editing }
 		.onDisappear { editor.editing = nil }
+	}
+
+	private var selectionPanel: some View {
+		Panel(title: state.modulePlacement == nil ? "Selection" : "Place module") {
+			if let placement = state.modulePlacement {
+				ModulePlacementInspector(placement: placement) { state.cancelSessions() }
+			} else if state.selection.count == 1, let id = state.selection.moduleIDs.first {
+				ModuleInspector(design: $design, id: id, layout: false, focus: $focus) {
+					operations.selectModuleSource(id)
+				}
+			} else {
+				SchematicInspector(
+					design: $design,
+					netlist: netlist,
+					selection: state.selection,
+					focus: $focus
+				)
+			}
+			CounterpartButton(operations: operations)
+		}
 	}
 }

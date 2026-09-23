@@ -199,6 +199,42 @@ extension Operations {
 }
 
 @MainActor
+struct ParametersPanel: View {
+	@Binding var design: Design
+	@FocusState.Binding var focus: Property?
+
+	var body: some View {
+		Panel(title: "Parameters") {
+			if design.parameters.isEmpty {
+				Text("Use #NAME as a schematic value to add a parameter.")
+					.font(.caption).foregroundStyle(.secondary)
+			} else {
+				PropertyRow(title: "Name") {
+					Text("Default").foregroundStyle(.secondary)
+				}
+				.font(.caption)
+				ForEach(design.parameters) { parameter in
+					TextRow(
+						title: parameter.name, text: defaultValue(for: parameter.name),
+						property: .moduleParameter(parameter.name), focus: $focus
+					)
+				}
+			}
+		}
+	}
+
+	private func defaultValue(for name: String) -> Binding<String> {
+		Binding(
+			get: { design.parameters.first { $0.name == name }?.defaultValue ?? "" },
+			set: { value in
+				guard let index = design.parameters.firstIndex(where: { $0.name == name }) else { return }
+				design.parameters[index].defaultValue = value
+			}
+		)
+	}
+}
+
+@MainActor
 struct ModulePlacementInspector: View {
 	var placement: ModulePlacement
 	var cancel: () -> Void

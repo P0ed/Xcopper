@@ -64,7 +64,6 @@ struct Symbol: Hashable, Codable {
 	var body: Rect
 	var glyph: [Glyph]
 	var component: Component?
-	var valueParameter: Bool?
 }
 
 struct Wire: Hashable, Codable {

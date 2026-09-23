@@ -142,11 +142,10 @@ struct EditorView: View {
 				sheet: design.schematic.size,
 				board: design.board.size,
 				stack: design.board.stack,
-				rules: design.board.rules,
 				solderMask: design.board.solderMask
-			) { sheet, size, stack, rules, solderMask in
+			) { sheet, size, stack, solderMask in
 				undoManager.undoGroup("Board settings") {
-					operations.configureBoard(sheet: sheet, size: size, stack: stack, rules: rules, solderMask: solderMask)
+					operations.configureBoard(sheet: sheet, size: size, stack: stack, solderMask: solderMask)
 				}
 			}
 		case .footprint:

@@ -380,7 +380,7 @@ extension Operations {
 
 extension Operations {
 
-	func configureBoard(sheet: Size, size: Size, stack: Stack, rules: Rules, solderMask: Bool) {
+	func configureBoard(sheet: Size, size: Size, stack: Stack, solderMask: Bool) {
 		guard stack == design.board.stack || design.canRestack(stack) else {
 			moduleAlert("Cannot reduce the layer count", "An imported module needs more layers. Remove it or change its source stack first.")
 			return
@@ -388,7 +388,6 @@ extension Operations {
 		design = modifying(design) { design in
 			design.schematic.size = sheet
 			design.board.size = size
-			design.board.rules = rules
 			design.board.solderMask = solderMask
 			if stack != design.board.stack {
 				design.restack(stack)
