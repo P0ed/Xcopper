@@ -297,15 +297,8 @@ struct ParametersPanel: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		Panel(title: "Parameters") {
-			if design.parameters.isEmpty {
-				Text("Use #NAME as a schematic value to add a parameter.")
-					.font(.caption).foregroundStyle(.secondary)
-			} else {
-				PropertyRow(title: "Name") {
-					Text("Default").foregroundStyle(.secondary)
-				}
-				.font(.caption)
+		if design.parameters.isEmpty { EmptyView() } else {
+			Panel(title: "Parameters") {
 				ForEach(design.parameters) { parameter in
 					TextRow(
 						title: parameter.name, text: defaultValue(for: parameter.name),
@@ -370,23 +363,22 @@ struct ModuleInspector: View {
 			PositionRows(at: position, focus: $focus)
 			ValuePicker(rotation: Binding(rotation))
 			let status = design.moduleStatus(id)
-			Text(status ?? "Resolved · \(module.interface.count) IO pins · \(module.layerCount) layers")
-				.font(.caption).foregroundStyle(status == nil ? Color.secondary : Color.red)
 			if !module.parameters.isEmpty {
-				Text("Parameters").font(.caption).foregroundStyle(.secondary)
-				ForEach(module.parameters) { parameter in
-					HStack(spacing: 4.0) {
-						TextRow(
-							title: parameter.name, text: value(for: parameter),
-							property: .moduleParameter(parameter.name), focus: $focus
-						)
-						Button("Use source value", systemImage: "arrow.uturn.backward") {
-							setValue(nil, for: parameter)
+				Panel(title: "Parameters") {
+					ForEach(module.parameters) { parameter in
+						HStack(spacing: 4.0) {
+							TextRow(
+								title: parameter.name, text: value(for: parameter),
+								property: .moduleParameter(parameter.name), focus: $focus
+							)
+							Button("Use source value", systemImage: "arrow.uturn.backward") {
+								setValue(nil, for: parameter)
+							}
+							.buttonStyle(.borderless)
+							.labelStyle(.iconOnly)
+							.disabled(module.parameterValues[parameter.name] == nil)
+							.help("Use source value: \(parameter.defaultValue)")
 						}
-						.buttonStyle(.borderless)
-						.labelStyle(.iconOnly)
-						.disabled(module.parameterValues[parameter.name] == nil)
-						.help("Use source value: \(parameter.defaultValue)")
 					}
 				}
 			}

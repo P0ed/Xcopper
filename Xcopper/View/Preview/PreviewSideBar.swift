@@ -33,47 +33,9 @@ struct PreviewSideBar: View {
 						.keyboardShortcut(.init(.init("C"), modifiers: []))
 				}
 				.toggleStyle(.checkbox)
-
-				Panel(title: "Stuffed") {
-					if board.footprints.isEmpty {
-						Text("Nothing placed yet")
-							.font(.caption)
-							.foregroundStyle(.secondary)
-					}
-					ForEach(Array(board.footprints.enumerated()), id: \.offset) { _, footprint in
-						PartRow(footprint: footprint)
-					}
-				}
 			}
 			.padding(12.0)
 		}
 		.navigationSplitViewColumnWidth(min: 190.0, ideal: 210.0, max: 280.0)
-	}
-}
-
-@MainActor
-struct PartRow: View {
-	var footprint: Footprint
-
-	private var height: String {
-		let package = footprint.appearance
-		return package.stands ? "\(package.height.label) mm" : "—"
-	}
-
-	var body: some View {
-		HStack(spacing: 6.0) {
-			RoundedRectangle(cornerRadius: 2.0)
-				.fill(footprint.appearance.color.color)
-				.frame(width: 10.0, height: 10.0)
-			Text(footprint.reference).lineLimit(1)
-			Spacer(minLength: 0.0)
-			Text(footprint.flipped ? "B" : "T")
-				.foregroundStyle(.tertiary)
-			Text(height)
-				.foregroundStyle(.secondary)
-		}
-		.font(.caption.monospacedDigit())
-		.padding(.horizontal, 6.0)
-		.padding(.vertical, 2.0)
 	}
 }

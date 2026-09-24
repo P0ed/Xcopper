@@ -105,25 +105,26 @@ struct PinNetsInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		Text("Pin net labels").font(.caption).foregroundStyle(.secondary)
-		ForEach(pins.indices, id: \.self) { index in
-			let pin = pins[index]
-			TextRow(
-				title: pin.isNamed ? "\(pin.number) · \(pin.name)" : pin.number,
-				prompt: "None",
-				text: Binding(
-					get: { pins.indices.contains(index) ? pins[index].netLabel ?? "" : "" },
-					set: { value in
-						guard pins.indices.contains(index) else { return }
-						pins[index].netLabel = value.trimmingWhitespace.isEmpty ? nil : value
-					}
-				),
-				property: .pinNet(index),
-				focus: $focus
-			)
-			if pin.hasInvalidIO {
-				Text("Use #1 OUT1: a positive IO number, then a net name.")
-					.font(.caption).foregroundStyle(.red)
+		Panel(title: "Pin net labels") {
+			ForEach(pins.indices, id: \.self) { index in
+				let pin = pins[index]
+				TextRow(
+					title: pin.isNamed ? "\(pin.number) · \(pin.name)" : pin.number,
+					prompt: "None",
+					text: Binding(
+						get: { pins.indices.contains(index) ? pins[index].netLabel ?? "" : "" },
+						set: { value in
+							guard pins.indices.contains(index) else { return }
+							pins[index].netLabel = value.trimmingWhitespace.isEmpty ? nil : value
+						}
+					),
+					property: .pinNet(index),
+					focus: $focus
+				)
+				if pin.hasInvalidIO {
+					Text("Use #1 OUT1: a positive IO number, then a net name.")
+						.font(.caption).foregroundStyle(.red)
+				}
 			}
 		}
 	}
