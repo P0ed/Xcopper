@@ -27,17 +27,6 @@ struct Design: Equatable, Codable {
 		schematic = try values.decode(Schematic.self, forKey: .schematic)
 		modules = try values.decodeIfPresent([ModuleInstance].self, forKey: .modules) ?? []
 		parameters = try values.decodeIfPresent([ModuleParameter].self, forKey: .parameters) ?? []
-		if !values.contains(.parameters) {
-			let legacyBoard = try values.decode(LegacyParameterParts.self, forKey: .board)
-			let legacySchematic = try values.decode(LegacyParameterParts.self, forKey: .schematic)
-			for part in (legacySchematic.symbols ?? []) + (legacyBoard.footprints ?? [])
-			where part.valueParameter == true {
-				guard !parameters.contains(where: { $0.name == part.reference }) else { continue }
-				parameters.append(ModuleParameter(name: part.reference, defaultValue: part.value))
-				schematic.symbols.modifyEach { if $0.reference == part.reference { $0.value = "#" + part.reference } }
-				board.footprints.modifyEach { if $0.reference == part.reference { $0.value = "#" + part.reference } }
-			}
-		}
 		synchronizeParameters()
 		if board.footprints.contains(where: { $0.component != nil }) {
 			_ = updateBoardFromSchematic()

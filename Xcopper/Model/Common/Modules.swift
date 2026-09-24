@@ -34,17 +34,6 @@ struct ModuleParameter: Equatable, Codable, Identifiable {
 	}
 }
 
-struct LegacyParameterParts: Decodable {
-	struct Part: Decodable {
-		var reference: String
-		var value: String
-		var valueParameter: Bool?
-	}
-
-	var symbols: [Part]?
-	var footprints: [Part]?
-}
-
 struct ModuleInstance: Equatable, Codable, Identifiable {
 	var id = UUID()
 	var reference: String
