@@ -23,10 +23,13 @@ final class ModuleTests: XCTestCase {
 		let data = try sources.mapValues { try JSONEncoder().encode($0) }
 		return { url in try data[url.lastPathComponent].throwing("Missing \(url.lastPathComponent)") }
 	}
+	private func library(_ filenames: [String], documentURL: URL? = nil) throws -> ModuleLibrary {
+		try ModuleLibrary(sources: filenames.map { (documentURL ?? parentURL).deletingLastPathComponent().appendingPathComponent($0) })
+	}
 	private func imported(_ sources: [String: Design], filenames: [String] = ["Part.xcb"], stack: Stack = .analog) throws -> Design {
 		var design = Design(board: Board(size: Size(width: 100 * .mm, height: 100 * .mm), stack: stack))
 		let read = try reader(sources)
-		for filename in filenames { try design.importModule(filename: filename, documentURL: parentURL, read: read) }
+		for filename in filenames { try design.importModule(filename: filename, documentURL: parentURL, library: library(Array(sources.keys)), read: read) }
 		return design
 	}
 
@@ -116,7 +119,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(board.holes[0].at, point(45 * .mm, 40 * .mm))
 		XCTAssertEqual(design.modules[0].bounds, Rect(origin: point(40 * .mm, 30 * .mm), size: source.board.size))
 		source.board.size = Size(width: 16 * .mm, height: 12 * .mm)
-		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Part.xcb": source]))
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: try library(["Part.xcb"]), read: try reader(["Part.xcb": source]))
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertEqual(design.modules[0].size, source.board.size)
 		XCTAssertEqual(design.modules[0].layoutAt, point(50 * .mm, 40 * .mm))
@@ -189,7 +192,7 @@ final class ModuleTests: XCTestCase {
 		_ = design.updateBoardFromSchematic()
 		XCTAssertFalse(design.nets.contains { $0.id == id })
 		var reopened = try Document.decode(Document(design: design).encoded())
-		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Part.xcb": module]))
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: try library(["Part.xcb"]), read: try reader(["Part.xcb": module]))
 		resolver.reload(&reopened, documentURL: parentURL)
 		XCTAssertEqual(reopened.net(id)?.name, "M1.IN")
 		XCTAssertEqual(reopened.resolved.board.footprints[1].pads[0].net, id)
@@ -418,8 +421,8 @@ final class ModuleTests: XCTestCase {
 		b.modules = [ModuleInstance(reference: "M1", filename: "Part.xcb")]
 		XCTAssertThrowsError(try imported(["B.xcb": b, "Part.xcb": source(.digital)], filenames: ["B.xcb"]))
 		var parent = Design()
-		XCTAssertThrowsError(try parent.importModule(filename: parentURL.lastPathComponent, documentURL: parentURL, read: reader([parentURL.lastPathComponent: source()])))
-		XCTAssertThrowsError(try parent.importModule(filename: "Part.xcb", documentURL: parentURL, read: { _ in Data("bad JSON".utf8) }))
+		XCTAssertThrowsError(try parent.importModule(filename: parentURL.lastPathComponent, documentURL: parentURL, library: library([parentURL.lastPathComponent]), read: reader([parentURL.lastPathComponent: source()])))
+		XCTAssertThrowsError(try parent.importModule(filename: "Part.xcb", documentURL: parentURL, library: library(["Part.xcb"]), read: { _ in Data("bad JSON".utf8) }))
 		XCTAssertTrue(parent.modules.isEmpty)
 		let design = try imported(["Part.xcb": source(.digital)])
 		XCTAssertFalse(design.canRestack(.classic))
@@ -435,7 +438,7 @@ final class ModuleTests: XCTestCase {
 		let old = design.resolved
 		let wire = Wire(start: metadata.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
 		design.schematic.wires = [wire]
-		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: { _ in throw Err("Missing file") })
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: try library(["Part.xcb"]), read: { _ in throw Err("Missing file") })
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertEqual(design.modules[0], metadata)
 		XCTAssertEqual(design.resolved.board.footprints.count, 0)
@@ -465,13 +468,13 @@ final class ModuleTests: XCTestCase {
 		design.modules[0].schematicRotation = .r270
 		design.modules[0][netLabel: "1"] = "BUS"
 		design.modules[0].parameterValues["R1"] = "10k"
-		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: try reader(["Other.xcb": source]))
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: try library(["Other.xcb"]), read: try reader(["Other.xcb": source]))
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertNotNil(design.moduleStatus(id))
 		let before = design
 		var expected = design.modules[0]
 		expected.filename = "Renamed.xcb"
-		try design.replaceModuleSource(id, filename: expected.filename, documentURL: parentURL, read: reader([expected.filename: source]))
+		try design.replaceModuleSource(id, filename: expected.filename, documentURL: parentURL, library: library([expected.filename]), read: reader([expected.filename: source]))
 		XCTAssertNil(design.moduleStatus(id))
 		XCTAssertEqual(design.modules[0], expected)
 		XCTAssertEqual(design.modules[1], before.modules[1])
@@ -487,16 +490,16 @@ final class ModuleTests: XCTestCase {
 		let wire = Wire(start: instance.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
 		design.schematic.wires = [wire]
 		let before = design
-		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Missing.xcb", documentURL: parentURL, read: reader([:])))
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Missing.xcb", documentURL: parentURL, library: library([]), read: reader([:])))
 		XCTAssertEqual(design, before)
-		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Large.xcb", documentURL: parentURL, read: reader(["Large.xcb": source(.analog)])))
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Large.xcb", documentURL: parentURL, library: library(["Large.xcb"]), read: reader(["Large.xcb": source(.analog)])))
 		XCTAssertEqual(design, before)
-		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: parentURL.lastPathComponent, documentURL: parentURL, read: reader([parentURL.lastPathComponent: source()])))
+		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: parentURL.lastPathComponent, documentURL: parentURL, library: library([parentURL.lastPathComponent]), read: reader([parentURL.lastPathComponent: source()])))
 		XCTAssertEqual(design, before)
 		var replacement = source()
 		replacement.board.size = Size(width: 30 * .mm, height: 40 * .mm)
 		replacement.schematic.symbols[0].pins[1].netLabel = "#2 EXTRA"
-		let notices = try design.replaceModuleSource(id, filename: "New.xcb", documentURL: parentURL, read: reader(["New.xcb": replacement]))
+		let notices = try design.replaceModuleSource(id, filename: "New.xcb", documentURL: parentURL, library: library(["New.xcb"]), read: reader(["New.xcb": replacement]))
 		XCTAssertFalse(notices.isEmpty)
 		XCTAssertEqual(design.modules[0].id, instance.id)
 		XCTAssertEqual(design.modules[0].reference, instance.reference)
@@ -752,7 +755,7 @@ extension ModuleTests {
 		var changed = source()
 		changed.schematic.symbols[0].pins[0].netLabel = "#1 CHANGED"
 		let read = try reader(["Part.xcb": changed])
-		let pasted = try destination.pasteModules(original.modules, by: point(30 * .mm, 0), documentURL: parentURL, read: read)
+		let pasted = try destination.pasteModules(original.modules, by: point(30 * .mm, 0), documentURL: parentURL, library: library(["Part.xcb"]), read: read)
 		XCTAssertEqual(destination.modules[0], original.modules[0])
 		XCTAssertEqual(destination.moduleCache.contents[original.modules[0].id], original.moduleCache.contents[original.modules[0].id])
 		XCTAssertEqual(destination.modules[1].interface.map(\.name), ["CHANGED"])
@@ -760,11 +763,11 @@ extension ModuleTests {
 		XCTAssertNotEqual(destination.modules[0].id, destination.modules[1].id)
 		XCTAssertEqual(destination.modules[1].layoutAt, original.modules[0].layoutAt + point(30 * .mm, 0))
 		let before = destination
-		XCTAssertThrowsError(try destination.pasteModules(original.modules, by: .zero, documentURL: parentURL, read: { _ in throw Err("Missing in destination") }))
+		XCTAssertThrowsError(try destination.pasteModules(original.modules, by: .zero, documentURL: parentURL, library: library(["Part.xcb"]), read: { _ in throw Err("Missing in destination") }))
 		XCTAssertEqual(destination, before)
 		let otherURL = URL(fileURLWithPath: "/tmp/other-module-folder/Other.xcb")
 		var reads: [URL] = []
-		_ = try destination.pasteModules(original.modules, by: .zero, documentURL: otherURL, read: { url in
+		_ = try destination.pasteModules(original.modules, by: .zero, documentURL: otherURL, library: library(["Part.xcb"], documentURL: otherURL), read: { url in
 			reads.append(url)
 			return try read(url)
 		})

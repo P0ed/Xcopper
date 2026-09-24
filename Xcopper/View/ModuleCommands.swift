@@ -1,47 +1,143 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 @MainActor
-private enum ModuleFolderAccess {
-	static func withAccess<T>(to folder: URL, _ body: () throws -> T) throws -> T {
-		let scoped = try acquire(to: folder)
-		defer { scoped?.stopAccessingSecurityScopedResource() }
-		return try body()
+private final class ModuleFolderAccess {
+	private var scopes: [URL] = []
+	private var folders: Set<URL> = []
+
+	func allow(_ folder: URL) throws {
+		let folder = folder.standardizedFileURL
+		guard !folders.contains(where: { folder.pathComponents.starts(with: $0.pathComponents) }) else { return }
+		if let scoped = try Self.acquire(to: folder) {
+			scopes.append(scoped)
+			folders.insert(scoped.standardizedFileURL)
+		}
+		folders.insert(folder)
+	}
+
+	func close() {
+		for scoped in scopes { scoped.stopAccessingSecurityScopedResource() }
+		scopes.removeAll()
+		folders.removeAll()
 	}
 
 	static func acquire(to folder: URL) throws -> URL? {
-		let key = "moduleFolder." + folder.standardizedFileURL.path
-		var scoped: URL?
-		if let data = UserDefaults.standard.data(forKey: key) {
-			var stale = false
-			if let url = try? URL(resolvingBookmarkData: data, options: [.withSecurityScope], bookmarkDataIsStale: &stale),
-				url.standardizedFileURL == folder.standardizedFileURL, url.startAccessingSecurityScopedResource() {
-				scoped = url
-				if stale, let fresh = try? url.bookmarkData(options: [.withSecurityScope]) { UserDefaults.standard.set(fresh, forKey: key) }
+		var candidate = folder.standardizedFileURL
+		while true {
+			let key = "moduleFolder." + candidate.path
+			if let data = UserDefaults.standard.data(forKey: key) {
+				var stale = false
+				if let url = try? URL(resolvingBookmarkData: data, options: [.withSecurityScope], bookmarkDataIsStale: &stale),
+					url.standardizedFileURL == candidate, url.startAccessingSecurityScopedResource() {
+					if stale, let fresh = try? url.bookmarkData(options: [.withSecurityScope]) { UserDefaults.standard.set(fresh, forKey: key) }
+					return url
+				}
 			}
+			let parent = candidate.deletingLastPathComponent()
+			if parent == candidate { break }
+			candidate = parent
 		}
-		if scoped == nil, (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) == nil {
+		var scoped: URL?
+		if (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) == nil {
 			let panel = NSOpenPanel()
 			panel.title = "Allow Access to Module Folder"
-			panel.message = "Xcopper needs access to \(folder.lastPathComponent) to read sibling modules. Select this folder to retain access for reopening and reloads."
+			panel.message = "Xcopper needs access to \(folder.lastPathComponent) to read modules. Select this folder or a parent folder containing your module library to retain access for reopening and reloads."
 			panel.directoryURL = folder
 			panel.canChooseDirectories = true
 			panel.canChooseFiles = false
 			panel.prompt = "Allow Access"
 			guard panel.runModal() == .OK, let url = panel.url,
-				url.resolvingSymlinksInPath() == folder.resolvingSymlinksInPath()
-			else { throw Err("Folder access was not granted. Use Reload Modules and select the document's containing folder.") }
+				folder.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+					.starts(with: url.resolvingSymlinksInPath().standardizedFileURL.pathComponents)
+			else { throw Err("Folder access was not granted. Use Reload Modules and select the source's containing folder or a parent folder.") }
 			if url.startAccessingSecurityScopedResource() { scoped = url }
 			do {
 				let bookmark = try url.bookmarkData(options: [.withSecurityScope])
-				UserDefaults.standard.set(bookmark, forKey: key)
+				UserDefaults.standard.set(bookmark, forKey: "moduleFolder." + url.standardizedFileURL.path)
 			} catch {
 				scoped?.stopAccessingSecurityScopedResource()
 				throw error
 			}
 		}
 		return scoped
+	}
+}
+
+@MainActor
+private final class ModulePickerController: NSWindowController, NSWindowDelegate {
+	private var selection: String?
+
+	init(names: [String], title: String, action: String, selected: String?) {
+		let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 460), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+		panel.title = title
+		panel.isReleasedWhenClosed = false
+		super.init(window: panel)
+		panel.delegate = self
+		panel.contentView = NSHostingView(rootView: ModulePicker(names: names, action: action, selection: selected, confirm: { [weak self] name in
+			self?.selection = name
+			NSApp.stopModal()
+		}, cancel: { NSApp.abortModal() }))
+	}
+
+	required init?(coder: NSCoder) { nil }
+
+	func run() -> String? {
+		guard let window else { return nil }
+		window.center()
+		NSApp.runModal(for: window)
+		window.close()
+		return selection
+	}
+
+	func windowWillClose(_ notification: Notification) {
+		if NSApp.modalWindow === window { NSApp.abortModal() }
+	}
+}
+
+@MainActor
+private struct ModulePicker: View {
+	var names: [String]
+	var action: String
+	@State var selection: String?
+	var confirm: (String) -> Void
+	var cancel: () -> Void
+	@State private var query = ""
+	@FocusState private var searchFocused: Bool
+
+	private var filtered: [String] {
+		names.filter { query.isEmpty || $0.localizedStandardContains(query) }
+	}
+
+	var body: some View {
+		VStack(spacing: 12.0) {
+			TextField("Search modules", text: $query)
+				.textFieldStyle(.roundedBorder)
+				.focused($searchFocused)
+			List(filtered, id: \.self, selection: $selection) { name in
+				Text(name).tag(name)
+					.onTapGesture(count: 2) { confirm(name) }
+			}
+			.overlay {
+				if filtered.isEmpty { Text("No matching modules").foregroundStyle(.secondary) }
+			}
+			HStack {
+				Spacer()
+				Button("Cancel", action: cancel).keyboardShortcut(.cancelAction)
+				Button(action) { if let selection { confirm(selection) } }
+					.keyboardShortcut(.defaultAction)
+					.disabled(selection == nil || !filtered.contains(selection ?? ""))
+			}
+		}
+		.padding(16.0)
+		.frame(width: 380, height: 460)
+		.onAppear {
+			if selection == nil || !names.contains(selection ?? "") { selection = names.first }
+			searchFocused = true
+		}
+		.onChange(of: query) { _, _ in
+			if !filtered.contains(selection ?? "") { selection = filtered.first }
+		}
 	}
 }
 
@@ -68,26 +164,26 @@ extension Operations {
 		alert.runModal()
 	}
 
+	private func pickModule(in library: ModuleLibrary, documentURL: URL, title: String, action: String, selected: String? = nil) throws -> String? {
+		let documentURL = documentURL.resolvingSymlinksInPath().standardizedFileURL
+		let names = library.urls.filter { $0 != documentURL }.map { ModuleLibrary.name(of: $0.lastPathComponent) }
+			.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+		guard !names.isEmpty else { throw Err("No modules found. Add module sources to this folder or a subfolder, or add an alias to a module folder.") }
+		return ModulePickerController(names: names, title: title, action: action, selected: selected).run()
+	}
+
 	func importModule() {
 		guard let documentURL else {
-			moduleAlert("Save this design before importing", "Save this design beside its .xcb module sources, then use Import Module again.")
+			moduleAlert("Save this design before importing", "Save this design so Xcopper can search its folder for modules, then use Place Module again.")
 			return
 		}
-		let panel = NSOpenPanel()
-		panel.title = "Import Module"
-		panel.allowedContentTypes = [.xcb]
-		panel.directoryURL = documentURL.deletingLastPathComponent()
-		guard panel.runModal() == .OK, let source = panel.url else { return }
+		let access = ModuleFolderAccess()
+		defer { access.close() }
 		do {
-			let folder = documentURL.deletingLastPathComponent()
-			let resolver = ModuleResolver(folder: folder)
-			guard try resolver.url(for: source.lastPathComponent) == source.resolvingSymlinksInPath().standardizedFileURL else {
-				throw Err("Move the module and its dependencies into the parent document's folder before importing.")
-			}
+			let library = try ModuleLibrary(folder: documentURL.deletingLastPathComponent(), access: access.allow)
+			guard let name = try pickModule(in: library, documentURL: documentURL, title: "Place Module", action: "Place") else { return }
 			var next = design
-			let id = try ModuleFolderAccess.withAccess(to: folder) {
-				try next.importModule(filename: source.lastPathComponent, documentURL: documentURL)
-			}
+			let id = try next.importModule(filename: name, documentURL: documentURL, library: library)
 			guard let instance = next.modules.first(where: { $0.id == id }),
 				let content = next.moduleCache.contents[id] else { return }
 			let placement = ModulePlacement(instance: instance, content: content)
@@ -106,27 +202,18 @@ extension Operations {
 	}
 
 	func selectModuleSource(_ id: UUID) {
-		guard design.modules.contains(where: { $0.id == id }) else { return }
+		guard let module = design.modules.first(where: { $0.id == id }) else { return }
 		guard let documentURL else {
-			moduleAlert("Save this design before selecting a source", "Module sources are resolved in the saved document's folder.")
+			moduleAlert("Save this design before selecting a source", "Xcopper searches the saved document's folder and subfolders for modules.")
 			return
 		}
-		let folder = documentURL.deletingLastPathComponent()
-		let panel = NSOpenPanel()
-		panel.title = "Select Module Source"
-		panel.prompt = "Select"
-		panel.allowedContentTypes = [.xcb]
-		panel.directoryURL = folder
-		guard panel.runModal() == .OK, let source = panel.url else { return }
+		let access = ModuleFolderAccess()
+		defer { access.close() }
 		do {
+			let library = try ModuleLibrary(folder: documentURL.deletingLastPathComponent(), access: access.allow)
+			guard let name = try pickModule(in: library, documentURL: documentURL, title: "Select Module Source", action: "Select", selected: module.name) else { return }
 			var next = design
-			let notices = try ModuleFolderAccess.withAccess(to: folder) {
-				guard try ModuleResolver(folder: folder).url(for: source.lastPathComponent)
-					== source.resolvingSymlinksInPath().standardizedFileURL else {
-					throw Err("Move the module and its dependencies into the parent document's folder before selecting it.")
-				}
-				return try next.replaceModuleSource(id, filename: source.lastPathComponent, documentURL: documentURL)
-			}
+			let notices = try next.replaceModuleSource(id, filename: name, documentURL: documentURL, library: library)
 			design = next
 			layout.cancelSessions()
 			schematic.cancelSessions()
@@ -137,15 +224,17 @@ extension Operations {
 	func reloadModules(automatic: Bool = false) {
 		guard !design.modules.isEmpty else { return }
 		guard let documentURL else {
-			if !automatic { moduleAlert("Save this design before reloading", "Module sources are resolved in the saved document's folder.") }
+			if !automatic { moduleAlert("Save this design before reloading", "Xcopper searches the saved document's folder and subfolders for modules.") }
 			return
 		}
 		var next = design
+		let access = ModuleFolderAccess()
+		defer { access.close() }
 		do {
-			try ModuleFolderAccess.withAccess(to: documentURL.deletingLastPathComponent()) {
-				var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent())
-				resolver.reload(&next, documentURL: documentURL)
-			}
+			let folder = documentURL.deletingLastPathComponent()
+			let library = try ModuleLibrary(folder: folder, access: access.allow)
+			var resolver = ModuleResolver(folder: folder, library: library)
+			resolver.reload(&next, documentURL: documentURL)
 		} catch {
 			next.moduleCache = ModuleCache()
 			for module in next.modules { next.moduleCache.errors[module.id] = error.localizedDescription }
@@ -162,33 +251,35 @@ extension Operations {
 	func openModuleSource(_ id: UUID? = nil) {
 		guard let id = id ?? selectedModuleIDs.first,
 			let module = design.modules.first(where: { $0.id == id }), let documentURL else { return }
+		let access = ModuleFolderAccess()
 		do {
 			let folder = documentURL.deletingLastPathComponent()
-			let scoped = try ModuleFolderAccess.acquire(to: folder)
-			do {
-				let url = try ModuleResolver(folder: folder).url(for: module.filename)
-				NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
-					scoped?.stopAccessingSecurityScopedResource()
-					if let error { Task { @MainActor in moduleAlert("Could not open module source", error.localizedDescription) } }
+			let library = try ModuleLibrary(folder: folder, access: access.allow)
+			let url = try library.url(for: module.name)
+			NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+				Task { @MainActor in
+					access.close()
+					if error != nil { moduleAlert("Could not open module source", "Could not open module “\(module.name)”. Check its source and folder access.") }
 				}
-			} catch {
-				scoped?.stopAccessingSecurityScopedResource()
-				throw error
 			}
-		} catch { moduleAlert("Could not open module source", error.localizedDescription) }
+		} catch {
+			access.close()
+			moduleAlert("Could not open module source", error.localizedDescription)
+		}
 	}
 
 	func pasteModules() -> Set<UUID>? {
 		guard !clipboard.modules.isEmpty else { return [] }
 		guard let documentURL else {
-			moduleAlert("Save this design before pasting modules", "Place the module sources in the destination document's folder, save the document, and paste again.")
+			moduleAlert("Save this design before pasting modules", "Save the document so Xcopper can search its folder for modules, then paste again.")
 			return nil
 		}
 		var next = design
+		let access = ModuleFolderAccess()
+		defer { access.close() }
 		do {
-			let ids = try ModuleFolderAccess.withAccess(to: documentURL.deletingLastPathComponent()) {
-				try next.pasteModules(clipboard.modules, by: pasteOffset, documentURL: documentURL)
-			}
+			let library = try ModuleLibrary(folder: documentURL.deletingLastPathComponent(), access: access.allow)
+			let ids = try next.pasteModules(clipboard.modules, by: pasteOffset, documentURL: documentURL, library: library)
 			design = next
 			return ids
 		} catch {
@@ -240,7 +331,7 @@ struct ModulePlacementInspector: View {
 	var cancel: () -> Void
 
 	var body: some View {
-		ValueRow(title: "Source", value: placement.instance.filename)
+		ValueRow(title: "Source", value: placement.instance.name)
 		ValueRow(title: "Ref", value: placement.instance.reference)
 		Text("Move the pointer and click to place. Press Esc to cancel.")
 			.font(.caption).foregroundStyle(.secondary)
@@ -266,12 +357,12 @@ struct ModuleInspector: View {
 						focus = nil
 						undoManager.undoGroup("Change module source", selectSource)
 					} label: {
-						Text(module.filename).lineLimit(1).truncationMode(.middle)
+						Text(module.name).lineLimit(1).truncationMode(.middle)
 					}
 					.help("Select a replacement module source")
 				}
 			} else {
-				ValueRow(title: "Source", value: module.filename)
+				ValueRow(title: "Source", value: module.name)
 			}
 			TextRow(title: "Ref", text: $design.reference(of: Ref.module(id)), property: .reference, focus: $focus)
 			PositionRows(at: position, focus: $focus)
@@ -344,7 +435,7 @@ struct ModulePanel: View {
 			Panel(title: "Modules") {
 				ForEach(operations.design.modules) { module in
 					VStack(alignment: .leading) {
-						Button("\(module.reference) · \(module.filename)") { operations.openModuleSource(module.id) }
+						Button("\(module.reference) · \(module.name)") { operations.openModuleSource(module.id) }
 							.buttonStyle(.borderless)
 						if let error = operations.design.moduleStatus(module.id) { Text(error).foregroundStyle(.red).font(.caption) }
 					}

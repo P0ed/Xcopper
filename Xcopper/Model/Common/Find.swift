@@ -16,7 +16,7 @@ extension Design {
 				.map(Schematic.Ref.symbol)
 		)
 		.union(modules.filter {
-			matches(query, $0.reference, $0.filename)
+			matches(query, $0.reference, $0.name)
 				|| $0.symbol.pins.contains { matches(query, $0.netName ?? "", $0.netLabel ?? "") }
 		}.map { Schematic.Ref.module($0.id) })
 	}

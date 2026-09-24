@@ -49,6 +49,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var id = UUID()
 	var reference: String
 	var filename: String
+	var name: String { ModuleLibrary.name(of: filename) }
 	var schematicAt: Point = .zero
 	var schematicRotation: Rotation = .r0
 	var layoutAt: Point = .zero
@@ -64,7 +65,7 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		let ports = interface.sorted(by: IODesignator.order)
 		var symbol = Symbol.ic(pinNames: ports.map(\.name))
 		symbol.reference = reference
-		symbol.value = filename
+		symbol.value = name
 		symbol.at = schematicAt
 		symbol.rotation = schematicRotation
 		for i in symbol.pins.indices {
@@ -221,7 +222,7 @@ extension Design {
 
 	var moduleErrors: [String] {
 		modules.compactMap { module in
-			moduleStatus(module.id).map { "\(module.reference) (\(module.filename)): \($0)" }
+			moduleStatus(module.id).map { "\(module.reference) (\(module.name)): \($0)" }
 		}
 	}
 
@@ -263,7 +264,7 @@ extension Design {
 			result.symbolOwners[.symbol(symbolIndex)] = module.id
 			let status = moduleStatus(module.id)
 			var symbol = module.symbol
-			if status != nil { symbol.value = "⚠ Unresolved: " + module.filename }
+			if status != nil { symbol.value = "⚠ Unresolved: " + module.name }
 			result.design.schematic.symbols.append(symbol)
 			guard status == nil, let content = moduleCache.contents[module.id] else { continue }
 			var mapping: [Int: Int] = [:]
@@ -415,42 +416,117 @@ extension Design {
 	}
 }
 
-struct ModuleResolver {
-	var folder: URL
-	var read: (URL) throws -> Data = { try Data(contentsOf: $0) }
-	private var loaded: [URL: Design] = [:]
-	private var contents: [URL: ModuleContent] = [:]
+struct ModuleLibrary {
+	private var sources: [String: URL] = [:]
+	var urls: [URL] { Array(sources.values) }
 
-	init(folder: URL, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) {
-		self.folder = folder.resolvingSymlinksInPath().standardizedFileURL
-		self.read = read
+	static func name(of filename: String) -> String {
+		let name = (filename as NSString).lastPathComponent
+		return (name as NSString).pathExtension.lowercased() == "xcb" ? (name as NSString).deletingPathExtension : name
+	}
+
+	private static func key(_ name: String) -> String {
+		name.precomposedStringWithCanonicalMapping.lowercased()
+	}
+
+	init(sources: [URL]) throws {
+		for source in sources {
+			let url = source.resolvingSymlinksInPath().standardizedFileURL
+			let name = Self.name(of: url.lastPathComponent)
+			let key = Self.key(name)
+			guard let existing = self.sources[key] else {
+				self.sources[key] = url
+				continue
+			}
+			guard existing == url else {
+				throw Err("Multiple module files are named “\(name)”. Give each module a unique name and reload.")
+			}
+		}
+	}
+
+	init(folder: URL, access: (URL) throws -> Void = { _ in }) throws {
+		let keys: Set<URLResourceKey> = [.isDirectoryKey, .isRegularFileKey, .isPackageKey, .isAliasFileKey]
+		var pending = [folder]
+		var visited: Set<URL> = []
+		var sources: [URL] = []
+		while let next = pending.popLast() {
+			try access(next)
+			let folder = next.resolvingSymlinksInPath().standardizedFileURL
+			guard visited.insert(folder).inserted else { continue }
+			let entries: [URL]
+			do {
+				entries = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])
+			} catch { throw Err("Could not search folder “\(folder.lastPathComponent)”. Check folder access and reload modules.") }
+			for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+				var url = entry
+				var links: Set<URL> = []
+				while true {
+					guard links.insert(url.standardizedFileURL).inserted, links.count <= 64 else {
+						throw Err("Circular module alias “\(Self.name(of: entry.lastPathComponent))”. Remove the alias and reload.")
+					}
+					try access(url.deletingLastPathComponent())
+					if let target = try? FileManager.default.destinationOfSymbolicLink(atPath: url.path) {
+						url = URL(fileURLWithPath: target, relativeTo: url.deletingLastPathComponent()).standardizedFileURL
+						continue
+					}
+					let values: URLResourceValues
+					do { values = try url.resourceValues(forKeys: keys) }
+					catch { throw Err("Could not inspect “\(Self.name(of: entry.lastPathComponent))”. Check its access or alias target and reload modules.") }
+					if values.isAliasFile == true {
+						do { url = try URL(resolvingAliasFileAt: url, options: [.withoutUI, .withoutMounting]) }
+						catch { throw Err("Could not resolve alias “\(Self.name(of: entry.lastPathComponent))”. Repair the alias and reload modules.") }
+						continue
+					}
+					if values.isDirectory == true {
+						if values.isPackage != true { pending.append(url) }
+					} else if values.isRegularFile == true, url.pathExtension.lowercased() == "xcb" {
+						sources.append(url)
+					}
+					break
+				}
+			}
+		}
+		try self.init(sources: sources)
 	}
 
 	func url(for filename: String) throws -> URL {
-		guard !filename.isEmpty, !filename.contains("/"), !filename.contains("\\"),
-			filename != ".", filename != "..", !filename.contains("\0"),
-			(filename as NSString).pathExtension.lowercased() == "xcb"
-		else { throw Err("Use a sibling .xcb filename without directory components.") }
-		var url = folder.appendingPathComponent(filename).standardizedFileURL
-		var links: Set<URL> = []
-		while let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: url.path) {
-			guard links.insert(url).inserted, links.count < 64 else { throw Err("Circular module symbolic link. Replace it with a sibling source file.") }
-			url = URL(fileURLWithPath: destination, relativeTo: url.deletingLastPathComponent()).standardizedFileURL
+		let name = Self.name(of: filename)
+		guard let url = sources[Self.key(name)] else {
+			throw Err("Module “\(name)” was not found. Add it to this folder or a subfolder, or add a folder alias, then reload.")
 		}
-		url = url.resolvingSymlinksInPath().standardizedFileURL
-		guard url.deletingLastPathComponent() == folder else { throw Err("Module sources must stay in the document folder, including symbolic links.") }
 		return url
+	}
+}
+
+struct ModuleResolver {
+	var folder: URL
+	var read: (URL) throws -> Data = { try Data(contentsOf: $0) }
+	var library: ModuleLibrary?
+	private var catalog: Result<ModuleLibrary, Error>?
+	private var loaded: [URL: Design] = [:]
+	private var contents: [URL: ModuleContent] = [:]
+
+	init(folder: URL, library: ModuleLibrary? = nil, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) {
+		self.folder = folder.resolvingSymlinksInPath().standardizedFileURL
+		self.library = library
+		self.read = read
+	}
+
+	mutating func url(for filename: String) throws -> URL {
+		if catalog == nil { catalog = Result { try library ?? ModuleLibrary(folder: folder) } }
+		return try catalog!.get().url(for: filename)
 	}
 
 	mutating func reload(_ design: inout Design, documentURL: URL?) {
 		loaded.removeAll()
 		contents.removeAll()
+		catalog = nil
 		design.moduleCache = ModuleCache()
 		let ancestors = documentURL.map { [$0.resolvingSymlinksInPath().standardizedFileURL] } ?? []
 		for index in design.modules.indices {
 			let module = design.modules[index]
 			do {
-				let content = try resolve(module.filename, stack: design.board.stack, ancestors: ancestors)
+				let content = try resolve(module.name, stack: design.board.stack, ancestors: ancestors)
 				if content.interface != module.interface {
 					design.moduleCache.notices.append("\(module.reference): module pins changed. Parent wires kept their coordinates; check connections.")
 				}
@@ -462,32 +538,34 @@ struct ModuleResolver {
 			} catch {
 				design.moduleCache.errors[module.id] = error is Err
 					? error.localizedDescription
-					: error.localizedDescription + " Restore the source in the document folder and reload, or select a replacement source."
+					: "Could not load module “\(module.name)”. Check the source and folder access, then reload."
 			}
 		}
 	}
 
-	private mutating func resolve(_ filename: String, stack: Stack, ancestors: [URL]) throws -> ModuleContent {
-		let url = try url(for: filename)
-		guard !ancestors.contains(url) else { throw Err("Dependency cycle: \((ancestors + [url]).map(\.lastPathComponent).joined(separator: " → ")). Remove the circular import and reload.") }
+	private mutating func resolve(_ name: String, stack: Stack, ancestors: [URL]) throws -> ModuleContent {
+		let url = try url(for: name)
+		guard !ancestors.contains(url) else { throw Err("Dependency cycle: \((ancestors + [url]).map { ModuleLibrary.name(of: $0.lastPathComponent) }.joined(separator: " → ")). Remove the circular import and reload.") }
 		guard ancestors.count < 64 else { throw Err("Module nesting exceeds 64 levels.") }
 		var source: Design
 		if let cached = loaded[url] { source = cached } else {
-			source = try Document.decode(read(url))
+			do { source = try Document.decode(read(url)) }
+			catch let error as Err { throw error }
+			catch { throw Err("Could not read module “\(name)”. Check that its source is accessible and contains a valid design, then reload.") }
 			loaded[url] = source
 		}
-		guard source.board.stack.count <= stack.count else { throw Err("\(filename) needs \(source.board.stack.count) layers; its containing design has \(stack.count). Increase the containing stack and reload.") }
+		guard source.board.stack.count <= stack.count else { throw Err("\(name) needs \(source.board.stack.count) layers; its containing design has \(stack.count). Increase the containing stack and reload.") }
 		if let content = contents[url] { return content }
 		for i in source.modules.indices {
 			let child = source.modules[i]
-			let content = try resolve(child.filename, stack: source.board.stack, ancestors: ancestors + [url])
+			let content = try resolve(child.name, stack: source.board.stack, ancestors: ancestors + [url])
 			source.modules[i].interface = content.interface
 			source.modules[i].parameters = content.parameters
 			source.modules[i].size = content.board.size
 			source.moduleCache.contents[child.id] = content
 		}
 		let projection = source.moduleProjection(syncNative: true, resolvingParameters: false)
-		if let error = projection.interfaceError { throw Err("\(filename): \(error)") }
+		if let error = projection.interfaceError { throw Err("\(name): \(error)") }
 		let content = ModuleContent(
 			board: projection.design.board, nets: projection.design.nets, ports: projection.ports,
 			interface: projection.interface, parameters: source.parameters

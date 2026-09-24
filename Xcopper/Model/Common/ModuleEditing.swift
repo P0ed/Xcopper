@@ -250,6 +250,7 @@ extension Design {
 
 	@discardableResult
 	mutating func pasteModules(_ copies: [ModuleInstance], by delta: Point, documentURL: URL,
+		library: ModuleLibrary? = nil,
 		read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> Set<UUID> {
 		var candidate = self
 		var ids: Set<UUID> = []
@@ -261,7 +262,7 @@ extension Design {
 			candidate.modules.append(copy)
 			ids.insert(copy.id)
 		}
-		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), read: read)
+		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), library: library, read: read)
 		resolver.reload(&candidate, documentURL: documentURL)
 		for id in ids { if let error = candidate.moduleStatus(id) { throw Err(error) } }
 		for copy in candidate.modules where ids.contains(copy.id) {
@@ -284,12 +285,13 @@ extension Design {
 
 	@discardableResult
 	mutating func replaceModuleSource(_ id: UUID, filename: String, documentURL: URL,
+		library: ModuleLibrary? = nil,
 		read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> [String] {
 		guard let index = modules.firstIndex(where: { $0.id == id }) else { return [] }
 		var candidate = self
 		candidate.modules = [modules[index]]
 		candidate.modules[0].filename = filename
-		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), read: read)
+		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), library: library, read: read)
 		resolver.reload(&candidate, documentURL: documentURL)
 		if let error = candidate.moduleStatus(id) { throw Err(error) }
 		modules[index] = candidate.modules[0]
@@ -302,11 +304,12 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func importModule(filename: String, documentURL: URL, read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> UUID {
+	mutating func importModule(filename: String, documentURL: URL, library: ModuleLibrary? = nil,
+		read: @escaping (URL) throws -> Data = { try Data(contentsOf: $0) }) throws -> UUID {
 		var candidate = self
 		let instance = ModuleInstance(reference: nextReference(like: "M"), filename: filename)
 		candidate.modules.append(instance)
-		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), read: read)
+		var resolver = ModuleResolver(folder: documentURL.deletingLastPathComponent(), library: library, read: read)
 		resolver.reload(&candidate, documentURL: documentURL)
 		if let error = candidate.moduleStatus(instance.id) { throw Err(error) }
 		let index = candidate.modules.count - 1

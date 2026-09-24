@@ -61,9 +61,10 @@ final class DeviceIdentityTests: XCTestCase {
 		leaf.schematic.symbols[0].pins[0].netLabel = "#1 IN"
 		let appearances = leaf.board.footprints.map(\.appearance)
 
+		let library = try ModuleLibrary(sources: ["Leaf.xcb", "Middle.xcb"].map { parentURL.deletingLastPathComponent().appendingPathComponent($0) })
 		let leafData = try Document(design: leaf).encoded()
 		var middle = Design()
-		try middle.importModule(filename: "Leaf.xcb", documentURL: parentURL, read: { _ in leafData })
+		try middle.importModule(filename: "Leaf.xcb", documentURL: parentURL, library: library, read: { _ in leafData })
 		XCTAssertEqual(middle.resolved.board.footprints.map(\.reference), ["M1.C1", "M1.D1"])
 		XCTAssertEqual(middle.resolved.board.footprints.map(\.appearance), appearances)
 		let middleData = try Document(design: middle).encoded()
@@ -71,12 +72,12 @@ final class DeviceIdentityTests: XCTestCase {
 			url.lastPathComponent == "Middle.xcb" ? middleData : leafData
 		}
 		var parent = Design()
-		let id = try parent.importModule(filename: "Middle.xcb", documentURL: parentURL, read: read)
+		let id = try parent.importModule(filename: "Middle.xcb", documentURL: parentURL, library: library, read: read)
 		XCTAssertEqual(parent.resolved.board.footprints.map(\.reference), ["M1.M1.C1", "M1.M1.D1"])
 		XCTAssertEqual(parent.resolved.board.footprints.map(\.appearance), appearances)
 		parent.renameReference(Ref.module(id), to: "C2")
 		var reopened = try Document.decode(Document(design: parent).encoded())
-		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), read: read)
+		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: library, read: read)
 		resolver.reload(&reopened, documentURL: parentURL)
 		XCTAssertEqual(reopened.resolved.board.footprints.map(\.device), [.capacitor, .diode])
 		XCTAssertEqual(reopened.resolved.board.footprints.map(\.appearance), appearances)

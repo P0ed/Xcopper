@@ -478,8 +478,19 @@ own source board centers. Resizing a source board and reloading keeps the instan
 position fixed and centers the resized board there. Opening a source directly keeps
 the root board's origin at `[0, 0]`.
 
-Save the parent design and put all module sources in the same folder. Choose
-**Objects → Place Module** (`M`) and select a source. After validating its
+Save the parent design. Xcopper finds modules by name in the document's folder
+and its subfolders, following Finder aliases and symbolic links to other folders.
+For example, a design in `Modules/Function` can use modules from `Modules/Base`
+through an alias to `Base` inside `Function`. Hidden folders and packages are skipped.
+Names must be unique throughout the search, including differences only in letter
+case. Multiple aliases to the same source count as one module. Circular folder
+links are visited only once. Nested dependencies use the same search results.
+Existing saved filenames and relative paths are resolved by their module names.
+
+Choose **Objects → Place Module** (`M`) to open a searchable list of module names.
+Select a module and choose **Place**, or double-click it. The current document is
+excluded from the list. Module pickers, inspectors and schematic blocks show names
+without file extensions. After validating its
 dependencies, Xcopper shows a preview that follows the pointer in the current
 schematic or layout. Click to place it on the active placement grid; `Esc` or
 **Cancel** discards the preview. Nothing is added until the click, and placement
@@ -487,7 +498,7 @@ is one undoable action. The counterpart in the other view is parked automaticall
 Starting from 3D switches to layout for placement. The schematic block
 lists IO pins in ascending numeric order. A module can import other modules, provided each
 source has no more copper layers than its containing design. Circular dependencies
-and paths outside the document folder are rejected.
+and duplicate module names are rejected.
 
 Wire the block's pins; the board updates automatically. Connections
 pass through module IO to imported pads, traces, vias and nested modules. All
@@ -510,7 +521,7 @@ commands. A duplicate has a new identity and both representations; deleting
 either representation removes both. `⌘J` shows the counterpart. The inspector
 edits the instance reference and each representation's position and rotation.
 In schematic mode it also edits the net label on each IO pin. Click the **Source**
-filename to select another `.xcb` file in the parent document's folder, including
+name to choose another module from the same searchable list, including
 a renamed source or an alternate implementation. The selected instance keeps its
 identity, reference, positions, rotations, pin labels and parameter overrides.
 The replacement and its dependencies are validated before the change is applied;
@@ -530,12 +541,13 @@ retain their coordinates. Missing, malformed, cyclic or incompatible dependencie
 appear as unresolved blocks and layout rectangles. The Modules panel explains
 how to recover. Unresolved geometry is excluded, and fabrication stays blocked
 until every dependency resolves. Stack reductions that would invalidate imports
-are refused. Pasting into another document validates sources in that destination's
-folder before adding any instances.
+are refused. Pasting into another document searches for module names in the
+destination's folder and subfolders before adding any instances.
 
-macOS may ask you to select the containing folder to grant sibling-file access.
-Xcopper retains that grant in its preferences, outside the design. Moving the
-parent to another folder resolves dependencies there and may require a new grant.
+macOS may ask you to select a source's containing folder to grant access.
+You can select a shared parent folder, such as `Modules`, to cover all of its
+subfolders. Xcopper retains that grant in its preferences, outside the design.
+Moving the parent searches its new folder for dependencies and may require a new grant.
 Import, source replacement, movement, rotation, duplication, deletion, paste and explicit reload are
 undoable. Undo restores the previous resolved snapshot even if sources have since
 changed or disappeared; source files are never modified by parent edits.
