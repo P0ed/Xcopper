@@ -447,12 +447,12 @@ struct ModuleLibrary {
 	init(folder: URL, access: (URL) throws -> Void = { _ in }) throws {
 		let keys: Set<URLResourceKey> = [.isDirectoryKey, .isRegularFileKey, .isPackageKey, .isAliasFileKey]
 		var pending = [folder]
-		var visited: Set<URL> = []
+		var visited: Set<String> = []
 		var sources: [URL] = []
 		while let next = pending.popLast() {
 			try access(next)
 			let folder = next.resolvingSymlinksInPath().standardizedFileURL
-			guard visited.insert(folder).inserted else { continue }
+			guard visited.insert(folder.path).inserted else { continue }
 			let entries: [URL]
 			do {
 				entries = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])
@@ -513,8 +513,9 @@ struct ModuleResolver {
 	}
 
 	mutating func url(for filename: String) throws -> URL {
-		if catalog == nil { catalog = Result { try library ?? ModuleLibrary(folder: folder) } }
-		return try catalog!.get().url(for: filename)
+		let result = catalog ?? Result { try library ?? ModuleLibrary(folder: folder) }
+		catalog = result
+		return try result.get().url(for: filename)
 	}
 
 	mutating func reload(_ design: inout Design, documentURL: URL?) {

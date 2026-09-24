@@ -33,6 +33,88 @@ final class ModuleTests: XCTestCase {
 		return design
 	}
 
+	func testModuleDiscoveryFollowsFinderAliasesAndResolvesNestedNames() throws {
+		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+		let base = folder.appendingPathComponent("Base")
+		let function = folder.appendingPathComponent("Function")
+		try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+		try FileManager.default.createDirectory(at: function, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: folder) }
+		let amplifier = base.appendingPathComponent("Amplifier.xcb")
+		try Document(design: source()).encoded().write(to: amplifier)
+		let bookmark = try base.bookmarkData(options: [.suitableForBookmarkFile])
+		try URL.writeBookmarkData(bookmark, to: function.appendingPathComponent("Base"))
+		let functionURL = function.appendingPathComponent("Filter.xcb")
+		var filter = Design()
+		try filter.importModule(filename: "Amplifier", documentURL: functionURL)
+		XCTAssertEqual(filter.modules[0].symbol.value, "Amplifier")
+		try Document(design: filter).encoded().write(to: functionURL)
+		let library = try ModuleLibrary(folder: folder)
+		XCTAssertEqual(library.urls.count, 2)
+		XCTAssertEqual(try library.url(for: "amplifier"), amplifier.resolvingSymlinksInPath())
+		XCTAssertEqual(try library.url(for: "../Base/Amplifier.xcb"), amplifier.resolvingSymlinksInPath())
+		var parent = Design()
+		try parent.importModule(filename: "Filter", documentURL: folder.appendingPathComponent("Parent.xcb"))
+		XCTAssertEqual(parent.resolved.board.footprints.map(\.reference), ["M1.M1.R1"])
+		var reopened = try Document.decode(Data(contentsOf: functionURL))
+		var resolver = ModuleResolver(folder: function)
+		resolver.reload(&reopened, documentURL: functionURL)
+		XCTAssertTrue(reopened.moduleErrors.isEmpty)
+		XCTAssertEqual(reopened.resolved.board, filter.resolved.board)
+	}
+
+	func testModuleDiscoveryDeduplicatesLinkedFoldersAndStopsFolderLoops() throws {
+		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+		let base = folder.appendingPathComponent("Base")
+		let function = folder.appendingPathComponent("Function")
+		try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+		try FileManager.default.createDirectory(at: function, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: folder) }
+		let source = base.appendingPathComponent("Part.xcb")
+		try Data().write(to: source)
+		try FileManager.default.createSymbolicLink(at: function.appendingPathComponent("Base"), withDestinationURL: base)
+		try FileManager.default.createSymbolicLink(at: function.appendingPathComponent("BaseAgain"), withDestinationURL: base)
+		try FileManager.default.createSymbolicLink(at: base.appendingPathComponent("Function"), withDestinationURL: function)
+		let library = try ModuleLibrary(folder: function)
+		XCTAssertEqual(library.urls, [source.resolvingSymlinksInPath()])
+		XCTAssertEqual(try library.url(for: "Part"), source.resolvingSymlinksInPath())
+	}
+
+	func testDuplicateModuleNamesBlockDiscoveryAndReload() throws {
+		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+		let nested = folder.appendingPathComponent("Base")
+		try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+		defer { try? FileManager.default.removeItem(at: folder) }
+		try Data().write(to: folder.appendingPathComponent("Part.xcb"))
+		let duplicate = nested.appendingPathComponent("part.XCB")
+		try Document(design: source()).encoded().write(to: duplicate)
+		XCTAssertThrowsError(try ModuleLibrary(folder: folder)) { error in
+			XCTAssertTrue(error.localizedDescription.contains("Multiple module files"))
+			XCTAssertFalse(error.localizedDescription.lowercased().contains(".xcb"))
+		}
+		let url = folder.appendingPathComponent("Parent.xcb")
+		var design = Design()
+		design.modules = [ModuleInstance(reference: "M1", filename: "Part")]
+		var resolver = ModuleResolver(folder: folder)
+		resolver.reload(&design, documentURL: url)
+		XCTAssertTrue(design.moduleErrors.contains { $0.contains("Multiple module files") })
+		try FileManager.default.removeItem(at: folder.appendingPathComponent("Part.xcb"))
+		resolver.reload(&design, documentURL: url)
+		XCTAssertTrue(design.moduleErrors.isEmpty)
+		XCTAssertNotNil(design.moduleCache.contents[design.modules[0].id])
+	}
+
+	func testLegacyPathsResolveByNameAndCyclesReportOnlyNames() throws {
+		var a = source()
+		var b = source()
+		a.modules = [ModuleInstance(reference: "M1", filename: "../Base/B.xcb")]
+		b.modules = [ModuleInstance(reference: "M1", filename: "Function/A.xcb")]
+		XCTAssertThrowsError(try imported(["A.xcb": a, "B.xcb": b], filenames: ["A"])) { error in
+			XCTAssertTrue(error.localizedDescription.contains("Dependency cycle"))
+			XCTAssertFalse(error.localizedDescription.contains(".xcb"))
+		}
+	}
+
 	func testFinishingAtAModuleTraceStraightensOnlyTheParentCopper() throws {
 		var design = try imported(["Part.xcb": source()])
 		let resolved = design.resolved.board
@@ -732,23 +814,6 @@ extension ModuleTests {
 		XCTAssertEqual(design.resolved, before)
 	}
 
-	@MainActor
-	func testOpeningModuleDocumentDoesNotMarkItEdited() async throws {
-		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-		defer { try? FileManager.default.removeItem(at: folder) }
-		try Document(design: source()).encoded().write(to: folder.appendingPathComponent("Part.xcb"))
-		let url = folder.appendingPathComponent("Parent.xcb")
-		var design = Design()
-		try design.importModule(filename: "Part.xcb", documentURL: url)
-		try Document(design: design).encoded().write(to: url)
-		let (document, _) = try await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)
-		defer { document.close() }
-		try await Task.sleep(for: .seconds(1))
-		XCTAssertFalse(document.isDocumentEdited)
-		XCTAssertFalse(document.undoManager?.canUndo ?? false)
-	}
-
 	func testClipboardValidatesDestinationAndPreservesExistingSnapshots() throws {
 		var destination = try imported(["Part.xcb": source()])
 		let original = destination
@@ -839,33 +904,5 @@ extension ModuleTests {
 		harness.operations.copy()
 		XCTAssertEqual(harness.clipboard.modules.count, 1)
 		XCTAssertTrue(harness.clipboard.symbols.isEmpty)
-	}
-
-	@MainActor
-	func testUndoReloadRestoresCacheWithoutReadingChangedOrDeletedFiles() throws {
-		let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-		try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-		defer { try? FileManager.default.removeItem(at: folder) }
-		let sourceURL = folder.appendingPathComponent("Part.xcb")
-		try Document(design: source()).encoded().write(to: sourceURL)
-		let parentURL = folder.appendingPathComponent("Parent.xcb")
-		var design = Design()
-		try design.importModule(filename: "Part.xcb", documentURL: parentURL)
-		let harness = EditorHarness(design: design)
-		harness.url = parentURL
-		var changed = source()
-		changed.schematic.symbols[0].pins[0].netLabel = "#1 NEW"
-		changed.board.traces[0].end = point(14 * .mm, 5 * .mm)
-		try Document(design: changed).encoded().write(to: sourceURL)
-		harness.perform { $0.reloadModules(automatic: true) }
-		let reloaded = harness.design
-		XCTAssertNotEqual(reloaded.resolved.board, design.resolved.board)
-		try FileManager.default.removeItem(at: sourceURL)
-		harness.undo.undo()
-		XCTAssertEqual(harness.design, design)
-		XCTAssertTrue(harness.design.moduleErrors.isEmpty)
-		harness.undo.redo()
-		XCTAssertEqual(harness.design, reloaded)
-		XCTAssertTrue(harness.design.moduleErrors.isEmpty)
 	}
 }

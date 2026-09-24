@@ -116,6 +116,8 @@ private struct ModulePicker: View {
 				.focused($searchFocused)
 			List(filtered, id: \.self, selection: $selection) { name in
 				Text(name).tag(name)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.contentShape(Rectangle())
 					.onTapGesture(count: 2) { confirm(name) }
 			}
 			.overlay {
