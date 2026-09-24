@@ -144,7 +144,7 @@ struct EditorView: View {
 		switch sheet {
 		case .schematic, .board:
 			BoardDialog(
-				sheet: design.schematic.size,
+				sheet: design.board.sheetSize,
 				board: design.board.size,
 				stack: design.board.stack,
 				solderMask: design.board.solderMask

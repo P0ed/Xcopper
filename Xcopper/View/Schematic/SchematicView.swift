@@ -9,14 +9,14 @@ struct SchematicView: View {
 
 	@Environment(\.undoManager) var undoManager
 
-	var schematic: Schematic {
-		get { design.schematic }
-		nonmutating set { design.schematic = newValue }
+	var board: Board {
+		get { design.board }
+		nonmutating set { design.board = newValue }
 	}
 
 	var body: some View {
 		let renderer = SchematicRenderer(design: design, state: state)
-		CanvasScroll(viewport: $state.viewport, size: design.schematic.size) {
+		CanvasScroll(viewport: $state.viewport, size: design.board.sheetSize) {
 			ViewportCanvas(viewport: state.viewport) { context, scale, visible in
 				renderer.render(in: context, scale: scale, visible: visible)
 				renderSessions(in: context, scale: scale, origin: Layout.origin)

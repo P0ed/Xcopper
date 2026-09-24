@@ -54,16 +54,12 @@ enum Glyph: Hashable, Codable {
 }
 
 struct Symbol: Hashable, Codable {
-	var reference: String
-	var value: String
 	var at: Point
 	var rotation: Rotation
 	var mirrored: Bool
-	var kind: Kind
 	var pins: [Pin]
 	var body: Rect
 	var glyph: [Glyph]
-	var component: Component?
 }
 
 struct Wire: Hashable, Codable {
@@ -71,46 +67,29 @@ struct Wire: Hashable, Codable {
 	var end: Point
 }
 
-struct Schematic: Equatable, Codable {
-	var size: Size
-	var symbols: [Symbol]
-	var wires: [Wire]
-}
+enum SchematicRef: Hashable, Codable {
+	case module(UUID)
+	case symbol(Int)
+	case wire(Int)
 
-extension Schematic {
+	enum Kind: Hashable { case module, symbol, wire }
 
-	enum Ref: Hashable, Codable {
-		case module(UUID)
-		case symbol(Int)
-		case wire(Int)
-
-		enum Kind: Hashable { case module, symbol, wire }
-
-		var kind: Kind {
-			switch self {
-			case .module: .module
-			case .symbol: .symbol
-			case .wire: .wire
-			}
+	var kind: Kind {
+		switch self {
+		case .module: .module
+		case .symbol: .symbol
+		case .wire: .wire
 		}
-
-		var index: Int {
-			switch self {
-			case .module: Int.max
-			case let .symbol(index), let .wire(index): index
-			}
-		}
-
-		static func order(_ lhs: Ref, _ rhs: Ref) -> Bool { lhs.index < rhs.index }
 	}
 
-	init(size: Size = .init(width: 297 * .mm, height: 210 * .mm)) {
-		self.size = size
-		symbols = []
-		wires = []
+	var index: Int {
+		switch self {
+		case .module: Int.max
+		case let .symbol(index), let .wire(index): index
+		}
 	}
 
-	var bounds: Rect { Rect(origin: .zero, size: size) }
+	static func order(_ lhs: SchematicRef, _ rhs: SchematicRef) -> Bool { lhs.index < rhs.index }
 }
 
 extension Pin {

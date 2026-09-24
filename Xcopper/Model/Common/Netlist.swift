@@ -14,10 +14,10 @@ struct Netlist {
 		var nodes: Set<Node>
 		var points: Set<Point>
 
-		func pinNames(in schematic: Schematic) -> [String] {
+		func pinNames(in schematic: Board) -> [String] {
 			nodes.map { node in
-				let symbol = schematic.symbols[node.symbol]
-				return "\(symbol.reference).\(symbol.pins[node.pin].number)"
+				let footprint = schematic.footprints[node.symbol]
+				return "\(footprint.reference).\(footprint.symbol.pins[node.pin].number)"
 			}.sorted()
 		}
 	}
@@ -36,7 +36,7 @@ struct Netlist {
 
 extension Netlist {
 
-	init(_ schematic: Schematic) {
+	init(_ schematic: Board) {
 		var merge = UnionFind<Point>()
 		var terminals: Set<Point> = []
 
@@ -108,7 +108,7 @@ extension Point {
 	}
 }
 
-extension Schematic {
+extension Board {
 
 	var junctions: [Point] {
 		var terminals: Set<Point> = []

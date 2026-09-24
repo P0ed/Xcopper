@@ -47,12 +47,34 @@ struct Footprint: Hashable, Codable {
 	var package: Package = .custom
 	var component: Component?
 	var inBOM: Bool = true
+	var symbol: Symbol
 }
 
 extension Footprint {
 
+	init(reference: String, value: String, at: Point, rotation: Rotation, flipped: Bool,
+		pads: [Pad], body: Rect, device: Device = .unknown, package: Package = .custom,
+		component: Component? = nil, inBOM: Bool = true, symbol: Symbol? = nil) {
+		self.reference = reference
+		self.value = value
+		self.at = at
+		self.rotation = rotation
+		self.flipped = flipped
+		self.pads = pads
+		self.body = body
+		self.device = device
+		self.package = package
+		self.component = component
+		self.inBOM = inBOM
+		self.symbol = symbol ?? Symbol(
+			spec: Symbol.Spec(kind: component?.symbolKind ?? device.symbolKind, pins: pads.count, component: component), at: .zero
+		)
+	}
+
+	var symbolKind: Symbol.Kind { component?.symbolKind ?? device.symbolKind }
+
 	enum CodingKeys: String, CodingKey {
-		case reference, value, at, rotation, flipped, pads, body, device, package, component, inBOM
+		case reference, value, at, rotation, flipped, pads, body, device, package, component, inBOM, symbol
 	}
 
 	init(from decoder: Decoder) throws {
@@ -80,6 +102,8 @@ extension Footprint {
 			device = try values.decode(Device.self, forKey: .device)
 			package = try values.decode(Package.self, forKey: .package)
 		}
+		symbol = try values.decodeIfPresent(Symbol.self, forKey: .symbol)
+			?? Symbol(spec: Symbol.Spec(kind: component?.symbolKind ?? device.symbolKind, pins: pads.count, component: component), at: .zero)
 	}
 
 	func encode(to encoder: Encoder) throws {
@@ -91,6 +115,7 @@ extension Footprint {
 		try values.encode(flipped, forKey: .flipped)
 		try values.encodeIfPresent(component, forKey: .component)
 		try values.encode(inBOM, forKey: .inBOM)
+		try values.encode(symbol, forKey: .symbol)
 		if component == nil {
 			try values.encode(pads, forKey: .pads)
 			try values.encode(body, forKey: .body)
@@ -139,6 +164,8 @@ extension Rules {
 }
 
 struct Board: Equatable, Codable {
+	var sheetSize: Size
+	var wires: [Wire]
 	var size: Size
 	var stack: Stack
 	var traces: [Trace]
@@ -152,11 +179,13 @@ struct Board: Equatable, Codable {
 extension Board {
 
 	enum CodingKeys: String, CodingKey {
-		case size, stack, traces, vias, holes, footprints, rules, solderMask
+		case sheetSize, wires, size, stack, traces, vias, holes, footprints, rules, solderMask
 	}
 
 	init(from decoder: Decoder) throws {
 		let values = try decoder.container(keyedBy: CodingKeys.self)
+		sheetSize = try values.decodeIfPresent(Size.self, forKey: .sheetSize) ?? Size(width: 297 * .mm, height: 210 * .mm)
+		wires = try values.decodeIfPresent([Wire].self, forKey: .wires) ?? []
 		size = try values.decode(Size.self, forKey: .size)
 		stack = try values.decode(Stack.self, forKey: .stack)
 		traces = try values.decode([Trace].self, forKey: .traces)
@@ -167,7 +196,10 @@ extension Board {
 		solderMask = try values.decodeIfPresent(Bool.self, forKey: .solderMask) ?? true
 	}
 
-	init(size: Size = .init(width: 4 * .inch, height: 6 * .inch), stack: Stack = .analog) {
+	init(size: Size = .init(width: 4 * .inch, height: 6 * .inch), stack: Stack = .analog,
+		sheetSize: Size = .init(width: 297 * .mm, height: 210 * .mm)) {
+		self.sheetSize = sheetSize
+		wires = []
 		self.size = size
 		self.stack = stack
 		traces = []
@@ -178,6 +210,8 @@ extension Board {
 	}
 
 	var bounds: Rect { Rect(origin: .zero, size: size) }
+	var sheetBounds: Rect { Rect(origin: .zero, size: sheetSize) }
+	var symbols: [Symbol] { footprints.map(\.symbol) }
 }
 
 extension Footprint {

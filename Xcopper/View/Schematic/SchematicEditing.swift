@@ -13,7 +13,7 @@ extension SchematicView {
 
 	func snapped(_ point: Point) -> Point {
 		if !modifierFlags.contains(.control),
-			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
+			let target = design.moduleProjection().sheet.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
 		return point.snapped(to: state.snap)
@@ -64,8 +64,8 @@ extension SchematicView {
 				case .wire:
 					state.updateWire(to: wireEnd(current))
 					if let wires = state.endWire(), let end = wires.last?.end {
-						let landed = design.resolved.schematic.isConnection(end)
-						undoManager.undoGroup(SchematicTool.wire.actionName) { schematic.wires.append(contentsOf: wires) }
+						let landed = design.moduleProjection().sheet.isConnection(end)
+						undoManager.undoGroup(SchematicTool.wire.actionName) { board.wires.append(contentsOf: wires) }
 						if landed { state.tool = .select }
 					}
 				case .symbol:
@@ -106,10 +106,10 @@ private extension SchematicView {
 		guard let session = state.wireSession else { return snapped(point) }
 
 		if !modifierFlags.contains(.control),
-			let target = design.resolved.schematic.snapTarget(near: point, radius: snapRadius) {
+			let target = design.moduleProjection().sheet.snapTarget(near: point, radius: snapRadius) {
 			return target
 		}
-		let arriving = design.resolved.schematic.routing().heading(leaving: session.start, layer: 0) ?? .zero
+		let arriving = design.moduleProjection().sheet.schematicRouting().heading(leaving: session.start, layer: 0) ?? .zero
 		let projected = snapped90(from: session.start, to: point, after: -arriving)
 		return session.start + (projected - session.start).snapped(to: state.snap)
 	}
@@ -144,7 +144,7 @@ private extension SchematicView {
 		}
 		guard let session = state.endSelect(at: current) else { return }
 
-		let hit: Set<Schematic.Ref> = session.didDrag
+		let hit: Set<SchematicRef> = session.didDrag
 			? design.schematicRefs(in: session.rect, whole: picksRun)
 			: design.schematicRefs(at: start, tolerance: hitTolerance, whole: picksRun)
 
@@ -157,8 +157,8 @@ private extension SchematicView {
 		else { return }
 		let property: Property
 		switch ref {
-		case let .symbol(index) where schematic.symbols.indices.contains(index):
-			guard [.resistor, .capacitor].contains(schematic.symbols[index].kind) else { return }
+		case let .symbol(index) where board.footprints.indices.contains(index):
+			guard [.resistor, .capacitor].contains(board.footprints[index].symbolKind) else { return }
 			property = .value
 		default:
 			return

@@ -114,8 +114,8 @@ extension Set where Element == Ref {
 	}
 }
 
-extension Set where Element == Schematic.Ref {
-	var group: (kind: Schematic.Ref.Kind, indices: [Int])? {
+extension Set where Element == SchematicRef {
+	var group: (kind: SchematicRef.Kind, indices: [Int])? {
 		guard let kind = first?.kind, kind != .module, allSatisfy({ $0.kind == kind }) else { return nil }
 		return (kind, map(\.index).sorted())
 	}

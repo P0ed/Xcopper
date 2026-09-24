@@ -5,7 +5,7 @@ struct SchematicRenderer {
 	var design: Design
 	var state: SchematicState
 
-	private var drawn: (projection: ModuleProjection, selection: Set<Schematic.Ref>) {
+	private var drawn: (projection: ModuleProjection, selection: Set<SchematicRef>) {
 		var moved = design
 		var selection = state.selection
 		if let placement = state.modulePlacement {
@@ -21,15 +21,15 @@ struct SchematicRenderer {
 	func render(in context: GraphicsContext, scale: CGFloat, visible: CGRect) {
 		let origin = Layout.origin
 		let (projection, selection) = drawn
-		let schematic = projection.design.schematic
+		let schematic = projection.sheet
 		let netlist = Netlist(schematic)
 
 		context.fill(
-			Path(schematic.bounds.cg(scale, origin: origin)),
+			Path(schematic.sheetBounds.cg(scale, origin: origin)),
 			with: .color(Palette.sheet)
 		)
 		renderGrid(
-			schematic.bounds,
+			schematic.sheetBounds,
 			step: state.grid,
 			in: context,
 			scale: scale,
@@ -45,7 +45,7 @@ struct SchematicRenderer {
 		renderLabels(schematic, netlist, selection, in: context, scale: scale, origin: origin)
 
 		context.stroke(
-			Path(schematic.bounds.cg(scale, origin: origin)),
+			Path(schematic.sheetBounds.cg(scale, origin: origin)),
 			with: .color(Palette.outline),
 			lineWidth: 1.5
 		)
@@ -56,9 +56,9 @@ struct SchematicRenderer {
 	}
 
 	private func renderWires(
-		_ schematic: Schematic,
+		_ schematic: Board,
 		_ netlist: Netlist,
-		_ selection: Set<Schematic.Ref>,
+		_ selection: Set<SchematicRef>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
@@ -80,7 +80,7 @@ struct SchematicRenderer {
 	}
 
 	private func renderJunctions(
-		_ schematic: Schematic,
+		_ schematic: Board,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
@@ -96,8 +96,8 @@ struct SchematicRenderer {
 	}
 
 	private func renderSymbols(
-		_ schematic: Schematic,
-		_ selection: Set<Schematic.Ref>,
+		_ schematic: Board,
+		_ selection: Set<SchematicRef>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint
@@ -139,18 +139,18 @@ struct SchematicRenderer {
 		guard scale >= 2.0 else { return }
 		let size = 1.2 * scale
 
-		for symbol in schematic.symbols {
-			let extent = symbol.placedExtent.cg(scale, origin: origin)
+		for footprint in schematic.footprints {
+			let extent = footprint.symbol.placedExtent.cg(scale, origin: origin)
 
 			context.draw(
-				Text(symbol.reference)
+				Text(footprint.reference)
 					.font(.system(size: size, weight: .medium))
 					.foregroundStyle(Palette.symbol),
 				at: CGPoint(x: extent.midX, y: extent.minY - scale * 0.8)
 			)
-			if !symbol.value.isEmpty {
+			if !footprint.value.isEmpty {
 				context.draw(
-					Text(symbol.value)
+					Text(footprint.value)
 						.font(.system(size: size))
 						.foregroundStyle(Palette.symbol.opacity(0.7)),
 					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 0.8)
@@ -170,7 +170,7 @@ struct SchematicRenderer {
 		let modules = Dictionary(instances.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 		for (ref, id) in projection.symbolOwners {
 			guard case let .symbol(index) = ref, let module = modules[id], !module.parameters.isEmpty else { continue }
-			let symbol = projection.design.schematic.symbols[index]
+			let symbol = projection.sheet.symbols[index]
 			let bounds = module.parameterBounds(in: symbol)
 			let center = symbol.place(bounds.center).cg(scale, origin: origin)
 			let width = Double.mm(bounds.size.width - 2_540) * scale
@@ -206,12 +206,13 @@ struct SchematicRenderer {
 		let gap = 0.2 * scale
 		let inset = 0.4 * scale
 
-		for (index, symbol) in projection.design.schematic.symbols.enumerated() {
+		for (index, symbol) in projection.sheet.symbols.enumerated() {
 			guard symbol.placedExtent.cg(scale, origin: origin).intersects(visible) else { continue }
 
-			let inside = symbol.kind == .ic
+			let kind = projection.sheet.footprints[index].symbolKind
+			let inside = kind == .ic
 			let isModule = projection.symbolOwners[.symbol(index)] != nil
-			let numbered = symbol.kind.showsPinNumbers
+			let numbered = kind.showsPinNumbers
 
 			for pin in symbol.placedPins {
 				let quarter = pin.direction.isQuarter
@@ -276,9 +277,9 @@ struct SchematicRenderer {
 	}
 
 	private func renderLabels(
-		_ schematic: Schematic,
+		_ schematic: Board,
 		_ netlist: Netlist,
-		_ selection: Set<Schematic.Ref>,
+		_ selection: Set<SchematicRef>,
 		in context: GraphicsContext,
 		scale: CGFloat,
 		origin: CGPoint

@@ -1,6 +1,6 @@
-extension Schematic {
+extension Board {
 
-	func hitTest(at point: Point, tolerance: Int) -> Ref? {
+	func schematicHitTest(at point: Point, tolerance: Int) -> SchematicRef? {
 		for (index, symbol) in symbols.enumerated().reversed() {
 			let hit = symbol.placedPins.contains { pin in
 				pin.figure.contains(point, tolerance: tolerance)
@@ -16,21 +16,21 @@ extension Schematic {
 		return nil
 	}
 
-	func refs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<Ref> {
-		guard let hit = hitTest(at: point, tolerance: tolerance) else { return [] }
+	func schematicRefs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<SchematicRef> {
+		guard let hit = schematicHitTest(at: point, tolerance: tolerance) else { return [] }
 		guard whole, case let .wire(index) = hit else { return [hit] }
-		return Set(routing().run(of: index).map(Ref.wire))
+		return Set(schematicRouting().run(of: index).map(SchematicRef.wire))
 	}
 
 	func isConnection(_ point: Point) -> Bool {
-		routing().isTerminal(point, layer: 0) || wires.contains { touches(point, $0) }
+		schematicRouting().isTerminal(point, layer: 0) || wires.contains { touches(point, $0) }
 	}
 
-	func refs(in rect: Rect, whole: Bool = false) -> Set<Ref> {
-		var result: Set<Ref> = []
+	func schematicRefs(in rect: Rect, whole: Bool = false) -> Set<SchematicRef> {
+		var result: Set<SchematicRef> = []
 
 		let covered = Set(wires.indices.filter { rect.contains(wires[$0].start) && rect.contains(wires[$0].end) })
-		let route = routing()
+		let route = schematicRouting()
 		for index in covered where !whole || route.run(of: index).isSubset(of: covered) {
 			result.insert(.wire(index))
 		}
@@ -40,15 +40,15 @@ extension Schematic {
 		return result
 	}
 
-	func bounds(of refs: Set<Ref>) -> Rect? {
+	func schematicBounds(of refs: Set<SchematicRef>) -> Rect? {
 		Rect.union(refs.compactMap { ref in
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
 				Rect(from: wires[index].start, to: wires[index].end)
-			case let .symbol(index) where symbols.indices.contains(index):
+			case let .symbol(index) where footprints.indices.contains(index):
 				Rect.union(
-					[symbols[index].placedBody]
-						+ symbols[index].placedPins.map { pin in pin.figure.bounds }
+					[footprints[index].symbol.placedBody]
+						+ footprints[index].symbol.placedPins.map { pin in pin.figure.bounds }
 				)
 			default:
 				nil
@@ -79,9 +79,9 @@ extension Schematic {
 	}
 }
 
-extension Schematic {
+extension Board {
 
-	func routing(moving refs: Set<Ref> = []) -> RouteGeometry<Wire> {
+	func schematicRouting(moving refs: Set<SchematicRef> = []) -> RouteGeometry<Wire> {
 		var terminals: [RouteTerminal] = []
 		for (index, symbol) in symbols.enumerated() {
 			for pin in symbol.placedPins {
@@ -94,9 +94,9 @@ extension Schematic {
 	}
 
 	@discardableResult
-	mutating func move(_ refs: Set<Ref>, by delta: Point, grid: µm = 2_540) -> Set<Ref>? {
+	mutating func moveSchematic(_ refs: Set<SchematicRef>, by delta: Point, grid: µm = 2_540) -> Set<SchematicRef>? {
 		guard delta != .zero else { return refs }
-		var route = routing(moving: refs)
+		var route = schematicRouting(moving: refs)
 		let points = Set(wires.flatMap { [$0.start, $0.end] }
 			+ symbols.flatMap { $0.placedPins.map(\.at) })
 		var pieces: [Wire] = []
@@ -115,22 +115,22 @@ extension Schematic {
 		wires = route.segments
 		for ref in refs {
 			switch ref {
-			case let .symbol(index) where symbols.indices.contains(index):
-				symbols[index].at = symbols[index].at + delta
+			case let .symbol(index) where footprints.indices.contains(index):
+				footprints[index].symbol.at = footprints[index].symbol.at + delta
 			default: break
 			}
 		}
 		return Set(refs.filter { if case .wire = $0 { false } else { true } })
-			.union(selected.compactMap { mapped[$0].map(Ref.wire) })
+			.union(selected.compactMap { mapped[$0].map(SchematicRef.wire) })
 	}
 
-	mutating func remove(_ refs: Set<Ref>) {
-		symbols.remove(at: refs.compactMap { if case let .symbol(i) = $0 { i } else { nil } })
+	mutating func removeSchematic(_ refs: Set<SchematicRef>) {
+		footprints.remove(at: refs.compactMap { if case let .symbol(i) = $0 { i } else { nil } })
 		wires.remove(at: refs.compactMap { if case let .wire(i) = $0 { i } else { nil } })
 	}
 
-	mutating func rotate(_ refs: Set<Ref>, clockwise: Bool, around center: Point? = nil) {
-		guard let pivot = center ?? bounds(of: refs)?.center else { return }
+	mutating func rotateSchematic(_ refs: Set<SchematicRef>, clockwise: Bool, around center: Point? = nil) {
+		guard let pivot = center ?? schematicBounds(of: refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
 
 		func spin(_ point: Point) -> Point { (point - pivot).rotated(rotation) + pivot }
@@ -140,19 +140,19 @@ extension Schematic {
 			case let .wire(index) where wires.indices.contains(index):
 				wires[index].start = spin(wires[index].start)
 				wires[index].end = spin(wires[index].end)
-			case let .symbol(index) where symbols.indices.contains(index):
-				symbols[index].at = spin(symbols[index].at)
-				symbols[index].rotation = clockwise
-					? symbols[index].rotation.next
-					: symbols[index].rotation.previous
+			case let .symbol(index) where footprints.indices.contains(index):
+				footprints[index].symbol.at = spin(footprints[index].symbol.at)
+				footprints[index].symbol.rotation = clockwise
+					? footprints[index].symbol.rotation.next
+					: footprints[index].symbol.rotation.previous
 			default:
 				break
 			}
 		}
 	}
 
-	mutating func mirror(_ refs: Set<Ref>) {
-		guard let pivot = bounds(of: refs)?.center else { return }
+	mutating func mirrorSchematic(_ refs: Set<SchematicRef>) {
+		guard let pivot = schematicBounds(of: refs)?.center else { return }
 
 		func flip(_ point: Point) -> Point { Point(x: 2 * pivot.x - point.x, y: point.y) }
 
@@ -161,18 +161,18 @@ extension Schematic {
 			case let .wire(index) where wires.indices.contains(index):
 				wires[index].start = flip(wires[index].start)
 				wires[index].end = flip(wires[index].end)
-			case let .symbol(index) where symbols.indices.contains(index):
-				symbols[index].at = flip(symbols[index].at)
-				symbols[index].mirrored.toggle()
+			case let .symbol(index) where footprints.indices.contains(index):
+				footprints[index].symbol.at = flip(footprints[index].symbol.at)
+				footprints[index].symbol.mirrored.toggle()
 			default:
 				break
 			}
 		}
 	}
 
-	mutating func duplicate(_ refs: Set<Ref>, by delta: Point) -> Set<Ref> {
-		var created: Set<Ref> = []
-		for ref in refs.sorted(by: Ref.order) {
+	mutating func duplicateSchematic(_ refs: Set<SchematicRef>, by delta: Point) -> Set<SchematicRef> {
+		var created: Set<SchematicRef> = []
+		for ref in refs.sorted(by: SchematicRef.order) {
 			switch ref {
 			case let .wire(index) where wires.indices.contains(index):
 				wires.append(modifying(wires[index]) { wire in
@@ -180,11 +180,11 @@ extension Schematic {
 					wire.end = wire.end + delta
 				})
 				created.insert(.wire(wires.count - 1))
-			case let .symbol(index) where symbols.indices.contains(index):
-				symbols.append(modifying(symbols[index]) { symbol in
-					symbol.at = symbol.at + delta
+			case let .symbol(index) where footprints.indices.contains(index):
+				footprints.append(modifying(footprints[index]) { footprint in
+					footprint.symbol.at = footprint.symbol.at + delta
 				})
-				created.insert(.symbol(symbols.count - 1))
+				created.insert(.symbol(footprints.count - 1))
 			default:
 				break
 			}
@@ -193,17 +193,17 @@ extension Schematic {
 	}
 }
 
-extension Schematic {
+extension Board {
 
 	func parking(for symbol: Symbol) -> Point {
-		parking(for: symbol, clear: occupied)
+		parking(for: symbol, clear: schematicOccupied)
 	}
 
 	func parking(for symbol: Symbol, clear taken: [Rect]) -> Point {
-		Xcopper.parking(symbol.placedExtent, in: bounds, clear: taken)
+		Xcopper.parking(symbol.placedExtent, in: sheetBounds, clear: taken)
 	}
 
-	var occupied: [Rect] {
+	var schematicOccupied: [Rect] {
 		symbols.map(\.placedExtent)
 			+ wires.map { wire in Rect(from: wire.start, to: wire.end) }
 	}

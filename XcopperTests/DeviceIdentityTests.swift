@@ -14,7 +14,7 @@ final class DeviceIdentityTests: XCTestCase {
 				fromBoard.place(Footprint.Spec(chip: size, device: device), at: .zero)
 				XCTAssertEqual(fromBoard.board.footprints[0].device, device)
 				XCTAssertEqual(fromBoard.board.footprints[0].package, .chip(size))
-				XCTAssertEqual(fromBoard.schematic.symbols[0].kind, device.symbolKind)
+				XCTAssertEqual(fromBoard.board.footprints[0].symbolKind, device.symbolKind)
 				XCTAssertEqual(fromBoard.board.footprints[0].reference, device.prefix + "1")
 			}
 		}
@@ -30,8 +30,7 @@ final class DeviceIdentityTests: XCTestCase {
 		let references = ["R9", "C2.R1", "renamed", "M1.M2.C1", "C1"]
 		for index in design.board.footprints.indices {
 			design.renameReference(Ref.footprint(index), to: references[index])
-			design.board.footprints[index].value = "Pomona 1581"
-			design.schematic.symbols[index].value = "AD823"
+			design.board.footprints[index].value = "AD823"
 		}
 
 		let reopened = try Document.decode(Document(design: design).encoded())
@@ -39,7 +38,6 @@ final class DeviceIdentityTests: XCTestCase {
 		XCTAssertEqual(reopened.board.footprints.map(\.appearance), appearances)
 		XCTAssertEqual(reopened.board.footprints.map(\.device), [.capacitor, .resistor, .diode, .connector, .switchContact])
 		XCTAssertEqual(reopened.board.footprints.map(\.component), [nil, nil, .hlmpWL02, .pomona1581, .nkkMN12])
-		XCTAssertEqual(reopened.schematic.symbols.map(\.component), [nil, nil, .hlmpWL02, .pomona1581, .nkkMN12])
 	}
 
 	func testAnExplicitUnknownDeviceStaysUnknownDespiteSuggestiveLabels() throws {
@@ -58,7 +56,7 @@ final class DeviceIdentityTests: XCTestCase {
 		var leaf = Design(board: Board(size: Size(width: 20 * .mm, height: 20 * .mm), stack: .classic))
 		leaf.place(Footprint.Spec(chip: .c0805, device: .capacitor), at: Point(x: 5 * .mm, y: 5 * .mm))
 		leaf.place(Footprint.Spec(component: .hlmpWL02), at: Point(x: 12 * .mm, y: 12 * .mm))
-		leaf.schematic.symbols[0].pins[0].netLabel = "#1 IN"
+		leaf.board.footprints[0].symbol.pins[0].netLabel = "#1 IN"
 		let appearances = leaf.board.footprints.map(\.appearance)
 
 		let library = try ModuleLibrary(sources: ["Leaf.xcb", "Middle.xcb"].map { parentURL.deletingLastPathComponent().appendingPathComponent($0) })

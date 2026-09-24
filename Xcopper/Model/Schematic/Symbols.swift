@@ -62,12 +62,10 @@ extension Symbol {
 
 extension Symbol {
 
-	init(spec: Spec, reference: String, at: Point) {
+	init(spec: Spec, at: Point) {
 		if let component = spec.component {
 			self = modifying(component.makeSymbol()) { symbol in
-				symbol.reference = reference
 				symbol.at = at
-				symbol.value = spec.value.isEmpty ? component.name : spec.value
 			}
 			return
 		}
@@ -82,20 +80,15 @@ extension Symbol {
 		}
 
 		self = modifying(built) { symbol in
-			symbol.reference = reference
 			symbol.at = at
-			symbol.value = spec.value
 		}
 	}
 
-	private static func make(_ kind: Kind, pins: [Pin], body: Rect, glyph: [Glyph]) -> Symbol {
+	private static func make(pins: [Pin], body: Rect, glyph: [Glyph]) -> Symbol {
 		Symbol(
-			reference: "",
-			value: "",
 			at: .zero,
 			rotation: .r0,
 			mirrored: false,
-			kind: kind,
 			pins: pins,
 			body: body,
 			glyph: glyph
@@ -118,7 +111,6 @@ extension Symbol {
 	static func resistor() -> Symbol {
 		let half = 2_540
 		return make(
-			.resistor,
 			pins: [pin(1, "1", -half * 2, 0, .r180), pin(2, "2", half * 2, 0, .r0)],
 			body: centred(Size(width: half * 2, height: 1_778)),
 			glyph: [.rect(Rect(center: .zero, size: Size(width: half * 2, height: 1_778)))]
@@ -129,7 +121,6 @@ extension Symbol {
 		let gap = 635
 		let plate = 1_270
 		return make(
-			.capacitor,
 			pins: [
 				pin(1, "1", -2_540, 0, .r180, 1_905),
 				pin(2, "2", 2_540, 0, .r0, 1_905),
@@ -159,7 +150,6 @@ extension Symbol {
 		}
 		let half = humps * radius
 		return make(
-			.inductor,
 			pins: [pin(1, "1", -half * 2, 0, .r180), pin(2, "2", half * 2, 0, .r0)],
 			body: centred(Size(width: half * 2, height: radius * 2)),
 			glyph: [.path(points, closed: false, filled: false)]
@@ -169,7 +159,6 @@ extension Symbol {
 	static func diode() -> Symbol {
 		let half = 1_270
 		return make(
-			.diode,
 			pins: [pin(1, "A", -half * 3, 0, .r180), pin(2, "K", half * 3, 0, .r0)],
 			body: centred(Size(width: half * 2, height: half * 2)),
 			glyph: [
@@ -187,7 +176,6 @@ extension Symbol {
 		let base = 1_270
 		let reach = 2_540
 		return make(
-			.transistor,
 			pins: [
 				pin(1, "B", -5_080, 0, .r180, 3_810),
 				pin(2, "E", reach, 5_080, .r90, 2_540),
@@ -236,7 +224,6 @@ extension Symbol {
 			pins.append(pin(index + 1, pinNames[index], width / 2 + pitch, first + row * pitch, .r0))
 		}
 		return make(
-			.ic,
 			pins: pins,
 			body: centred(Size(width: width, height: height)),
 			glyph: [.rect(Rect(center: .zero, size: Size(width: width, height: height)))]

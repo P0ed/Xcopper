@@ -12,7 +12,7 @@ final class ModuleTests: XCTestCase {
 		design.board.footprints[0].at = point(5 * .mm, 5 * .mm)
 		design.board.footprints[0].pads[0].net = 3
 		design.board.footprints[0].pads[1].net = 4
-		design.schematic.symbols[0].pins[0].netLabel = "#1 IN"
+		design.board.footprints[0].symbol.pins[0].netLabel = "#1 IN"
 		design.board.traces = [Trace(start: point(5 * .mm, 5 * .mm), end: point(10 * .mm, 5 * .mm), width: 400, layer: stack.bottom, net: 3)]
 		design.board.vias = [Via(at: point(10 * .mm, 5 * .mm), net: 3),
 			Via(at: point(15 * .mm, 15 * .mm), net: 0)]
@@ -47,7 +47,7 @@ final class ModuleTests: XCTestCase {
 		let functionURL = function.appendingPathComponent("Filter.xcb")
 		var filter = Design()
 		try filter.importModule(filename: "Amplifier", documentURL: functionURL)
-		XCTAssertEqual(filter.modules[0].symbol.value, "Amplifier")
+		XCTAssertEqual(filter.modules[0].name, "Amplifier")
 		try Document(design: filter).encoded().write(to: functionURL)
 		let library = try ModuleLibrary(folder: folder)
 		XCTAssertEqual(library.urls.count, 2)
@@ -265,8 +265,8 @@ final class ModuleTests: XCTestCase {
 		let module = source()
 		var design = try imported(["Part.xcb": module])
 		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
-		design.schematic.wires = [Wire(start: design.modules[0].symbol.placedPins[0].at,
-			end: design.schematic.symbols[0].placedPins[0].at)]
+		design.board.wires = [Wire(start: design.modules[0].symbol.placedPins[0].at,
+			end: design.board.footprints[0].symbol.placedPins[0].at)]
 		_ = design.updateBoardFromSchematic()
 		let id = try XCTUnwrap(design.board.footprints[0].pads[0].net)
 		XCTAssertEqual(design.net(id)?.name, "M1.IN")
@@ -283,7 +283,7 @@ final class ModuleTests: XCTestCase {
 	func testQualifiedLabelsResolvePrivateModuleNetsWithoutPromotion() throws {
 		var design = try imported(["Part.xcb": source()], filenames: ["Part.xcb", "Part.xcb"])
 		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
-		design.schematic.symbols[0].pins[0].netLabel = "M1.PRIVATE"
+		design.board.footprints[0].symbol.pins[0].netLabel = "M1.PRIVATE"
 		_ = design.updateBoardFromSchematic()
 		let resolved = design.resolved
 		let id = try XCTUnwrap(design.board.footprints[0].pads[0].net)
@@ -297,8 +297,8 @@ final class ModuleTests: XCTestCase {
 	func testStaleParentPadNetsDoNotMergeSeparateModuleInputs() throws {
 		var module = Design()
 		module.place(Symbol.Spec(kind: .ic, pins: 8), at: point(20 * .mm, 20 * .mm))
-		module.schematic.symbols[0].pins[1].netLabel = "#1 A"
-		module.schematic.symbols[0].pins[5].netLabel = "#2 B"
+		module.board.footprints[0].symbol.pins[1].netLabel = "#1 A"
+		module.board.footprints[0].symbol.pins[5].netLabel = "#2 B"
 		_ = module.updateBoardFromSchematic()
 		for staleName in ["IN1", "IN2", "LEGACY"] {
 			var design = try imported(["Part.xcb": module])
@@ -307,7 +307,7 @@ final class ModuleTests: XCTestCase {
 			let stale = design.addNet(name: staleName)
 			for (index, name) in ["IN1", "IN2"].enumerated() {
 				design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, (30 + index * 20) * .mm))
-				design.schematic.symbols[index].pins[0].netLabel = name
+				design.board.footprints[index].symbol.pins[0].netLabel = name
 				design.board.footprints[index].pads[0].net = stale
 			}
 			for syncNative in [false, true] {
@@ -332,7 +332,7 @@ final class ModuleTests: XCTestCase {
 		var design = source()
 		let unused = design.addNet(name: "UNUSED")
 		_ = design.addNet(name: "LABELED")
-		design.schematic.symbols[0].pins[0].netLabel = "#1 LABELED"
+		design.board.footprints[0].symbol.pins[0].netLabel = "#1 LABELED"
 		let via = design.addNet(name: "VIA")
 		design.board.vias.append(Via(at: .zero, net: via))
 		let trace = design.addNet(name: "TRACE")
@@ -340,7 +340,6 @@ final class ModuleTests: XCTestCase {
 		let reopened = try Document.decode(Document(design: design).encoded())
 		XCTAssertEqual(reopened.nets, design.nets.filter { $0.id != unused })
 		XCTAssertEqual(reopened.board, design.board)
-		XCTAssertEqual(reopened.schematic, design.schematic)
 	}
 
 	func testBufferSupplyLabelsReachTheParentInletThroughViasAndPlanes() throws {
@@ -353,9 +352,9 @@ final class ModuleTests: XCTestCase {
 			["1": "GND", "2": "VCC"],
 			["1": "VEE", "2": "GND"],
 		]
-		for (index, symbol) in buffer.schematic.symbols.enumerated() {
+		for (index, symbol) in buffer.board.symbols.enumerated() {
 			for (pinIndex, pin) in symbol.pins.enumerated() {
-				buffer.schematic.symbols[index].pins[pinIndex].netLabel = names[index][pin.number]
+				buffer.board.footprints[index].symbol.pins[pinIndex].netLabel = names[index][pin.number]
 			}
 		}
 		_ = buffer.updateBoardFromSchematic()
@@ -374,7 +373,7 @@ final class ModuleTests: XCTestCase {
 		parent.place(Symbol.Spec(component: .mta1563), at: point(100 * .mm, 100 * .mm))
 		let rails = ["GND", "VCC", "VEE"]
 		for (index, name) in rails.enumerated() {
-			parent.schematic.symbols[0].pins[index].netLabel = name
+			parent.board.footprints[0].symbol.pins[index].netLabel = name
 		}
 		_ = parent.updateBoardFromSchematic()
 		let resolved = parent.resolved
@@ -397,7 +396,7 @@ final class ModuleTests: XCTestCase {
 		var source = Design()
 		source.place(Symbol.Spec(kind: .ic, pins: 4), at: point(20 * .mm, 20 * .mm))
 		for (index, label) in ["#10 A", "#2 a", "#1 Z", "#3 IN"].enumerated() {
-			source.schematic.symbols[0].pins[index].netLabel = label
+			source.board.footprints[0].symbol.pins[index].netLabel = label
 		}
 		let design = try imported(["Part.xcb": source])
 		XCTAssertEqual(design.modules[0].interface.map(\.name), ["Z", "a", "IN", "A"])
@@ -414,18 +413,18 @@ final class ModuleTests: XCTestCase {
 	func testIOExtractionRejectsMissingNumbersAndNames() throws {
 		for label in ["#IN", "#", "#  ", "#0 IN", "#-1 IN", "#1", "#1IN", "#1 ", "#999999999999999999999 IN"] {
 			var source = source()
-			source.schematic.symbols[0].pins[0].netLabel = label
+			source.board.footprints[0].symbol.pins[0].netLabel = label
 			XCTAssertThrowsError(try imported(["Part.xcb": source]), label)
 		}
 	}
 
 	func testRepeatedIONumbersRequireMatchingNames() throws {
 		var source = source()
-		source.schematic.symbols[0].pins[1].netLabel = "#1 OUT"
+		source.board.footprints[0].symbol.pins[1].netLabel = "#1 OUT"
 		XCTAssertThrowsError(try imported(["Part.xcb": source])) { error in
 			XCTAssertTrue((error as? Err)?.description.contains("Ambiguous") ?? false)
 		}
-		source.schematic.symbols[0].pins[1].netLabel = "#1 IN"
+		source.board.footprints[0].symbol.pins[1].netLabel = "#1 IN"
 		let parent = try imported(["Part.xcb": source])
 		XCTAssertEqual(parent.modules[0].interface, [IODesignator(number: 1, name: "IN")])
 		XCTAssertEqual(parent.resolved.board.footprints[0].pads[0].net, parent.resolved.board.footprints[0].pads[1].net)
@@ -436,12 +435,12 @@ final class ModuleTests: XCTestCase {
 		var design = try imported(["Part.xcb": source()])
 		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		let modulePin = design.modules[0].symbol.placedPins[0].at
-		let parentPin = design.schematic.symbols[0].placedPins[0].at
+		let parentPin = design.board.footprints[0].symbol.placedPins[0].at
 		let before = design.moduleCache
 		let harness = EditorHarness(design: design)
 		harness.perform {
-			$0.design.schematic.wires = [Wire(start: modulePin, end: parentPin)]
-			$0.design.schematic.symbols[0].pins[0].netLabel = "SIGNAL"
+			$0.design.board.wires = [Wire(start: modulePin, end: parentPin)]
+			$0.design.board.footprints[0].symbol.pins[0].netLabel = "SIGNAL"
 		}
 		design = harness.design
 		let resolved = design.resolved
@@ -519,28 +518,28 @@ final class ModuleTests: XCTestCase {
 		let metadata = design.modules[0]
 		let old = design.resolved
 		let wire = Wire(start: metadata.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
-		design.schematic.wires = [wire]
+		design.board.wires = [wire]
 		var resolver = ModuleResolver(folder: parentURL.deletingLastPathComponent(), library: try library(["Part.xcb"]), read: { _ in throw Err("Missing file") })
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertEqual(design.modules[0], metadata)
 		XCTAssertEqual(design.resolved.board.footprints.count, 0)
-		XCTAssertEqual(design.resolved.schematic.symbols.count, 1)
-		XCTAssertTrue(design.resolved.schematic.symbols[0].value.contains("Unresolved"))
+		XCTAssertEqual(design.moduleProjection().sheet.symbols.count, 1)
+		XCTAssertTrue(design.moduleProjection().sheet.footprints[0].value.contains("Unresolved"))
 		XCTAssertFalse(design.moduleErrors.isEmpty)
-		source.schematic.symbols[0].pins[1].netLabel = "#2 EXTRA"
+		source.board.footprints[0].symbol.pins[1].netLabel = "#2 EXTRA"
 		resolver.read = try reader(["Part.xcb": source])
 		resolver.reload(&design, documentURL: parentURL)
 		XCTAssertTrue(design.moduleErrors.isEmpty)
 		XCTAssertEqual(design.modules[0].interface.map(\.name), ["IN", "EXTRA"])
 		XCTAssertEqual(design.modules[0].schematicAt, metadata.schematicAt)
-		XCTAssertEqual(design.schematic.wires, [wire])
+		XCTAssertEqual(design.board.wires, [wire])
 		XCTAssertFalse(design.moduleCache.notices.isEmpty)
 		XCTAssertEqual(design.resolved.board.footprints[0].pads[0].net, old.board.footprints[0].pads[0].net)
 	}
 
 	func testSelectingRenamedSourceRecoversOnlyTheSelectedInstance() throws {
 		var source = source()
-		source.setValue([Schematic.Ref.symbol(0)], to: "#R1")
+		source.setValue([SchematicRef.symbol(0)], to: "#R1")
 		var design = try imported(["Part.xcb": source, "Other.xcb": source], filenames: ["Part.xcb", "Other.xcb"])
 		let id = design.modules[0].id
 		let otherID = design.modules[1].id
@@ -570,7 +569,7 @@ final class ModuleTests: XCTestCase {
 		let id = design.modules[0].id
 		let instance = design.modules[0]
 		let wire = Wire(start: instance.symbol.placedPins[0].at, end: point(70 * .mm, 70 * .mm))
-		design.schematic.wires = [wire]
+		design.board.wires = [wire]
 		let before = design
 		XCTAssertThrowsError(try design.replaceModuleSource(id, filename: "Missing.xcb", documentURL: parentURL, library: library([]), read: reader([:])))
 		XCTAssertEqual(design, before)
@@ -580,7 +579,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design, before)
 		var replacement = source()
 		replacement.board.size = Size(width: 30 * .mm, height: 40 * .mm)
-		replacement.schematic.symbols[0].pins[1].netLabel = "#2 EXTRA"
+		replacement.board.footprints[0].symbol.pins[1].netLabel = "#2 EXTRA"
 		let notices = try design.replaceModuleSource(id, filename: "New.xcb", documentURL: parentURL, library: library(["New.xcb"]), read: reader(["New.xcb": replacement]))
 		XCTAssertFalse(notices.isEmpty)
 		XCTAssertEqual(design.modules[0].id, instance.id)
@@ -590,7 +589,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.modules[0].size, replacement.board.size)
 		XCTAssertEqual(design.modules[0].interface.map(\.name), ["IN", "EXTRA"])
 		XCTAssertEqual(design.modules[0].bounds.center, instance.layoutAt)
-		XCTAssertEqual(design.schematic.wires, [wire])
+		XCTAssertEqual(design.board.wires, [wire])
 		XCTAssertNil(design.moduleStatus(id))
 	}
 
@@ -626,16 +625,18 @@ final class ModuleTests: XCTestCase {
 		let id = design.modules[0].id
 		let pin = design.modules[0].symbol.placedPins[0].at
 		let anchor = pin + point(20 * .mm, 0)
-		design.schematic.wires = [Wire(start: pin, end: anchor)]
+		design.board.wires = [Wire(start: pin, end: anchor)]
 		design.modules[0][netLabel: "1"] = "SIGNAL"
 		let layout = design.resolved.board
 		let selection = try XCTUnwrap(design.moveSchematic([.module(id)], by: point(2 * .mm, 3 * .mm)))
 		let movedPin = design.modules[0].symbol.placedPins[0].at
 		XCTAssertEqual(movedPin, pin + point(2 * .mm, 3 * .mm))
 		XCTAssertEqual(selection, [.module(id)])
-		XCTAssertEqual(Netlist(design.resolved.schematic).name(at: movedPin), "SIGNAL")
-		XCTAssertEqual(design.resolved.board, layout)
-		XCTAssertTrue(design.schematic.wires.allSatisfy { $0.start.x == $0.end.x || $0.start.y == $0.end.y })
+		XCTAssertEqual(Netlist(design.moduleProjection().sheet).name(at: movedPin), "SIGNAL")
+		XCTAssertEqual(design.resolved.board.footprints, layout.footprints)
+		XCTAssertEqual(design.resolved.board.traces, layout.traces)
+		XCTAssertEqual(design.resolved.board.vias, layout.vias)
+		XCTAssertTrue(design.board.wires.allSatisfy { $0.start.x == $0.end.x || $0.start.y == $0.end.y })
 	}
 
 	func testTranslationStretchesParentTracesAtImportedPadsAndVias() throws {
@@ -665,7 +666,7 @@ final class ModuleTests: XCTestCase {
 		XCTAssertEqual(design.modules.count, 2)
 		XCTAssertNotEqual(design.modules[0].id, design.modules[1].id)
 		XCTAssertEqual(design.resolved.board.footprints.count, 2)
-		XCTAssertEqual(design.resolved.schematic.symbols.count, 2)
+		XCTAssertEqual(design.moduleProjection().sheet.symbols.count, 2)
 		design.removeModules(ids)
 		XCTAssertEqual(design, old)
 	}
@@ -706,7 +707,7 @@ extension ModuleTests {
 			harness.schematic.selection = [.symbol(0), .module(design.modules[0].id)]
 			harness.perform { $0.duplicate() }
 			XCTAssertEqual(harness.design.modules.map(\.reference), ["R2", "R3"])
-			let reference = mode == .layout ? harness.design.board.footprints.last?.reference : harness.design.schematic.symbols.last?.reference
+			let reference = harness.design.board.footprints.last?.reference
 			XCTAssertEqual(reference, "R4")
 			XCTAssertNoThrow(try Document.decode(Document(design: harness.design).encoded()))
 		}
@@ -717,12 +718,12 @@ extension ModuleTests {
 		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		let before = design
 		design.renameReference(Ref.footprint(0), to: "M1")
-		design.renameReference(Schematic.Ref.symbol(0), to: "M1")
+		design.renameReference(SchematicRef.symbol(0), to: "M1")
 		design.renameReference(Ref.module(design.modules[0].id), to: "R1")
 		design.renameReference(Ref.module(design.modules[0].id), to: "  ")
 		XCTAssertEqual(design, before)
 		design.renameReference(Ref.footprint(0), to: "R2")
-		design.renameReference(Schematic.Ref.symbol(0), to: "R2")
+		design.renameReference(SchematicRef.symbol(0), to: "R2")
 		XCTAssertEqual(design.footprints(for: [.symbol(0)]), [.footprint(0)])
 		XCTAssertNoThrow(try Document.decode(Document(design: design).encoded()))
 	}
@@ -774,9 +775,9 @@ extension ModuleTests {
 		let vbat = design.addNet(name: "VBAT")
 		design.place(Symbol.Spec(kind: .resistor), at: point(60 * .mm, 50 * .mm))
 		design.board.footprints[0].pads[0].net = vbat
-		let pin = design.schematic.symbols[0].placedPins[0].at
-		design.schematic.wires = [Wire(start: pin, end: design.modules[0].symbol.placedPins[0].at)]
-		design.schematic.symbols[0].pins[0].netLabel = "VBAT"
+		let pin = design.board.footprints[0].symbol.placedPins[0].at
+		design.board.wires = [Wire(start: pin, end: design.modules[0].symbol.placedPins[0].at)]
+		design.board.footprints[0].symbol.pins[0].netLabel = "VBAT"
 		let existing = design.nets
 		_ = design.updateBoardFromSchematic()
 		XCTAssertTrue(existing.allSatisfy { design.nets.contains($0) })
@@ -818,7 +819,7 @@ extension ModuleTests {
 		var destination = try imported(["Part.xcb": source()])
 		let original = destination
 		var changed = source()
-		changed.schematic.symbols[0].pins[0].netLabel = "#1 CHANGED"
+		changed.board.footprints[0].symbol.pins[0].netLabel = "#1 CHANGED"
 		let read = try reader(["Part.xcb": changed])
 		let pasted = try destination.pasteModules(original.modules, by: point(30 * .mm, 0), documentURL: parentURL, library: library(["Part.xcb"]), read: read)
 		XCTAssertEqual(destination.modules[0], original.modules[0])
@@ -895,7 +896,7 @@ extension ModuleTests {
 		harness.undo.undo()
 		XCTAssertEqual(harness.design, duplicated)
 		harness.perform { $0.delete() }
-		XCTAssertEqual(harness.design.resolved.schematic.symbols.count, 1)
+		XCTAssertEqual(harness.design.moduleProjection().sheet.symbols.count, 1)
 		XCTAssertEqual(harness.design.resolved.board.footprints.count, 1)
 		harness.undo.undo()
 		XCTAssertEqual(harness.design, duplicated)
@@ -903,6 +904,6 @@ extension ModuleTests {
 		harness.schematic.selection = [.module(id)]
 		harness.operations.copy()
 		XCTAssertEqual(harness.clipboard.modules.count, 1)
-		XCTAssertTrue(harness.clipboard.symbols.isEmpty)
+		XCTAssertTrue(harness.clipboard.footprints.isEmpty)
 	}
 }

@@ -4,9 +4,9 @@ import SwiftUI
 struct SchematicInspector: View {
 	@Binding var design: Design
 	var netlist: Netlist
-	var selection: Set<Schematic.Ref>
+	var selection: Set<SchematicRef>
 	@FocusState.Binding var focus: Property?
-	private var schematic: Schematic { design.schematic }
+	private var board: Board { design.board }
 
 	var body: some View {
 		if let group = selection.group {
@@ -19,17 +19,17 @@ struct SchematicInspector: View {
 	}
 
 	@ViewBuilder
-	private func properties(of kind: Schematic.Ref.Kind, _ indices: [Int]) -> some View {
+	private func properties(of kind: SchematicRef.Kind, _ indices: [Int]) -> some View {
 		switch kind {
 		case .symbol:
 			SymbolsInspector(
 				design: $design,
-				indices: indices.filter { schematic.symbols.indices.contains($0) },
+				indices: indices.filter { board.footprints.indices.contains($0) },
 				focus: $focus
 			)
 		case .wire:
 			WiresInspector(
-				wires: indices.filter { schematic.wires.indices.contains($0) }.map { schematic.wires[$0] },
+				wires: indices.filter { board.wires.indices.contains($0) }.map { board.wires[$0] },
 				netlist: netlist
 			)
 		case .module:
@@ -45,16 +45,16 @@ struct SymbolsInspector: View {
 	@FocusState.Binding var focus: Property?
 
 	var body: some View {
-		let symbols = design.schematic.symbols
-		let kinds = indices.map { symbols[$0].kind }
-		let value = $design.value(of: indices.map(Schematic.Ref.symbol))
+		let footprints = design.board.footprints
+		let kinds = indices.map { footprints[$0].symbolKind }
+		let value = $design.value(of: indices.map(SchematicRef.symbol))
 		ValueRow(title: "Object", value: kinds.map(\.name).shared ?? "Symbols")
 		if indices.count > 1 { ValueRow(title: "Count", value: "\(indices.count)") }
 		if indices.count == 1, let index = indices.first {
 			TextRow(
 				title: "Ref",
-				prompt: symbols[index].kind.prefix,
-				text: $design.reference(of: Schematic.Ref.symbol(index)),
+				prompt: footprints[index].device.prefix,
+				text: $design.reference(of: SchematicRef.symbol(index)),
 				property: .reference,
 				focus: $focus
 			)
@@ -66,16 +66,16 @@ struct SymbolsInspector: View {
 			property: .value,
 			focus: $focus
 		)
-		ValuePicker(rotation: $design.schematic.symbols.shared(indices, \.rotation))
+		ValuePicker(rotation: $design.board.footprints.shared(indices, \.symbol.rotation))
 		ValuePicker(
 			title: "Facing",
-			value: $design.schematic.symbols.shared(indices, \.mirrored),
+			value: $design.board.footprints.shared(indices, \.symbol.mirrored),
 			options: [(true, "Mirrored"), (false, "Normal")]
 		)
 		if indices.count == 1, let index = indices.first {
-			PositionRows(at: $design.schematic.symbols[index, or: symbols[index]].at, focus: $focus)
-			ValueRow(title: "Pins", value: "\(symbols[index].pins.count)")
-			PinNetsInspector(pins: $design.schematic.symbols[index, or: symbols[index]].pins, focus: $focus)
+			PositionRows(at: $design.board.footprints[index, or: footprints[index]].symbol.at, focus: $focus)
+			ValueRow(title: "Pins", value: "\(footprints[index].symbol.pins.count)")
+			PinNetsInspector(pins: $design.board.footprints[index, or: footprints[index]].symbol.pins, focus: $focus)
 		}
 	}
 }

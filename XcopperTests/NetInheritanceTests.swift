@@ -125,7 +125,7 @@ final class NetInheritanceTests: XCTestCase {
 		design.board.traces = [trace(at, at + point(0, 10 * .mm), layer: 1)]
 		let harness = EditorHarness(design: design)
 		harness.perform {
-			$0.design.schematic.symbols[0].pins[0].netLabel = "SIGNAL"
+			$0.design.board.footprints[0].symbol.pins[0].netLabel = "SIGNAL"
 		}
 		let signal = harness.design.board.footprints[0].pads[0].net
 		XCTAssertNotNil(signal)

@@ -9,7 +9,7 @@ struct SchematicSideBar: View {
 
 	@FocusState private var focus: Property?
 
-	private var netlist: Netlist { Netlist(design.resolved.schematic) }
+	private var netlist: Netlist { Netlist(design.moduleProjection().sheet) }
 
 	var body: some View {
 		ScrollView(.vertical) {

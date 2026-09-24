@@ -86,6 +86,12 @@ extension Footprint {
 
 extension Footprint {
 
+	init(symbol spec: Symbol.Spec, reference: String, at: Point) {
+		self.init(spec: spec.footprint, reference: reference, at: .zero)
+		symbol = Symbol(spec: spec, at: at)
+		value = spec.value.isEmpty ? spec.component?.name ?? "" : spec.value
+	}
+
 	init(spec: Footprint.Spec, reference: String, at: Point) {
 		guard let built = spec.package.makeFootprint() else {
 			preconditionFailure("\(spec.package.name) has no generated footprint")
@@ -96,6 +102,7 @@ extension Footprint {
 			footprint.device = spec.component?.device ?? spec.device
 			footprint.component = spec.component
 			footprint.value = spec.component?.name ?? ""
+			footprint.symbol = Symbol(spec: spec.symbol, at: .zero)
 		}
 	}
 

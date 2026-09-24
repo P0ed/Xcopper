@@ -21,29 +21,29 @@ final class SupplyLabelTests: XCTestCase {
 			let ref = design.place(Symbol.Spec(kind: kind), at: point(20 * .mm, 20 * .mm))
 			XCTAssertEqual(design.board.footprints.count, before + 1, kind.name)
 			XCTAssertEqual(design.footprints(for: [ref]), [.footprint(before)], kind.name)
-			XCTAssertEqual(design.schematic.symbols.last?.reference, design.board.footprints.last?.reference)
+			XCTAssertEqual(design.board.footprints.last?.symbolKind, kind)
 		}
-		XCTAssertTrue(design.schematic.symbols.flatMap(\.pins).allSatisfy { $0.netLabel == nil })
+		XCTAssertTrue(design.board.symbols.flatMap(\.pins).allSatisfy { $0.netLabel == nil })
 	}
 
 	func testPinLabelsNormalizeNamesAndConnectSeparateSymbols() {
 		var design = design()
-		design.schematic.symbols[0].pins[0].netLabel = " VCC \n"
-		design.schematic.symbols[1].pins[0].netLabel = "VCC"
-		let one = design.schematic.symbols[0].placedPins[0].at
-		let two = design.schematic.symbols[1].placedPins[0].at
-		let netlist = Netlist(design.schematic)
+		design.board.footprints[0].symbol.pins[0].netLabel = " VCC \n"
+		design.board.footprints[1].symbol.pins[0].netLabel = "VCC"
+		let one = design.board.footprints[0].symbol.placedPins[0].at
+		let two = design.board.footprints[1].symbol.placedPins[0].at
+		let netlist = Netlist(design.board)
 		XCTAssertEqual(netlist.name(at: one), "VCC")
 		XCTAssertEqual(netlist.group(at: one), netlist.group(at: two))
-		design.schematic.symbols[0].pins[0].netLabel = nil
-		XCTAssertNil(Netlist(design.schematic).name(at: one))
-		XCTAssertEqual(Netlist(design.schematic).name(at: two), "VCC")
+		design.board.footprints[0].symbol.pins[0].netLabel = nil
+		XCTAssertNil(Netlist(design.board).name(at: one))
+		XCTAssertEqual(Netlist(design.board).name(at: two), "VCC")
 	}
 
 	func testFindingANetSelectsTheSymbolsThatSpecifyIt() {
 		var design = design()
 		for (index, name) in ["GND", "GND", "#1 OUT1"].enumerated() {
-			design.schematic.symbols[index].pins[0].netLabel = name
+			design.board.footprints[index].symbol.pins[0].netLabel = name
 		}
 		XCTAssertEqual(design.schematicRefs(matching: "gnd"), [.symbol(0), .symbol(1)])
 		XCTAssertEqual(design.layoutRefs(matching: "gnd"), [.footprint(0), .footprint(1)])
@@ -53,13 +53,13 @@ final class SupplyLabelTests: XCTestCase {
 
 	func testLabelsFollowPinTransformsAndSurviveDocumentRoundTrip() throws {
 		var design = design()
-		design.schematic.symbols[0].pins[0].netLabel = "#1 OUT1"
-		design.schematic.symbols[0].rotation = .r90
-		design.schematic.symbols[0].mirrored = true
-		let pin = design.schematic.symbols[0].placedPins[0]
+		design.board.footprints[0].symbol.pins[0].netLabel = "#1 OUT1"
+		design.board.footprints[0].symbol.rotation = .r90
+		design.board.footprints[0].symbol.mirrored = true
+		let pin = design.board.footprints[0].symbol.placedPins[0]
 		XCTAssertEqual(pin.netLabel, "#1 OUT1")
 		XCTAssertEqual(pin.netName, "OUT1")
-		XCTAssertEqual(Netlist(design.schematic).name(at: pin.at), "OUT1")
+		XCTAssertEqual(Netlist(design.board).name(at: pin.at), "OUT1")
 		XCTAssertEqual(try Document.decode(Document(design: design).encoded()), design)
 	}
 

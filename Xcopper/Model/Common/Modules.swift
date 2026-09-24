@@ -53,8 +53,6 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 	var symbol: Symbol {
 		let ports = interface.sorted(by: IODesignator.order)
 		var symbol = Symbol.ic(pinNames: ports.map(\.name))
-		symbol.reference = reference
-		symbol.value = name
 		symbol.at = schematicAt
 		symbol.rotation = schematicRotation
 		for i in symbol.pins.indices {
@@ -144,25 +142,31 @@ struct ModuleCache: Equatable {
 
 struct ModuleProjection {
 	var design: Design
+	var sheet: Board
 	var owners: [Ref: UUID] = [:]
-	var symbolOwners: [Schematic.Ref: UUID] = [:]
+	var symbolOwners: [SchematicRef: UUID] = [:]
 	var ports: [String: Net.ID] = [:]
 	var localNets: Set<Net.ID> = []
 	var interface: [IODesignator] = []
 	var interfaceError: String?
 	var report = Design.Report()
 
+	init(design: Design) {
+		self.design = design
+		sheet = design.board
+	}
+
 	func owner(_ ref: Ref) -> Ref {
 		if case let .pad(index, _) = ref { return owners[.footprint(index)].map(Ref.module) ?? ref }
 		return owners[ref].map(Ref.module) ?? ref
 	}
-	func owner(_ ref: Schematic.Ref) -> Schematic.Ref { symbolOwners[ref].map(Schematic.Ref.module) ?? ref }
+	func owner(_ ref: SchematicRef) -> SchematicRef { symbolOwners[ref].map(SchematicRef.module) ?? ref }
 	func expanded(_ refs: Set<Ref>) -> Set<Ref> {
 		let ids = refs.moduleIDs
 		guard !ids.isEmpty else { return refs }
 		return refs.union(owners.compactMap { ids.contains($0.value) ? $0.key : nil })
 	}
-	func expanded(_ refs: Set<Schematic.Ref>) -> Set<Schematic.Ref> {
+	func expanded(_ refs: Set<SchematicRef>) -> Set<SchematicRef> {
 		let ids = refs.moduleIDs
 		guard !ids.isEmpty else { return refs }
 		return refs.union(symbolOwners.compactMap { ids.contains($0.value) ? $0.key : nil })
@@ -178,7 +182,7 @@ private func moduleNetID(_ key: String) -> Int {
 
 extension Design {
 	mutating func synchronizeParameters() {
-		let values = schematic.symbols.map(\.value) + modules.flatMap { module in
+		let values = board.footprints.map(\.value) + modules.flatMap { module in
 			module.parameters.compactMap { module.parameterValues[$0.name] }
 		}
 		let names = Set(values.compactMap(ModuleParameter.name(in:)))
@@ -191,18 +195,11 @@ extension Design {
 		if parameters != next { parameters = next }
 	}
 
-	private var parameterReferences: [String: String] {
-		Dictionary(schematic.symbols.compactMap { symbol in
-			ModuleParameter.name(in: symbol.value).map { (symbol.reference, $0) }
-		}, uniquingKeysWith: { first, _ in first })
-	}
-
 	func applyParameterDefaults(to board: inout Board) {
 		guard !parameters.isEmpty else { return }
-		let references = parameterReferences
 		let defaults = Dictionary(parameters.map { ($0.name, $0.defaultValue) }, uniquingKeysWith: { first, _ in first })
 		board.footprints.modifyEach { footprint in
-			if let name = references[footprint.reference] ?? ModuleParameter.name(in: footprint.value),
+			if let name = ModuleParameter.name(in: footprint.value),
 				let value = defaults[name] {
 				footprint.value = value
 			}
@@ -231,12 +228,6 @@ extension Design {
 		var result = ModuleProjection(design: self)
 		result.design.modules = []
 		result.design.moduleCache = ModuleCache()
-		let parameterReferences = self.parameterReferences
-		for index in result.design.board.footprints.indices {
-			if let name = parameterReferences[result.design.board.footprints[index].reference] {
-				result.design.board.footprints[index].value = "#" + name
-			}
-		}
 		var nets = Dictionary(nets.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 		var portsBySymbol: [Int: [String: Int]] = [:]
 		var merge = UnionFind<Int>()
@@ -249,12 +240,14 @@ extension Design {
 			return id
 		}
 		for module in modules {
-			let symbolIndex = result.design.schematic.symbols.count
+			let symbolIndex = result.sheet.footprints.count
 			result.symbolOwners[.symbol(symbolIndex)] = module.id
 			let status = moduleStatus(module.id)
-			var symbol = module.symbol
-			if status != nil { symbol.value = "⚠ Unresolved: " + module.name }
-			result.design.schematic.symbols.append(symbol)
+			result.sheet.footprints.append(Footprint(
+				reference: module.reference, value: status == nil ? module.name : "⚠ Unresolved: " + module.name,
+				at: .zero, rotation: .r0, flipped: false, pads: [], body: module.symbol.body,
+				device: .ic, symbol: module.symbol
+			))
 			guard status == nil, let content = moduleCache.contents[module.id] else { continue }
 			var mapping: [Int: Int] = [:]
 			for net in content.nets {
@@ -304,55 +297,43 @@ extension Design {
 			}
 		}
 
-		let electrical = result.design.schematic
+		let electrical = result.sheet
 		let netlist = Netlist(electrical)
-		var footprintsByReference: [String: [Int]] = [:]
-		for i in board.footprints.indices { footprintsByReference[board.footprints[i].reference, default: []].append(i) }
 		var groupsByNet: [Net.ID: Set<Int>] = [:]
 		for (index, group) in netlist.groups.enumerated() {
 			if let name = group.name, let id = netIDsByName[name] { groupsByNet[id, default: []].insert(index) }
-			for node in group.nodes where node.symbol < schematic.symbols.count {
-				let symbol = electrical.symbols[node.symbol]
+			for node in group.nodes where node.symbol < board.footprints.count {
+				let symbol = electrical.footprints[node.symbol].symbol
 				let pin = symbol.pins[node.pin].number
-				for i in footprintsByReference[symbol.reference] ?? [] {
-					for pad in board.footprints[i].pads where pad.name == pin {
-						if let id = pad.net { groupsByNet[id, default: []].insert(index) }
-					}
+				for pad in board.footprints[node.symbol].pads where pad.name == pin {
+					if let id = pad.net { groupsByNet[id, default: []].insert(index) }
 				}
 			}
 		}
 		var pointNets: [Point: Int] = [:]
 		var assignments: [(Int, Int, Int)] = []
-		var wired: Set<String> = []
 		for group in netlist.groups {
 			let nodes = group.nodes.sorted { ($0.symbol, $0.pin) < ($1.symbol, $1.pin) }
 			let active = nodes.count > 1 || group.name != nil
 			var connected: [Int] = []
 			var pads: [(Int, Int)] = []
 			for node in nodes {
-				let symbol = electrical.symbols[node.symbol]
+				let symbol = electrical.footprints[node.symbol].symbol
 				let pin = symbol.pins[node.pin].number
 				if let id = portsBySymbol[node.symbol]?[pin] {
 					connected.append(id)
 					if active { result.report.assigned += 1 }
 					continue
 				}
-				guard node.symbol < schematic.symbols.count else { continue }
-				let matches = footprintsByReference[symbol.reference] ?? []
-				if active {
-					wired.insert(symbol.reference)
-					if matches.isEmpty {
-						result.report.missingFootprints.append(symbol.reference)
-					} else if !matches.contains(where: { board.footprints[$0].pads.contains { $0.name == pin } }) {
-						result.report.missingPins.append("\(symbol.reference).\(pin)")
-					}
+				guard node.symbol < board.footprints.count else { continue }
+				if active && !board.footprints[node.symbol].pads.contains(where: { $0.name == pin }) {
+					result.report.missingPins.append("\(board.footprints[node.symbol].reference).\(pin)")
 				}
-				for i in matches {
-					for j in board.footprints[i].pads.indices where board.footprints[i].pads[j].name == pin {
-						pads.append((i, j))
-						if let id = board.footprints[i].pads[j].net, groupsByNet[id]?.count == 1 {
-							connected.append(id)
-						}
+				let footprint = board.footprints[node.symbol]
+				for index in footprint.pads.indices where footprint.pads[index].name == pin {
+					pads.append((node.symbol, index))
+					if let id = footprint.pads[index].net, groupsByNet[id]?.count == 1 {
+						connected.append(id)
 					}
 				}
 			}
@@ -373,10 +354,11 @@ extension Design {
 		for (i, j, id) in assignments { result.design.board.footprints[i].pads[j].net = id }
 		result.design.board.mapNets { $0.map { merge.find($0) } }
 		var interface: [Int: IODesignator] = [:]
-		for symbol in electrical.symbols {
+		for footprint in electrical.footprints {
+			let symbol = footprint.symbol
 			for pin in symbol.placedPins {
 				if pin.hasInvalidIO {
-					result.interfaceError = "\(symbol.reference).\(pin.number): use # followed by a positive pin number and a net name, such as #1 OUT1."
+					result.interfaceError = "\(footprint.reference).\(pin.number): use # followed by a positive pin number and a net name, such as #1 OUT1."
 					continue
 				}
 				guard let port = pin.ioDesignator, let id = pointNets[pin.at].map({ merge.find($0) }) else { continue }
@@ -392,9 +374,7 @@ extension Design {
 			}
 		}
 		result.interface = interface.values.sorted(by: IODesignator.order)
-		result.report.missingFootprints = Set(result.report.missingFootprints).sorted()
 		result.report.missingPins.sort()
-		result.report.extraFootprints = board.footprints.map(\.reference).filter { !wired.contains($0) }.sorted()
 		let nativeIDs = Set(self.nets.map(\.id))
 		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.find($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }
 		result.report.created = result.design.nets.filter { !nativeIDs.contains($0.id) && !result.localNets.contains($0.id) }.map(\.name)

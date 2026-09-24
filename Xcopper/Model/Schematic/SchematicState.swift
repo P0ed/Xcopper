@@ -39,9 +39,9 @@ struct SchematicState: Equatable, SelectionState {
 	var snap: µm = .sheetSnapGrids.last!
 	var grid: µm = .displayGrids.last!
 	var spec: Symbol.Spec = .default
-	var selection: Set<Schematic.Ref> = []
+	var selection: Set<SchematicRef> = []
 	var wireSession: WireSession?
-	var selectSession: SelectSession<Schematic.Ref>?
+	var selectSession: SelectSession<SchematicRef>?
 	var moveSession: MoveSession?
 	var modulePlacement: ModulePlacement?
 	var viewport: Viewport = .init()

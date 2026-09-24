@@ -5,7 +5,6 @@ extension Design {
 		!value.trimmingWhitespace.isEmpty
 			&& !modules.contains { $0.id != id && $0.reference == value }
 			&& !board.footprints.contains { $0.reference == value }
-			&& !schematic.symbols.contains { $0.reference == value }
 	}
 
 	mutating func renameReference(_ ref: Ref, to value: String) {
@@ -16,17 +15,17 @@ extension Design {
 			modules[index].reference = value
 		case let .footprint(index) where board.footprints.indices.contains(index):
 			guard referenceIsFree(value) else { return }
-			rename(board.footprints[index].reference, to: value)
+			board.footprints[index].reference = value
 		default: break
 		}
 	}
 
-	mutating func renameReference(_ ref: Schematic.Ref, to value: String) {
+	mutating func renameReference(_ ref: SchematicRef, to value: String) {
 		switch ref {
 		case let .module(id): renameReference(Ref.module(id), to: value)
-		case let .symbol(index) where schematic.symbols.indices.contains(index):
+		case let .symbol(index) where board.footprints.indices.contains(index):
 			guard referenceIsFree(value) else { return }
-			rename(schematic.symbols[index].reference, to: value)
+			board.footprints[index].reference = value
 		default: break
 		}
 	}
@@ -80,27 +79,27 @@ extension Design {
 		return Set(projection.design.board.refs(in: rect, layers: layers, whole: whole).map { projection.owner($0) })
 	}
 
-	func schematicRef(at point: Point, tolerance: Int) -> Schematic.Ref? {
+	func schematicRef(at point: Point, tolerance: Int) -> SchematicRef? {
 		let projection = moduleProjection()
-		return projection.design.schematic.hitTest(at: point, tolerance: tolerance).map { projection.owner($0) }
+		return projection.sheet.schematicHitTest(at: point, tolerance: tolerance).map { projection.owner($0) }
 	}
 
-	func schematicRefs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<Schematic.Ref> {
+	func schematicRefs(at point: Point, tolerance: Int, whole: Bool = false) -> Set<SchematicRef> {
 		let projection = moduleProjection()
-		return Set(projection.design.schematic.refs(at: point, tolerance: tolerance, whole: whole).map { projection.owner($0) })
+		return Set(projection.sheet.schematicRefs(at: point, tolerance: tolerance, whole: whole).map { projection.owner($0) })
 	}
 
-	func schematicRefs(in rect: Rect, whole: Bool = false) -> Set<Schematic.Ref> {
+	func schematicRefs(in rect: Rect, whole: Bool = false) -> Set<SchematicRef> {
 		let projection = moduleProjection()
-		return Set(projection.design.schematic.refs(in: rect, whole: whole).map { projection.owner($0) })
+		return Set(projection.sheet.schematicRefs(in: rect, whole: whole).map { projection.owner($0) })
 	}
 
 	func layoutBounds(_ refs: Set<Ref>) -> Rect? {
 		Rect.union([resolved.board.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map(\.bounds))
 	}
 
-	func schematicBounds(_ refs: Set<Schematic.Ref>) -> Rect? {
-		Rect.union([schematic.bounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map { $0.symbol.placedExtent })
+	func schematicBounds(_ refs: Set<SchematicRef>) -> Rect? {
+		Rect.union([board.schematicBounds(of: refs)].compactMap { $0 } + modules.filter { refs.contains(.module($0.id)) }.map { $0.symbol.placedExtent })
 	}
 
 	@discardableResult
@@ -109,16 +108,14 @@ extension Design {
 		let counterparts = symbols(for: refs)
 		removeModules(refs.moduleIDs)
 		board.remove(refs)
-		schematic.remove(counterparts)
 		return !counterparts.isEmpty
 	}
 
 	@discardableResult
-	mutating func deleteSchematic(_ refs: Set<Schematic.Ref>) -> Bool {
+	mutating func deleteSchematic(_ refs: Set<SchematicRef>) -> Bool {
 		let counterparts = footprints(for: refs)
 		removeModules(refs.moduleIDs)
-		schematic.remove(refs)
-		board.remove(counterparts)
+		board.removeSchematic(refs)
 		return !counterparts.isEmpty
 	}
 
@@ -126,31 +123,33 @@ extension Design {
 		guard !containsModuleParts(refs) else { return refs }
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
 		let created = board.duplicate(refs, by: delta)
-		var taken = schematic.occupied
+		var taken = moduleProjection().sheet.schematicOccupied
 		var used = usedReferences
 		for case let .footprint(index) in created.sorted(by: Ref.order) {
 			let source = board.footprints[index].reference
 			let reference = Xcopper.nextReference(like: source, used: used)
 			used.insert(reference)
 			board.footprints[index].reference = reference
-			park(symbol(of: source), as: reference, clear: &taken)
+			board.footprints[index].symbol.at = board.parking(for: board.footprints[index].symbol, clear: taken)
+			taken.append(board.footprints[index].symbol.placedExtent)
 		}
 		return created.union(ids.map(Ref.module))
 	}
 
-	mutating func duplicateSchematic(_ refs: Set<Schematic.Ref>, by delta: Point) -> Set<Schematic.Ref> {
+	mutating func duplicateSchematic(_ refs: Set<SchematicRef>, by delta: Point) -> Set<SchematicRef> {
 		let ids = duplicateModules(refs.moduleIDs, by: delta)
-		let created = schematic.duplicate(refs, by: delta)
+		let created = board.duplicateSchematic(refs, by: delta)
 		var taken = board.occupied
 		var used = usedReferences
-		for case let .symbol(index) in created.sorted(by: Schematic.Ref.order) {
-			let source = schematic.symbols[index].reference
+		for case let .symbol(index) in created.sorted(by: SchematicRef.order) {
+			let source = board.footprints[index].reference
 			let reference = Xcopper.nextReference(like: source, used: used)
 			used.insert(reference)
-			schematic.symbols[index].reference = reference
-			park(footprint(of: source), as: reference, clear: &taken)
+			board.footprints[index].reference = reference
+			board.footprints[index].at = board.parking(for: board.footprints[index], clear: taken)
+			taken.append(board.footprints[index].placedExtent)
 		}
-		return created.union(ids.map(Schematic.Ref.module))
+		return created.union(ids.map(SchematicRef.module))
 	}
 
 	mutating func removeModules(_ ids: Set<UUID>) {
@@ -207,21 +206,20 @@ extension Design {
 	}
 
 	@discardableResult
-	mutating func moveSchematic(_ refs: Set<Schematic.Ref>, by delta: Point, grid: µm = 2_540) -> Set<Schematic.Ref>? {
-		var repair = schematic
+	mutating func moveSchematic(_ refs: Set<SchematicRef>, by delta: Point, grid: µm = 2_540) -> Set<SchematicRef>? {
+		var repair = moduleProjection().sheet
 		var moving = refs
-		for module in modules {
-			if refs.contains(.module(module.id)) { moving.insert(.symbol(repair.symbols.count)) }
-			repair.symbols.append(module.symbol)
+		for (index, module) in modules.enumerated() where refs.contains(.module(module.id)) {
+			moving.insert(.symbol(board.footprints.count + index))
 		}
-		guard let repaired = repair.move(moving, by: delta, grid: grid) else { return nil }
-		repair.symbols = Array(repair.symbols.prefix(schematic.symbols.count))
-		schematic = repair
+		guard let repaired = repair.moveSchematic(moving, by: delta, grid: grid) else { return nil }
+		board.wires = repair.wires
+		for index in board.footprints.indices { board.footprints[index].symbol = repair.footprints[index].symbol }
 		for i in modules.indices where refs.contains(.module(modules[i].id)) {
 			modules[i].schematicAt = modules[i].schematicAt + delta
 		}
 		return Set(repaired.filter {
-			if case let .symbol(index) = $0 { return index < schematic.symbols.count }
+			if case let .symbol(index) = $0 { return index < board.footprints.count }
 			return true
 		})
 	}
@@ -238,10 +236,10 @@ extension Design {
 		}
 	}
 
-	mutating func rotateSchematic(_ refs: Set<Schematic.Ref>, clockwise: Bool) {
+	mutating func rotateSchematic(_ refs: Set<SchematicRef>, clockwise: Bool) {
 		guard let pivot = schematicBounds(refs)?.center else { return }
 		let rotation: Rotation = clockwise ? .r90 : .r270
-		schematic.rotate(refs, clockwise: clockwise, around: pivot)
+		board.rotateSchematic(refs, clockwise: clockwise, around: pivot)
 		for i in modules.indices where refs.contains(.module(modules[i].id)) {
 			modules[i].schematicAt = (modules[i].schematicAt - pivot).rotated(rotation) + pivot
 			modules[i].schematicRotation = modules[i].schematicRotation.adding(rotation)
@@ -313,7 +311,7 @@ extension Design {
 		resolver.reload(&candidate, documentURL: documentURL)
 		if let error = candidate.moduleStatus(instance.id) { throw Err(error) }
 		let index = candidate.modules.count - 1
-		candidate.modules[index].schematicAt = resolved.schematic.parking(for: candidate.modules[index].symbol)
+		candidate.modules[index].schematicAt = moduleProjection().sheet.parking(for: candidate.modules[index].symbol)
 		candidate.modules[index].layoutAt = parking(
 			candidate.modules[index].bounds, in: board.bounds,
 			clear: resolved.board.occupied + modules.map(\.bounds)
@@ -333,10 +331,10 @@ extension Design {
 		}
 	}
 
-	func reference(of ref: Schematic.Ref) -> String {
+	func reference(of ref: SchematicRef) -> String {
 		switch ref {
 		case let .module(id): modules.first { $0.id == id }?.reference ?? ""
-		case let .symbol(index): schematic.symbols.indices.contains(index) ? schematic.symbols[index].reference : ""
+		case let .symbol(index): board.footprints.indices.contains(index) ? board.footprints[index].reference : ""
 		default: ""
 		}
 	}
@@ -347,13 +345,13 @@ extension Binding where Value == Design {
 		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
 	}
 
-	func reference(of ref: Schematic.Ref) -> Binding<String> {
+	func reference(of ref: SchematicRef) -> Binding<String> {
 		Binding<String>(get: { wrappedValue.reference(of: ref) }, set: { wrappedValue.renameReference(ref, to: $0) })
 	}
 
 	func value(of ref: Ref) -> Binding<String?> { value(of: [ref]) }
 
-	func value(of refs: [Schematic.Ref]) -> Binding<String?> {
+	func value(of refs: [SchematicRef]) -> Binding<String?> {
 		Binding<String?>(
 			get: { wrappedValue.values(of: refs).shared },
 			set: { value in if let value { wrappedValue.setValue(refs, to: value) } }
@@ -372,7 +370,7 @@ extension Set where Element == Ref {
 	var moduleIDs: Set<UUID> { Set<UUID>(compactMap { if case let .module(id) = $0 { id } else { nil } }) }
 	var hasModules: Bool { contains { if case .module = $0 { true } else { false } } }
 }
-extension Set where Element == Schematic.Ref {
+extension Set where Element == SchematicRef {
 	var moduleIDs: Set<UUID> { Set<UUID>(compactMap { if case let .module(id) = $0 { id } else { nil } }) }
 	var hasModules: Bool { contains { if case .module = $0 { true } else { false } } }
 }

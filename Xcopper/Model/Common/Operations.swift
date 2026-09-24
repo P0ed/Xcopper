@@ -18,7 +18,6 @@ struct Clipboard: Equatable, Codable {
 	var vias: [Via] = []
 	var holes: [Hole] = []
 	var footprints: [Footprint] = []
-	var symbols: [Symbol] = []
 	var wires: [Wire] = []
 	var modules: [ModuleInstance] = []
 
@@ -27,7 +26,7 @@ struct Clipboard: Equatable, Codable {
 	}
 
 	var schematicIsEmpty: Bool {
-		symbols.isEmpty && wires.isEmpty && modules.isEmpty
+		footprints.isEmpty && wires.isEmpty && modules.isEmpty
 	}
 
 	func isEmpty(in mode: Mode) -> Bool {
@@ -36,14 +35,6 @@ struct Clipboard: Equatable, Codable {
 		case .schematic: schematicIsEmpty
 		case .preview: true
 		}
-	}
-
-	func symbol(of reference: String) -> Symbol? {
-		symbols.first { $0.reference == reference }
-	}
-
-	func footprint(of reference: String) -> Footprint? {
-		footprints.first { $0.reference == reference }
 	}
 }
 
@@ -103,7 +94,7 @@ extension Operations {
 	func scaleToFit() {
 		switch mode {
 		case .layout: layout.viewport.fit(design.board.size)
-		case .schematic: schematic.viewport.fit(design.schematic.size)
+		case .schematic: schematic.viewport.fit(design.board.sheetSize)
 		case .preview: preview.frame(design.resolved.board)
 		}
 	}
@@ -144,7 +135,7 @@ extension Operations {
 		guard !hasModuleSelection, !hasReadOnlySelection else { return }
 		switch mode {
 		case .layout: design.board.flip(layout.selection)
-		case .schematic: design.schematic.mirror(schematic.selection)
+		case .schematic: design.board.mirrorSchematic(schematic.selection)
 		case .preview: break
 		}
 	}
@@ -161,7 +152,7 @@ extension Operations {
 	func selectAll() {
 		switch mode {
 		case .layout: layout.selection = design.layoutRefs(in: design.board.bounds, layers: layout.selectionLayers(in: design.board.stack))
-		case .schematic: schematic.selection = design.schematicRefs(in: design.schematic.bounds)
+		case .schematic: schematic.selection = design.schematicRefs(in: design.board.sheetBounds)
 		case .preview: break
 		}
 	}
@@ -241,7 +232,7 @@ extension Operations {
 		if let at = point ?? design.layoutBounds(refs)?.center { layout.viewport.reveal(at) }
 	}
 
-	private func reveal(_ refs: Set<Schematic.Ref>) {
+	private func reveal(_ refs: Set<SchematicRef>) {
 		schematic.cancelSessions()
 		schematic.selection = refs
 		if let at = design.schematicBounds(refs)?.center { schematic.viewport.reveal(at) }
@@ -288,11 +279,9 @@ extension Operations {
 			next.vias = refs.compactMap { if case let .via(i) = $0, board.vias.indices.contains(i) { board.vias[i] } else { nil } }
 			next.holes = refs.compactMap { if case let .hole(i) = $0, board.holes.indices.contains(i) { board.holes[i] } else { nil } }
 			next.footprints = design.footprints(at: refs)
-			next.symbols = design.symbols(at: design.symbols(for: layout.selection).sorted(by: Schematic.Ref.order))
 		case .schematic:
-			let refs = schematic.selection.sorted(by: Schematic.Ref.order)
-			let sheet = design.schematic
-			next.symbols = design.symbols(at: refs)
+			let refs = schematic.selection.sorted(by: SchematicRef.order)
+			let sheet = design.board
 			next.wires = refs.compactMap { if case let .wire(i) = $0, sheet.wires.indices.contains(i) { sheet.wires[i] } else { nil } }
 			next.footprints = design.footprints(at: design.footprints(for: schematic.selection).sorted(by: Ref.order))
 		case .preview:
@@ -333,7 +322,7 @@ extension Operations {
 			next.board.holes.append(modifying(hole) { hole in hole.at = hole.at + delta })
 			created.insert(.hole(next.board.holes.count - 1))
 		}
-		var taken = next.schematic.occupied
+		var taken = next.moduleProjection().sheet.schematicOccupied
 		var used = next.usedReferences
 		for footprint in clipboard.footprints {
 			let reference = Xcopper.nextReference(like: footprint.reference, used: used)
@@ -341,9 +330,10 @@ extension Operations {
 			next.board.footprints.append(modifying(footprint) { copy in
 				copy.at = copy.at + delta
 				copy.reference = reference
+				copy.symbol.at = next.board.parking(for: copy.symbol, clear: taken)
+				taken.append(copy.symbol.placedExtent)
 			})
 			created.insert(.footprint(next.board.footprints.count - 1))
-			next.park(clipboard.symbol(of: footprint.reference), as: reference, clear: &taken)
 		}
 		design = next
 		layout.selection = created.union(moduleIDs.map(Ref.module))
@@ -352,29 +342,30 @@ extension Operations {
 	private func pasteSchematic(moduleIDs: Set<UUID>) {
 		let delta = offset
 		var next = design
-		var created: Set<Schematic.Ref> = []
+		var created: Set<SchematicRef> = []
 
 		for wire in clipboard.wires {
-			next.schematic.wires.append(modifying(wire) { wire in
+			next.board.wires.append(modifying(wire) { wire in
 				wire.start = wire.start + delta
 				wire.end = wire.end + delta
 			})
-			created.insert(.wire(next.schematic.wires.count - 1))
+			created.insert(.wire(next.board.wires.count - 1))
 		}
 		var taken = next.board.occupied
 		var used = next.usedReferences
-		for symbol in clipboard.symbols {
-			let reference = Xcopper.nextReference(like: symbol.reference, used: used)
+		for footprint in clipboard.footprints {
+			let reference = Xcopper.nextReference(like: footprint.reference, used: used)
 			used.insert(reference)
-			next.schematic.symbols.append(modifying(symbol) { copy in
-				copy.at = copy.at + delta
+			next.board.footprints.append(modifying(footprint) { copy in
+				copy.symbol.at = copy.symbol.at + delta
 				copy.reference = reference
+				copy.at = next.board.parking(for: copy, clear: taken)
+				taken.append(copy.placedExtent)
 			})
-			created.insert(.symbol(next.schematic.symbols.count - 1))
-			next.park(clipboard.footprint(of: symbol.reference), as: reference, clear: &taken)
+			created.insert(.symbol(next.board.footprints.count - 1))
 		}
 		design = next
-		schematic.selection = created.union(moduleIDs.map(Schematic.Ref.module))
+		schematic.selection = created.union(moduleIDs.map(SchematicRef.module))
 	}
 }
 
@@ -386,7 +377,7 @@ extension Operations {
 			return
 		}
 		design = modifying(design) { design in
-			design.schematic.size = sheet
+			design.board.sheetSize = sheet
 			design.board.size = size
 			design.board.solderMask = solderMask
 			if stack != design.board.stack {

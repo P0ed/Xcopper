@@ -13,9 +13,9 @@ final class SyncTests: XCTestCase {
 			design.place(Symbol.Spec(kind: .resistor), at: point(x, y))
 		}
 		for pair in [(0, 1), (2, 3)] {
-			design.schematic.wires.append(Wire(
-				start: design.schematic.symbols[pair.0].placedPins[0].at,
-				end: design.schematic.symbols[pair.1].placedPins[0].at
+			design.board.wires.append(Wire(
+				start: design.board.footprints[pair.0].symbol.placedPins[0].at,
+				end: design.board.footprints[pair.1].symbol.placedPins[0].at
 			))
 		}
 		return design
@@ -47,23 +47,23 @@ final class SyncTests: XCTestCase {
 	func testNewUnnamedNetsAreIndependentOfCoordinatesAndStorageOrder() {
 		var first = connectedDesign()
 		var reordered = first
-		reordered.schematic.symbols.reverse()
-		reordered.schematic.wires.reverse()
+		reordered.board.footprints.reverse()
+		reordered.board.wires.reverse()
 		let delta = point(10 * .mm, 40 * .mm)
-		reordered.schematic.symbols.modifyEach { $0.at = $0.at + delta }
-		reordered.schematic.wires.modifyEach {
+		reordered.board.footprints.modifyEach { $0.symbol.at = $0.symbol.at + delta }
+		reordered.board.wires.modifyEach {
 			$0.start = $0.start + delta
 			$0.end = $0.end + delta
 		}
 		_ = first.updateBoardFromSchematic()
 		_ = reordered.updateBoardFromSchematic()
 		XCTAssertEqual(first.nets, reordered.nets)
-		XCTAssertEqual(first.board, reordered.board)
+		XCTAssertEqual(first.board.footprints.map(\.pads), reordered.board.footprints.reversed().map(\.pads))
 		XCTAssertEqual(first.net(first.board.footprints[0].pads[0].net)?.name, "N$R1.1/R2.1")
 		XCTAssertNotEqual(first.board.footprints[0].pads[0].net, first.board.footprints[2].pads[0].net)
 	}
 
-	func testUnnamedNetsWithoutFootprintsAreAlsoStable() {
+	func testRemovingFootprintsAlsoRemovesTheirSymbols() {
 		var design = connectedDesign()
 		design.board.footprints = []
 		_ = design.updateBoardFromSchematic()
@@ -74,7 +74,7 @@ final class SyncTests: XCTestCase {
 
 	func testGeneratedNamesDoNotJoinAnExplicitlyNamedGroup() {
 		var design = connectedDesign()
-		design.schematic.symbols[2].pins[0].netLabel = "N$R1.1/R2.1"
+		design.board.footprints[2].symbol.pins[0].netLabel = "N$R1.1/R2.1"
 		_ = design.updateBoardFromSchematic()
 		XCTAssertNotEqual(design.board.footprints[0].pads[0].net, design.board.footprints[2].pads[0].net)
 		let synced = design
@@ -86,12 +86,12 @@ final class SyncTests: XCTestCase {
 		let harness = EditorHarness(design: connectedDesign())
 		let original = harness.design
 		harness.perform {
-			$0.$design.schematic.symbols[0].pins[0].netLabel.wrappedValue = "SIGNAL"
+			$0.$design.board.footprints[0].symbol.pins[0].netLabel.wrappedValue = "SIGNAL"
 		}
 		let labelled = harness.design
 		XCTAssertEqual(labelled.net(labelled.board.footprints[0].pads[0].net)?.name, "SIGNAL")
 		harness.perform {
-			$0.$design.schematic.symbols[0].pins[0].netLabel.wrappedValue = "RENAMED"
+			$0.$design.board.footprints[0].symbol.pins[0].netLabel.wrappedValue = "RENAMED"
 		}
 		let renamed = harness.design
 		XCTAssertEqual(renamed.net(renamed.board.footprints[1].pads[0].net)?.name, "RENAMED")
@@ -107,15 +107,17 @@ final class SyncTests: XCTestCase {
 	func testMovingAndEditingTheSchematicPreservesBoardNetIDs() {
 		let harness = EditorHarness(design: connectedDesign())
 		harness.editor.mode = .schematic
-		harness.perform { $0.design.schematic.symbols[0].value = "1K" }
+		harness.perform { $0.design.board.footprints[0].value = "1K" }
 		let synced = harness.design
 		harness.schematic.selection = [.symbol(0), .symbol(1), .wire(0)]
 		harness.perform { $0.nudge(dy: 1) }
-		XCTAssertNotEqual(harness.design.schematic, synced.schematic)
-		XCTAssertEqual(harness.design.board, synced.board)
+		XCTAssertNotEqual(harness.design.board.symbols, synced.board.symbols)
+		XCTAssertEqual(harness.design.board.footprints.map(\.pads), synced.board.footprints.map(\.pads))
+		XCTAssertEqual(harness.design.board.traces, synced.board.traces)
 		XCTAssertEqual(harness.design.nets, synced.nets)
-		harness.perform { $0.design.schematic.symbols[0].pins[1].name = "UNRELATED" }
-		XCTAssertEqual(harness.design.board, synced.board)
+		harness.perform { $0.design.board.footprints[0].symbol.pins[1].name = "UNRELATED" }
+		XCTAssertEqual(harness.design.board.footprints.map(\.pads), synced.board.footprints.map(\.pads))
+		XCTAssertEqual(harness.design.board.traces, synced.board.traces)
 		XCTAssertEqual(harness.design.nets, synced.nets)
 	}
 

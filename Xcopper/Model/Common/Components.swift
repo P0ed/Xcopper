@@ -138,8 +138,6 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 		default:
 			symbol = .ic(pinNames: pinNames)
 		}
-		symbol.component = self
-		symbol.value = name
 		return symbol
 	}
 
@@ -149,6 +147,7 @@ enum Component: String, Codable, CaseIterable, Identifiable {
 				$0.device = device
 				$0.component = self
 				$0.value = name
+				$0.symbol = makeSymbol()
 			}
 		}
 	}
