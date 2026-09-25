@@ -27,8 +27,7 @@ struct LayoutDrawing {
 		closed: Bool = false,
 		width: µm,
 		color: Color,
-		level: Int,
-		dash: µm = 0
+		level: Int
 	) {
 		guard points.count >= 2 else { return }
 		let points = closed ? points + [points[0]] : points
@@ -40,12 +39,7 @@ struct LayoutDrawing {
 			guard length > 0.0 else { continue }
 			let direction = delta * (1.0 / length)
 			let side = V3(x: -direction.y, y: direction.x, z: 0.0) * (Double.mm(width) / 2.0)
-			let step = dash > 0 ? Double.mm(dash) : length
-			for start in stride(from: 0.0, to: length, by: step * 2.0) {
-				let a = from + direction * start
-				let b = from + direction * min(start + step, length)
-				model.add([a - side, b - side, b + side, a + side], shade: shade(color), level: level)
-			}
+			model.add([from - side, to - side, to + side, from + side], shade: shade(color), level: level)
 		}
 	}
 

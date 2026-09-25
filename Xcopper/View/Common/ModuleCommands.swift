@@ -2,6 +2,23 @@ import AppKit
 import SwiftUI
 
 @MainActor
+final class ModuleSourceContext {
+	static let shared = ModuleSourceContext()
+	static let changed = Notification.Name("ModuleSourceContextChanged")
+	private var pending: [URL: [String: String]] = [:]
+
+	func set(_ values: [String: String], for url: URL) {
+		pending[url.resolvingSymlinksInPath().standardizedFileURL] = values
+		NotificationCenter.default.post(name: Self.changed, object: self)
+	}
+
+	func take(for url: URL?) -> [String: String]? {
+		guard let url else { return nil }
+		return pending.removeValue(forKey: url.resolvingSymlinksInPath().standardizedFileURL)
+	}
+}
+
+@MainActor
 private final class ModuleFolderAccess {
 	private var scopes: [URL] = []
 	private var folders: Set<URL> = []
@@ -258,10 +275,15 @@ extension Operations {
 			let folder = documentURL.deletingLastPathComponent()
 			let library = try ModuleLibrary(folder: folder, access: access.allow)
 			let url = try library.url(for: module.name)
+			let values = module.resolvedParameterValues(using: design.parameterValues(overriding: editor.parameterValues))
 			NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
 				Task { @MainActor in
 					access.close()
-					if error != nil { moduleAlert("Could not open module source", "Could not open module “\(module.name)”. Check its source and folder access.") }
+					if error != nil {
+						moduleAlert("Could not open module source", "Could not open module “\(module.name)”. Check its source and folder access.")
+					} else {
+						ModuleSourceContext.shared.set(values, for: url)
+					}
 				}
 			}
 		} catch {
@@ -362,7 +384,6 @@ struct ModuleInspector: View {
 			TextRow(title: "Ref", text: $design.reference(of: Ref.module(id)), property: .reference, focus: $focus)
 			PositionRows(at: position, focus: $focus)
 			ValuePicker(rotation: Binding(rotation))
-			let status = design.moduleStatus(id)
 			if !module.parameters.isEmpty {
 				Panel(title: "Parameters") {
 					ForEach(module.parameters) { parameter in

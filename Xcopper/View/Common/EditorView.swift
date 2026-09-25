@@ -41,7 +41,9 @@ struct EditorView: View {
 			undoManager?.disableUndoRegistration()
 			defer { undoManager?.enableUndoRegistration() }
 			operations.reloadModules(automatic: true)
+			applyModuleParameters()
 		}
+		.onReceive(NotificationCenter.default.publisher(for: ModuleSourceContext.changed)) { _ in applyModuleParameters() }
 		.onChange(of: editor.editing) { _, editing in if editing == nil { focused = true } }
 		.onChange(of: editor.mode) { previous, _ in
 			if previous == .layout { layout.modulePlacement = nil }
@@ -80,6 +82,12 @@ struct EditorView: View {
 		)
 	}
 
+	private func applyModuleParameters() {
+		guard let values = ModuleSourceContext.shared.take(for: configuration?.fileURL) else { return }
+		editor.parameterValues = values
+		editor.mode = .schematic
+	}
+
 	private func claimKeyboard() {
 		if editor.editing != nil { editor.editing = nil }
 		guard !focused else { return }
@@ -109,6 +117,7 @@ struct EditorView: View {
 			SchematicView(
 				design: $design,
 				state: $schematic,
+				parameterValues: editor.parameterValues,
 				claimKeyboard: claimKeyboard,
 				beginEditing: { property in editor.editing = property }
 			)

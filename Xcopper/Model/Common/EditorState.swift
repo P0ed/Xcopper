@@ -51,6 +51,7 @@ struct EditorState: Equatable {
 	var sheet: Sheet?
 	var editing: Property?
 	var query: String = ""
+	var parameterValues: [String: String] = [:]
 }
 
 extension EditorState {

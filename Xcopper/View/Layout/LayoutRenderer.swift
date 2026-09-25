@@ -95,10 +95,9 @@ struct LayoutRenderer {
 	func connections(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
 		guard state.ratsnest else { return drawing.model }
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
 
 		for rat in ratsnest {
-			drawing.stroke([rat.from, rat.to], width: pixels(0.75), color: Palette.color(of: rat.net).opacity(0.8), level: 70, dash: pixels(3))
+			drawing.stroke([rat.from, rat.to], width: 200, color: Palette.color(of: rat.net).opacity(0.22), level: 70)
 		}
 		return drawing.model
 	}
@@ -162,7 +161,7 @@ struct LayoutRenderer {
 		}
 		if let session = state.selectSession, session.didDrag {
 			drawing.stroke(session.rect.corners, closed: true, width: pixels(2), color: .black, level: 110)
-			drawing.stroke(session.rect.corners, closed: true, width: pixels(1), color: Palette.highlight, level: 111, dash: pixels(4))
+			drawing.stroke(session.rect.corners, closed: true, width: pixels(1), color: Palette.highlight, level: 111)
 		}
 		if state.tool != .select || state.modulePlacement != nil {
 			let at = state.modulePlacement == nil ? state.viewport.cursor : state.viewport.cursor.snapped(to: state.placementGrid)

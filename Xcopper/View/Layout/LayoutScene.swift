@@ -50,7 +50,7 @@ final class LayoutScene {
 		if selected || scale || previous?.silkscreen != state.silkscreen {
 			replace(silkscreen, with: renderer.silkscreen(state, selection: selection))
 		}
-		if changed || scale || previous?.ratsnest != state.ratsnest {
+		if changed || previous?.ratsnest != state.ratsnest {
 			replace(connections, with: renderer.connections(state))
 		}
 		if bounds || scale { replace(outline, with: renderer.outline(state)) }

@@ -105,7 +105,9 @@ final class SyncTests: XCTestCase {
 	}
 
 	func testMovingAndEditingTheSchematicPreservesBoardNetIDs() {
-		let harness = EditorHarness(design: connectedDesign())
+		var design = connectedDesign()
+		XCTAssertEqual(design.updateBoardFromSchematic().assigned, 4)
+		let harness = EditorHarness(design: design)
 		harness.editor.mode = .schematic
 		harness.perform { $0.design.board.footprints[0].value = "1K" }
 		let synced = harness.design

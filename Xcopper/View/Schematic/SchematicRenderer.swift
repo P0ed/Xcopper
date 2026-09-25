@@ -4,6 +4,9 @@ import SwiftUI
 struct SchematicRenderer {
 	var design: Design
 	var state: SchematicState
+	var parameterValues: [String: String] = [:]
+
+	private var resolvedParameters: [String: String] { design.parameterValues(overriding: parameterValues) }
 
 	private var drawn: (projection: ModuleProjection, selection: Set<SchematicRef>) {
 		var moved = design
@@ -138,6 +141,7 @@ struct SchematicRenderer {
 
 		guard scale >= 2.0 else { return }
 		let size = 1.2 * scale
+		let parameters = resolvedParameters
 
 		for footprint in schematic.footprints {
 			let extent = footprint.symbol.placedExtent.cg(scale, origin: origin)
@@ -148,9 +152,10 @@ struct SchematicRenderer {
 					.foregroundStyle(Palette.symbol),
 				at: CGPoint(x: extent.midX, y: extent.minY - scale * 0.8)
 			)
-			if !footprint.value.isEmpty {
+			let value = ModuleParameter.resolve(footprint.value, using: parameters)
+			if !value.isEmpty {
 				context.draw(
-					Text(footprint.value)
+					Text(value)
 						.font(.system(size: size))
 						.foregroundStyle(Palette.symbol.opacity(0.7)),
 					at: CGPoint(x: extent.midX, y: extent.maxY + scale * 0.8)
@@ -168,14 +173,15 @@ struct SchematicRenderer {
 		guard scale >= 2.0 else { return }
 		let instances = design.modules + (state.modulePlacement.map { [$0.instance] } ?? [])
 		let modules = Dictionary(instances.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+		let parameters = resolvedParameters
 		for (ref, id) in projection.symbolOwners {
 			guard case let .symbol(index) = ref, let module = modules[id], !module.parameters.isEmpty else { continue }
 			let symbol = projection.sheet.symbols[index]
 			let bounds = module.parameterBounds(in: symbol)
 			let center = symbol.place(bounds.center).cg(scale, origin: origin)
 			let width = Double.mm(bounds.size.width - 2_540) * scale
-			let pitch = 2.54 * scale
-			let lines = module.parameterLines
+			let lines = module.parameterLines(resolving: parameters)
+			let pitch = min(2.54, Double.mm(bounds.size.height) / Double(lines.count)) * scale
 			var context = context
 			context.translateBy(x: center.x, y: center.y)
 			if symbol.rotation.isQuarter { context.rotate(by: .degrees(-90.0)) }
@@ -183,7 +189,7 @@ struct SchematicRenderer {
 				context.resolve(Text($0).font(.system(size: 1.2 * scale, design: .monospaced)).foregroundStyle(Palette.symbol))
 			}
 			let widest = labels.map { $0.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity)).width }.max() ?? 0.0
-			let fit = min(1.0, width / max(1.0, widest))
+			let fit = min(1.0, width / max(1.0, widest), pitch / (2.54 * scale))
 			for (row, label) in labels.enumerated() {
 				var rowContext = context
 				rowContext.translateBy(x: -width / 2.0, y: (Double(row) - Double(lines.count - 1) / 2.0) * pitch)

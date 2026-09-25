@@ -361,12 +361,10 @@ final class SelectionEditingTests: XCTestCase {
 		var design = design()
 		design.board.footprints[0].symbol.pins[0].netLabel = "GND"
 		design.board.wires = [Wire(start: .zero, end: point(10 * .mm, 0))]
-		let symbols = design.board.symbols
-		let board = design.board
+		var expected = design
+		expected.board.wires = []
 		design.deleteSchematic([.wire(0)])
-		XCTAssertTrue(design.board.wires.isEmpty)
-		XCTAssertEqual(design.board.symbols, symbols)
-		XCTAssertEqual(design.board, board)
+		XCTAssertEqual(design, expected)
 	}
 
 	func testDeletingCopperLeavesTheOtherEditorsSelectionStanding() {

@@ -467,7 +467,11 @@ value uses them. Save the source and reload modules in the parent.
 Select an instance to edit its **Parameters**;
 each instance keeps its own overrides. The reset arrow restores the source value,
 including future source changes. Parameters appear inside the schematic block as
-one `RESISTANCE: 10k` line per parameter. Defaults apply to the source layout and
+one `RESISTANCE: 10k` line per parameter. The schematic canvas displays resolved
+values in place of `#NAME`. Opening a module instance passes its effective
+parameter values to the source schematic for that editing session, including
+forwarded parameters, while preserving the source's saved defaults and references.
+Defaults apply to the source layout and
 bill of materials; instance overrides apply to imported parts, including nested
 modules. A child instance's parameter override can use `#NAME` to forward a
 parameter from its containing module.

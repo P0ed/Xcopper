@@ -32,6 +32,11 @@ struct ModuleParameter: Equatable, Codable, Identifiable {
 		let name = value.dropFirst().prefix { !$0.isWhitespace }
 		return name.isEmpty ? nil : String(name)
 	}
+
+	static func resolve(_ value: String, using values: [String: String]) -> String {
+		guard let name = name(in: value) else { return value }
+		return values[name] ?? value
+	}
 }
 
 struct ModuleInstance: Equatable, Codable, Identifiable {
@@ -70,11 +75,19 @@ struct ModuleInstance: Equatable, Codable, Identifiable {
 		parameterValues[parameter.name] ?? parameter.defaultValue
 	}
 
-	var parameterLines: [String] {
-		parameters.flatMap { "\($0.name): \(value(for: $0))".components(separatedBy: .newlines) }
+	func resolvedParameterValues(using values: [String: String]) -> [String: String] {
+		Dictionary(parameters.map {
+			($0.name, ModuleParameter.resolve(value(for: $0), using: values))
+		}, uniquingKeysWith: { first, _ in first })
 	}
 
-	var parameterHeight: µm { parameterLines.count * 2_540 }
+	func parameterLines(resolving values: [String: String] = [:]) -> [String] {
+		parameters.flatMap {
+			"\($0.name): \(ModuleParameter.resolve(value(for: $0), using: values))".components(separatedBy: .newlines)
+		}
+	}
+
+	var parameterHeight: µm { parameterLines().count * 2_540 }
 
 	func parameterBounds(in symbol: Symbol) -> Rect {
 		Rect(
@@ -195,14 +208,15 @@ extension Design {
 		if parameters != next { parameters = next }
 	}
 
+	func parameterValues(overriding values: [String: String] = [:]) -> [String: String] {
+		Dictionary(parameters.map { ($0.name, values[$0.name] ?? $0.defaultValue) }, uniquingKeysWith: { first, _ in first })
+	}
+
 	func applyParameterDefaults(to board: inout Board) {
 		guard !parameters.isEmpty else { return }
-		let defaults = Dictionary(parameters.map { ($0.name, $0.defaultValue) }, uniquingKeysWith: { first, _ in first })
+		let defaults = parameterValues()
 		board.footprints.modifyEach { footprint in
-			if let name = ModuleParameter.name(in: footprint.value),
-				let value = defaults[name] {
-				footprint.value = value
-			}
+			footprint.value = ModuleParameter.resolve(footprint.value, using: defaults)
 		}
 	}
 

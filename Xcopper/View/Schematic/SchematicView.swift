@@ -4,6 +4,7 @@ import SwiftUI
 struct SchematicView: View {
 	@Binding var design: Design
 	@Binding var state: SchematicState
+	var parameterValues: [String: String] = [:]
 	var claimKeyboard: () -> Void = ø
 	var beginEditing: (Property) -> Void = ø
 
@@ -15,7 +16,7 @@ struct SchematicView: View {
 	}
 
 	var body: some View {
-		let renderer = SchematicRenderer(design: design, state: state)
+		let renderer = SchematicRenderer(design: design, state: state, parameterValues: parameterValues)
 		CanvasScroll(viewport: $state.viewport, size: design.board.sheetSize) {
 			ViewportCanvas(viewport: state.viewport) { context, scale, visible in
 				renderer.render(in: context, scale: scale, visible: visible)
