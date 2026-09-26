@@ -59,19 +59,19 @@ struct LayoutRenderer {
 
 	func highlights(_ state: LayoutState, selection: Set<Ref>) -> Model {
 		var drawing = LayoutDrawing()
-		let scale = state.viewport.magnification
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / scale).rounded())) }
+		let outset = state.pixels(2.0)
+		let outline = state.pixels(1.5)
 
 		for layer in layers(state) {
 			let color = Palette.lit(state.copperColor(layer))
 			for figure in board.figures(on: layer, of: selection) {
-				drawing.fill(figure.outset(pixels(2)), color: Palette.halo, level: 50, cutouts: drills)
+				drawing.fill(figure.outset(outset), color: Palette.halo, level: 50, cutouts: drills)
 				drawing.fill(figure, color: color, level: 51, cutouts: drills)
 			}
 		}
 		for case let .hole(index) in selection where board.holes.indices.contains(index) {
 			let hole = board.holes[index]
-			drawing.outline(.round(hole.at, hole.diameter), width: pixels(1.5), color: Palette.highlight, level: 52)
+			drawing.outline(.round(hole.at, hole.diameter), width: outline, color: Palette.highlight, level: 52)
 		}
 		return drawing.model
 	}
@@ -79,15 +79,14 @@ struct LayoutRenderer {
 	func silkscreen(_ state: LayoutState, selection: Set<Ref>) -> Model {
 		var drawing = LayoutDrawing()
 		guard state.silkscreen else { return drawing.model }
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
 
 		for (index, footprint) in board.footprints.enumerated() {
-			let color = selection.contains(.footprint(index)) ? Palette.highlight : Palette.silk.opacity(0.5)
+			let color = selection.contains(.footprint(index)) ? Palette.highlight : Palette.silk.opacity(0.33)
 			if footprint.appearance.stands || footprint.package == .nkkMNPC || footprint.package == .bourns51 || footprint.package == .led5mm {
-				drawing.stroke(footprint.placedBody.corners, closed: true, width: pixels(1), color: color, level: 60)
+				drawing.stroke(footprint.placedBody.corners, closed: true, width: 100, color: color, level: 60)
 			}
 			let marker = footprint.place(footprint.pads.first?.at ?? .zero)
-			drawing.outline(.round(marker, max(pixels(2), 240)), width: pixels(1), color: color, level: 60)
+			drawing.outline(.round(marker, 240), width: 120, color: color, level: 60)
 		}
 		return drawing.model
 	}
@@ -104,19 +103,20 @@ struct LayoutRenderer {
 
 	func outline(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
-
-		drawing.stroke(board.bounds.corners, closed: true, width: pixels(1.5), color: Palette.outline, level: 80)
+		drawing.stroke(board.bounds.corners, closed: true, width: 80, color: Palette.outline, level: 80)
 		return drawing.model
 	}
 
 	func faults(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
+
+		let outD = state.pixels(12.0)
+		let w = state.pixels(1.5)
+		let fillD = state.pixels(2.5)
 
 		for at in violations {
-			drawing.outline(.round(at, pixels(12)), width: pixels(1.5), color: Palette.violation, level: 90)
-			drawing.fill(.round(at, pixels(2.5)), color: Palette.violation, level: 90)
+			drawing.outline(.round(at, outD), width: w, color: Palette.violation, level: 90)
+			drawing.fill(.round(at, fillD), color: Palette.violation, level: 90)
 		}
 		return drawing.model
 	}
@@ -149,25 +149,24 @@ struct LayoutRenderer {
 
 	func sessions(_ state: LayoutState) -> Model {
 		var drawing = LayoutDrawing()
-		func pixels(_ value: CGFloat) -> µm { max(1, Int((value * CGFloat(µm.mm) / state.viewport.magnification).rounded())) }
 		if let placement = state.modulePlacement,
 			let module = modules.first(where: { $0.id == placement.instance.id }) {
-			drawing.stroke(module.bounds.corners, closed: true, width: pixels(1.5), color: Palette.preview, level: 100)
+			drawing.stroke(module.bounds.corners, closed: true, width: state.pixels(1.5), color: Palette.preview, level: 100)
 		}
 		if let session = state.traceSession, session.didDraw {
 			let figure = Figure.segment(session.start, session.end, state.traceWidth ?? board.rules.traceWidth)
 			drawing.fill(figure, color: Palette.activeCopper, level: 100)
-			drawing.outline(figure, width: pixels(0.75), color: Palette.preview, level: 101)
+			drawing.outline(figure, width: state.pixels(0.75), color: Palette.preview, level: 101)
 		}
 		if let session = state.selectSession, session.didDrag {
-			drawing.stroke(session.rect.corners, closed: true, width: pixels(2), color: .black, level: 110)
-			drawing.stroke(session.rect.corners, closed: true, width: pixels(1), color: Palette.highlight, level: 111)
+			drawing.stroke(session.rect.corners, closed: true, width: state.pixels(2), color: .black, level: 110)
+			drawing.stroke(session.rect.corners, closed: true, width: state.pixels(1), color: Palette.highlight, level: 111)
 		}
 		if state.tool != .select || state.modulePlacement != nil {
 			let at = state.modulePlacement == nil ? state.viewport.cursor : state.viewport.cursor.snapped(to: state.placementGrid)
-			let arm = pixels(8)
-			drawing.stroke([at - Point(x: arm, y: 0), at + Point(x: arm, y: 0)], width: pixels(1), color: Palette.preview, level: 120)
-			drawing.stroke([at - Point(x: 0, y: arm), at + Point(x: 0, y: arm)], width: pixels(1), color: Palette.preview, level: 120)
+			let arm = state.pixels(8)
+			drawing.stroke([at - Point(x: arm, y: 0), at + Point(x: arm, y: 0)], width: state.pixels(1), color: Palette.preview, level: 120)
+			drawing.stroke([at - Point(x: 0, y: arm), at + Point(x: 0, y: arm)], width: state.pixels(1), color: Palette.preview, level: 120)
 		}
 		return drawing.model
 	}
@@ -187,5 +186,9 @@ private extension LayoutState {
 		} else {
 			Palette.innerCopper
 		}
+	}
+
+	func pixels(_ value: CGFloat) -> µm {
+		max(1, Int((value * CGFloat(µm.mm) / viewport.magnification).rounded()))
 	}
 }
