@@ -172,6 +172,21 @@ struct EditorView: View {
 			PromptDialog(action: "Find", prompt: "Reference or value", text: $editor.query) { query in
 				operations.find(query)
 			}
+		case let .moduleSource(id):
+			if let documentURL = operations.documentURL {
+				ModulePicker(
+					documentURL: documentURL,
+					title: id == nil ? "Place Module" : "Select Module Source",
+					action: id == nil ? "Place" : "Select",
+					selection: design.modules.first { $0.id == id }?.name
+				) { name, library in
+					if let id {
+						try operations.replaceModuleSource(id, named: name, library: library, undoManager: undoManager)
+					} else {
+						try operations.importModule(named: name, library: library)
+					}
+				}
+			}
 		}
 	}
 }

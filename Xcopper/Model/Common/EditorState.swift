@@ -28,10 +28,11 @@ enum Mode: Hashable, CaseIterable {
 	}
 }
 
-enum Sheet: String, Identifiable {
+enum Sheet: Hashable, Identifiable {
 	case board, schematic, footprint, net, symbol, find
+	case moduleSource(UUID?)
 
-	var id: String { rawValue }
+	var id: Self { self }
 }
 
 enum Property: Hashable {
