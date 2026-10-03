@@ -74,6 +74,7 @@ struct CanvasScroll<Content: View>: View {
 				width: Layout.contentSize(size, scale: viewport.magnification).width,
 				height: Layout.contentSize(size, scale: viewport.magnification).height
 			)
+			.frame(minWidth: viewport.size.width, minHeight: viewport.size.height, alignment: .center)
 		}
 		.scrollPosition($viewport.scrollPosition)
 		.gesture(magnificationController)
