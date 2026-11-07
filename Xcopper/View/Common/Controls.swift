@@ -184,8 +184,7 @@ struct PropertyEditing: ViewModifier {
 	}
 
 	private func finish() {
-		let window = NSApp.keyWindow
-		DispatchQueue.main.async {
+		Task { @MainActor [window = NSApp.keyWindow] in
 			guard focus == property else { return }
 			if let window, !window.makeFirstResponder(nil) { return }
 			focus = nil
