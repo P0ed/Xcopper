@@ -555,3 +555,151 @@ Moving the parent searches its new folder for dependencies and may require a new
 Import, source replacement, movement, rotation, duplication, deletion, paste and explicit reload are
 undoable. Undo restores the previous resolved snapshot even if sources have since
 changed or disappeared; source files are never modified by parent edits.
+
+## MCP access
+
+Xcopper embeds the [official MCP Swift SDK 0.12.1](https://github.com/modelcontextprotocol/swift-sdk/releases/tag/0.12.1)
+and hosts its Streamable HTTP transport with SwiftNIO. Use **AI Access → Start MCP Server**
+to listen at `http://127.0.0.1:8765/mcp`, and **Stop MCP Server** to disconnect clients
+and close the listener. The server starts stopped on every app launch.
+
+In **Settings → AI Access**, choose a workspace folder and, optionally, a different
+port from 1024 through 65535 while the server is stopped. Configuration persists.
+The workspace uses a security-scoped bookmark; paths are resolved against it and
+symlinks cannot extend its access. Document creation requires a relative `.xcb`
+path whose parent folder exists. Other paths may be workspace-relative or absolute
+inside that folder. Already open documents keep their native access grants and can
+be inspected, edited and saved without selecting a workspace. Module loading also
+accepts folder grants previously retained through **Reload Modules**. Missing grants
+return instructions to select a workspace or grant the module folder in the app;
+automatic module loading does not open permission dialogs.
+
+Copy the generated bearer token or connection JSON from the settings pane. The
+token is stored in Keychain. Regenerating it stops the listener and disconnects
+existing clients; copy the new token and start the server again. A client configuration
+using the common `mcpServers` JSON format looks like this; adapt it to your client's
+configuration format:
+
+```json
+{
+  "mcpServers": {
+    "xcopper": {
+      "type": "http",
+      "url": "http://127.0.0.1:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer COPY_TOKEN_FROM_AI_ACCESS"
+      }
+    }
+  }
+}
+```
+
+Clients must support [MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
+including SSE responses. Initialize a session at `/mcp`, then send its
+`MCP-Session-Id` and negotiated `MCP-Protocol-Version` headers on subsequent requests.
+Each session has a separate SDK server and transport. Requests require the bearer
+token, a Host of `127.0.0.1:PORT` or `localhost:PORT`, and, if supplied, the matching
+`http://` Origin. The listener binds only to IPv4 loopback. Sessions expire after
+one hour without requests; clients can terminate a session with HTTP DELETE.
+
+All 28 tools start with `xcopper_` and advertise input schemas and read/write
+annotations through `tools/list`. Results contain structured JSON and the same JSON
+as text for clients that only display text content.
+
+| Tools after the `xcopper_` prefix | Purpose |
+| --- | --- |
+| `list_documents`, `create_document`, `open_document`, `save_document`, `close_document` | Manage native documents independently of window focus; closing saves first |
+| `get_design`, `search_library`, `list_module_sources`, `check_design` | Inspect settings, objects, placed geometry, resolved nets, specifications, module interfaces and diagnostics |
+| `configure_design`, `place_part`, `update_part`, `set_pin_labels` | Configure dimensions, layers, rules and parameters; edit paired parts and connectivity labels |
+| `add_wires`, `route_traces`, `place_via`, `place_hole`, `update_objects` | Add orthogonal wires and 45-degree copper routes, and edit copper or holes |
+| `transform_objects`, `delete_objects` | Move, rotate, flip, duplicate or delete in the explicit `schematic` or `layout` view |
+| `place_module`, `update_module`, `replace_module_source`, `reload_modules` | Validate and manage module instances, source changes, positions, rotations, labels and parameter overrides |
+| `undo`, `redo`, `reveal_objects`, `export_fabrication` | Use native history, reveal objects and export Gerber, drill, BOM and placement files |
+
+Geometry uses integer micrometres. Rotations are clockwise degrees: `0`, `90`, `180`
+or `270`. Copper layers are zero based, with routing on the top and bottom signal
+layers. Vias use the board's global drill and pad rules. `search_library` returns
+`spec` objects accepted by `place_part`; select exactly one of `component`,
+`symbolKind` or `footprintKind`. Placing either view creates both the symbol and
+footprint. An omitted counterpart position is parked using the same model helpers
+as manual placement. Pins and pads include their placed coordinates and resolved
+net assignments in `get_design` and successful edit responses.
+
+`list_documents` gives each live document a runtime `documentId` and `revision`.
+Design edits, Undo/Redo and reveal requests require `expectedRevision`. Object
+handles include the document and revision and must be copied from the latest
+inspection. Human edits and native history changes advance revisions too. On
+`stale_revision`, inspect again and rebuild the request with current handles. Runtime
+IDs, revisions and handles are never written into `.xcb` files.
+
+Edits operate on a candidate design on the main actor, validate it, synchronize
+connectivity and commit through the document binding in one Undo group. A failed
+edit leaves the design unchanged. Movement reuses connection-preserving routing;
+deletion removes both sides of paired parts. `busy` means a gesture, route, module
+placement, editing field, dialog or file operation needs to finish first. Imported
+module internals and pad geometry return `read_only`; edit their source documents
+or use native part pin labels. Module instances support translations and quarter
+turns; flipping a module is unsupported.
+
+Saving an untitled document requires `path`. Existing destinations for creation,
+Save As and export require `overwrite: true`; saving a document to its current path
+uses its existing grant. An open document cannot be overwritten by another one.
+Fabrication export always blocks unresolved modules and returns diagnostics.
+DRC findings require `allowViolations: true` to proceed. Export overwrites only the
+named fabrication files, preserving other files in an existing destination folder.
+
+### Example workflow
+
+These are `tools/call` payloads after initialization. Replace `DOC` with the
+`documentId` returned by creation. The revision numbers assume no intervening human
+or client edits; always use the actual revision from the preceding response.
+The example connects R1 pin 2 to R2 pin 1 and routes their matching layout pads.
+
+```json
+{"name":"xcopper_create_document","arguments":{"path":"mcp-demo.xcb"}}
+```
+
+```json
+{"name":"xcopper_place_part","arguments":{"documentId":"DOC","expectedRevision":1,"spec":{"symbolKind":"resistor"},"view":"schematic","at":{"x":25400,"y":25400},"counterpartAt":{"x":20000,"y":20000},"reference":"R1","value":"10k"}}
+```
+
+```json
+{"name":"xcopper_place_part","arguments":{"documentId":"DOC","expectedRevision":2,"spec":{"symbolKind":"resistor"},"view":"schematic","at":{"x":50800,"y":25400},"counterpartAt":{"x":30000,"y":20000},"reference":"R2","value":"10k"}}
+```
+
+```json
+{"name":"xcopper_add_wires","arguments":{"documentId":"DOC","expectedRevision":3,"paths":[[{"x":30480,"y":25400},{"x":45720,"y":25400}]]}}
+```
+
+```json
+{"name":"xcopper_route_traces","arguments":{"documentId":"DOC","expectedRevision":4,"points":[{"x":21500,"y":20000},{"x":28500,"y":20000}],"layer":0,"width":400}}
+```
+
+```json
+{"name":"xcopper_check_design","arguments":{"documentId":"DOC"}}
+```
+
+Inspect and resolve any reported violations, then save and export:
+
+```json
+{"name":"xcopper_save_document","arguments":{"documentId":"DOC"}}
+```
+
+```json
+{"name":"xcopper_export_fabrication","arguments":{"documentId":"DOC","path":"mcp-demo-fabrication"}}
+```
+
+For object edits, copy a `parts[].object`, `traces[].object`, `modules[].object` or
+other handle from the latest design response, along with its revision. For example,
+`set_pin_labels` accepts `{"object":"HANDLE","labels":{"1":"GND","2":null}}`
+plus `documentId` and `expectedRevision`. Module IO uses labels such as `#1 OUT`.
+For modules, discover sources with `list_module_sources`, pass a returned `name`
+as `source` to `place_module`, and set `schematicAt`, `layoutAt`, rotations, labels
+or named parameter overrides as needed. Open a source's returned `path` within the
+workspace to edit its internals, then reload the containing document's modules.
+
+Manual verification should cover connection and authentication, Start/Stop and
+relaunch behavior, document creation/open/save/close, paired geometry and net
+synchronization, routing and transformations, module imports/replacement/reload,
+native Undo/Redo, rejection of stale revisions and busy edits, and the exported
+fabrication files. Build validation does not exercise these UI interactions.

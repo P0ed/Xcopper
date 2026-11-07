@@ -160,6 +160,7 @@ struct ModuleProjection {
 	var symbolOwners: [SchematicRef: UUID] = [:]
 	var ports: [String: Net.ID] = [:]
 	var localNets: Set<Net.ID> = []
+	var schematicNets: [Point: Net.ID] = [:]
 	var interface: [IODesignator] = []
 	var interfaceError: String?
 	var report = Design.Report()
@@ -388,6 +389,7 @@ extension Design {
 			}
 		}
 		result.interface = interface.values.sorted(by: IODesignator.order)
+		result.schematicNets = pointNets.mapValues { merge.find($0) }
 		result.report.missingPins.sort()
 		let nativeIDs = Set(self.nets.map(\.id))
 		result.design.nets = nets.keys.sorted().filter { nativeIDs.contains($0) || merge.find($0) == $0 }.map { Net(id: $0, name: nets[$0]!) }

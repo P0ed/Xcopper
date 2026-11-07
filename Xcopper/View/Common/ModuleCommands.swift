@@ -22,11 +22,12 @@ final class ModuleSourceContext {
 private final class ModuleFolderAccess {
 	private var scopes: [URL] = []
 	private var folders: Set<URL> = []
+	var interactive = true
 
 	func allow(_ folder: URL) throws {
 		let folder = folder.standardizedFileURL
 		guard !folders.contains(where: { folder.pathComponents.starts(with: $0.pathComponents) }) else { return }
-		if let scoped = try Self.acquire(to: folder) {
+		if let scoped = try Self.acquire(to: folder, interactive: interactive) {
 			scopes.append(scoped)
 			folders.insert(scoped.standardizedFileURL)
 		}
@@ -39,7 +40,7 @@ private final class ModuleFolderAccess {
 		folders.removeAll()
 	}
 
-	static func acquire(to folder: URL) throws -> URL? {
+	static func acquire(to folder: URL, interactive: Bool = true) throws -> URL? {
 		var candidate = folder.standardizedFileURL
 		while true {
 			let key = "moduleFolder." + candidate.path
@@ -57,6 +58,7 @@ private final class ModuleFolderAccess {
 		}
 		var scoped: URL?
 		if (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) == nil {
+			guard interactive else { throw Err("Folder access is missing. Use Reload Modules to grant access to this module folder, or choose a containing AI workspace in Settings.") }
 			let panel = NSOpenPanel()
 			panel.title = "Allow Access to Module Folder"
 			panel.message = "Xcopper needs access to \(folder.lastPathComponent) to read modules. Select this folder or a parent folder containing your module library to retain access for reopening and reloads."
@@ -237,6 +239,7 @@ extension Operations {
 		}
 		var next = design
 		let access = ModuleFolderAccess()
+		access.interactive = !automatic
 		defer { access.close() }
 		do {
 			let folder = documentURL.deletingLastPathComponent()

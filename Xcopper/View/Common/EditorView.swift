@@ -4,6 +4,7 @@ import SwiftUI
 struct EditorView: View {
 	@Binding var design: Design
 	@Binding var clipboard: Clipboard
+	let documentID: UUID
 
 	@State var editor: EditorState = .init()
 	@State var layout: LayoutState
@@ -14,9 +15,10 @@ struct EditorView: View {
 	@Environment(\.documentConfiguration) private var configuration
 	@Environment(\.undoManager) private var undoManager
 
-	init(design: Binding<Design>, clipboard: Binding<Clipboard>) {
+	init(design: Binding<Design>, clipboard: Binding<Clipboard>, documentID: UUID) {
 		_design = design
 		_clipboard = clipboard
+		self.documentID = documentID
 		let board = design.wrappedValue.board
 		_layout = State(initialValue: LayoutState(stack: board.stack))
 		_preview = State(initialValue: PreviewState(finish: Finish(mask: board.solderMask ? .green : nil)))
@@ -33,6 +35,12 @@ struct EditorView: View {
 			}
 		)
 		.toolbar { toolbar }
+		.background(MCPDocumentAttachment(
+			id: documentID,
+			design: $design,
+			operations: operations,
+			undoManager: undoManager
+		).allowsHitTesting(false))
 		.focusedSceneValue(\.operations, operations)
 		.onAppear { focused = true }
 		.onChange(of: configuration?.fileURL, initial: true) { _, _ in

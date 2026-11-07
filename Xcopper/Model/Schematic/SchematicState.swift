@@ -30,6 +30,7 @@ extension SchematicTool {
 }
 
 struct SchematicState: Equatable, SelectionState {
+	var gestureActive = false
 	var tool: SchematicTool = .select {
 		didSet {
 			guard tool != oldValue || modulePlacement != nil else { return }

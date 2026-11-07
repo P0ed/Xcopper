@@ -72,6 +72,7 @@ extension µm {
 }
 
 struct LayoutState: Equatable, SelectionState {
+	var gestureActive = false
 	var tool: Tool = .select {
 		didSet {
 			guard tool != oldValue || modulePlacement != nil else { return }

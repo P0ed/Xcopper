@@ -23,6 +23,9 @@ struct MenuCommands: Commands {
 	@FocusedValue(\.operations) var op
 
 	var body: some Commands {
+		CommandMenu("AI Access") {
+			MCPServerCommands()
+		}
 		if !op.actionsDisabled {
 			CommandGroup(replacing: .pasteboard) {
 				ActionButton(

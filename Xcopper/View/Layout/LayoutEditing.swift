@@ -22,6 +22,7 @@ extension LayoutView {
 	var editingController: some Gesture {
 		DragGesture(minimumDistance: 0.0)
 			.onChanged { gesture in
+				state.gestureActive = true
 				claimKeyboard()
 				let start = point(at: gesture.startLocation)
 				let current = point(at: Layout.reached(by: gesture))
@@ -41,6 +42,7 @@ extension LayoutView {
 				}
 			}
 			.onEnded { gesture in
+				defer { state.gestureActive = false }
 				let start = point(at: gesture.startLocation)
 				let current = point(at: Layout.reached(by: gesture))
 

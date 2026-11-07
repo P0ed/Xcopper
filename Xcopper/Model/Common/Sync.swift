@@ -176,18 +176,21 @@ extension Design {
 
 	@discardableResult
 	mutating func place(_ spec: Symbol.Spec, at point: Point) -> SchematicRef {
-		var footprint = Footprint(symbol: spec, reference: nextReference(like: spec.referencePrefix), at: point)
-		footprint.at = board.parking(for: footprint, clear: resolved.board.occupied)
-		board.footprints.append(footprint)
-		return .symbol(board.footprints.count - 1)
+		.symbol(place(Footprint(symbol: spec, reference: nextReference(like: spec.referencePrefix), at: point), schematicAt: point))
 	}
 
 	@discardableResult
 	mutating func place(_ spec: Footprint.Spec, at point: Point) -> Ref {
-		var footprint = Footprint(spec: spec, reference: nextReference(like: spec.referencePrefix), at: point)
-		footprint.symbol.at = moduleProjection().sheet.parking(for: footprint.symbol)
+		.footprint(place(Footprint(spec: spec, reference: nextReference(like: spec.referencePrefix), at: point), layoutAt: point))
+	}
+
+	@discardableResult
+	mutating func place(_ part: Footprint, schematicAt: Point? = nil, layoutAt: Point? = nil) -> Int {
+		var footprint = part
+		footprint.at = layoutAt ?? board.parking(for: footprint, clear: resolved.board.occupied)
+		footprint.symbol.at = schematicAt ?? moduleProjection().sheet.parking(for: footprint.symbol)
 		board.footprints.append(footprint)
-		return .footprint(board.footprints.count - 1)
+		return board.footprints.count - 1
 	}
 
 	func footprints(for selection: Set<SchematicRef>) -> Set<Ref> {

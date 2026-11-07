@@ -6,6 +6,7 @@ extension UTType {
 }
 
 struct Document: FileDocument {
+	let runtimeID = UUID()
 	var design: Design
 
 	static var readableContentTypes: [UTType] { [.xcb] }
