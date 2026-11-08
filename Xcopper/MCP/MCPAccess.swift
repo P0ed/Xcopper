@@ -1,4 +1,5 @@
 import AppKit
+import MCP
 import Observation
 import Security
 import SwiftUI
@@ -6,11 +7,13 @@ import SwiftUI
 struct MCPFailure: LocalizedError {
 	var code: String
 	var message: String
+	var details: [String: MCPJSON]
 	var errorDescription: String? { message }
 
-	init(_ code: String, _ message: String) {
+	init(_ code: String, _ message: String, details: [String: MCPJSON] = [:]) {
 		self.code = code
 		self.message = message
+		self.details = details
 	}
 }
 

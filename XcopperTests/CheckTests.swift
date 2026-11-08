@@ -2,6 +2,12 @@ import XCTest
 @testable import Xcopper
 
 final class CheckTests: XCTestCase {
+	func testZeroClearanceStillReportsElectricalShorts() {
+		var design = design()
+		design.board.rules.clearance = 0
+		design.board.traces = [trace(at(5000, 10000), at(15000, 10000), net: 0), trace(at(10000, 5000), at(10000, 15000), net: 1)]
+		XCTAssertEqual(design.faults().map(\.kind), [.short])
+	}
 
 	private func design(_ stack: Stack = .classic) -> Design {
 		Design(board: Board(size: Size(width: 50 * .mm, height: 40 * .mm), stack: stack))

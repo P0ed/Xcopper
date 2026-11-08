@@ -3,9 +3,21 @@ import MCP
 
 @MainActor
 extension MCPDocumentEntry {
-	func inspection() throws -> MCPJSON {
+	func inspection(design inspectedDesign: Design? = nil, revision inspectedRevision: Int? = nil) throws -> MCPJSON {
 		refresh()
-		let design = design
+		let design = inspectedDesign ?? design
+		let revision = inspectedRevision ?? revision
+		func handle(_ kind: String, _ key: String) -> String { "\(id.uuidString):\(revision):\(kind):\(key)" }
+		func handle(_ ref: Ref) -> String {
+			switch ref {
+			case let .footprint(i): handle("part", String(i))
+			case let .pad(i, p): handle("pad", "\(i)/\(p)")
+			case let .trace(i): handle("trace", String(i))
+			case let .via(i): handle("via", String(i))
+			case let .hole(i): handle("hole", String(i))
+			case let .module(id): handle("module", id.uuidString)
+			}
+		}
 		let projection = design.moduleProjection(syncNative: true)
 		let board = projection.design.board
 		func encoded<T: Codable>(_ value: T) throws -> MCPJSON { try MCPJSON(value) }
@@ -55,6 +67,7 @@ extension MCPDocumentEntry {
 				"error": design.moduleStatus(module.id).map { .string($0) } ?? .null]
 		}
 		var result = summary().objectValue!
+		result["revision"] = .int(revision)
 		result.merge([
 			"units": "micrometres", "rotationUnits": "degrees", "layerIndexBase": 0,
 			"boardSize": try encoded(board.size), "sheetSize": try encoded(board.sheetSize), "layers": .int(board.stack.count), "layerRoles": try encoded(board.stack.roles), "solderMask": .bool(board.solderMask), "rules": try encoded(board.rules),
@@ -65,12 +78,56 @@ extension MCPDocumentEntry {
 		return .object(result)
 	}
 
-	func diagnostics() throws -> MCPJSON {
+	func diagnostics(design inspectedDesign: Design? = nil) throws -> MCPJSON {
 		refresh()
-		let violations = try design.check().map { violation -> MCPJSON in
-			["kind": .string(String(describing: violation.kind)), "message": .string(violation.text), "at": try MCPJSON(violation.at), "layer": violation.layer.map { .int($0) } ?? .null, "objects": .array(violation.refs.sorted(by: Ref.order).map { .string(handle($0)) })]
+		let design = inspectedDesign ?? design
+		let resolved = design.resolved
+		let connectivity = resolved.board.connectivity(planes: resolved.planes)
+		let violations = try design.check().map { try diagnostic($0, design: resolved) }
+		let islands = try connectivity.islands.map { island -> MCPJSON in
+			let terminals = try island.terminals.map { terminal -> MCPJSON in
+				var value: [String: MCPJSON] = ["object": .string(handle(terminal.ref)), "points": try MCPJSON(terminal.points), "layers": .array(terminal.layers.map { .int($0) })]
+				if case let .pad(part, pad) = terminal.ref {
+					value["reference"] = .string(resolved.board.footprints[part].reference)
+					value["pin"] = .string(resolved.board.footprints[part].placedPads[pad].name)
+				}
+				return .object(value)
+			}
+			return ["id": .string(handle("island", String(island.id))), "net": netValue(island.net, design: resolved), "terminals": .array(terminals), "planeLayers": .array(island.planeLayers.map { .int($0) })]
 		}
-		return ["documentId": .string(id.uuidString), "revision": .int(revision), "violations": .array(violations), "moduleErrors": try MCPJSON(design.moduleErrors), "schematicDiagnostics": try MCPJSON(schematicDiagnostics(design))]
+		let connections = try connectivity.connections().enumerated().map { index, connection -> MCPJSON in
+			["id": .string(handle("connection", String(index))), "net": netValue(connection.net, design: resolved),
+				"from": .string(handle("island", String(connection.from))), "to": connection.to.map { .string(handle("island", String($0))) } ?? .null,
+				"start": try MCPJSON(connection.start), "end": try connection.end.map { try MCPJSON($0) } ?? .null,
+				"planeLayers": .array(connection.planeLayers.map { .int($0) })]
+		}
+		return ["documentId": .string(id.uuidString), "revision": .int(revision), "units": "micrometres", "violations": .array(violations), "islands": .array(islands), "connections": .array(connections), "moduleErrors": try MCPJSON(design.moduleErrors), "schematicDiagnostics": try MCPJSON(schematicDiagnostics(design))]
+	}
+
+	func netValue(_ id: Net.ID, design: Design) -> MCPJSON {
+		["id": .int(id), "name": design.nets.first { $0.id == id }.map { .string($0.name) } ?? .null]
+	}
+
+	func diagnostic(_ violation: Violation, design: Design) throws -> MCPJSON {
+		["kind": .string(String(describing: violation.kind)), "message": .string(violation.text), "at": try MCPJSON(violation.at),
+			"layer": violation.layer.map { .int($0) } ?? .null,
+			"objects": .array((violation.preciseRefs ?? violation.refs).sorted(by: Ref.order).map { .string(handle($0)) }),
+			"owners": .array(violation.refs.sorted(by: Ref.order).map { .string(handle($0)) }),
+			"nets": .array(violation.nets.sorted().map { netValue($0, design: design) }),
+			"measured": violation.measured.map { .double($0) } ?? .null, "required": violation.required.map { .double($0) } ?? .null]
+	}
+
+	func netlist() throws -> MCPJSON {
+		refresh()
+		let resolved = design.moduleProjection(syncNative: true).design
+		let parts = resolved.board.footprints.enumerated().map { index, part -> MCPJSON in
+			let pins = part.symbol.pins.map { pin -> MCPJSON in
+				let net = part.pads.first { $0.name == pin.number }?.net
+				return ["number": .string(pin.number), "name": .string(pin.name), "net": net.map { netValue($0, design: resolved) } ?? .null]
+			}
+			return ["object": .string(handle(.footprint(index))), "reference": .string(part.reference), "component": part.component.map { .string($0.rawValue) } ?? .null, "value": .string(part.value), "pins": .array(pins)]
+		}
+		return ["documentId": .string(id.uuidString), "revision": .int(revision), "parts": .array(parts), "nets": try MCPJSON(resolved.nets), "moduleErrors": try MCPJSON(design.moduleErrors), "schematicDiagnostics": try MCPJSON(schematicDiagnostics(design))]
 	}
 }
 

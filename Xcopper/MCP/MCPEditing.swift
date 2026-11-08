@@ -51,14 +51,20 @@ extension MCPTools {
 			guard design.board.stack.isSignal(layer) else { throw MCPFailure("invalid_layer", "Route traces on signal layers 0 or \(design.board.stack.bottom). Internal layers are planes.") }
 			let points = try args.array("points").map { try MCPArguments($0) }.map { try Point(x: $0.int("x"), y: $0.int("y")) }
 			let net = resolveNet(args.values["net"], design: &design)
-			for (index, pair) in zip(points, points.dropFirst()).enumerated() {
-				let (start, end) = pair
+			for (start, end) in zip(points, points.dropFirst()) {
 				let delta = end - start
 				guard start != end, delta.x == 0 || delta.y == 0 || abs(delta.x) == abs(delta.y) else { throw MCPFailure("routing_error", "Trace segments must be nonzero and horizontal, vertical or 45 degrees.") }
-				let trace = Trace(start: start, end: end, width: args.values["width"]?.intValue, layer: layer, net: net)
-				if index == points.count - 2, design.resolved.board.isConnection(end, layer: layer) {
-					guard design.finishRoute(with: trace, grid: args.values["grid"]?.intValue ?? 100) else { throw MCPFailure("routing_error", "The route could not be finished while preserving connections. Change the polyline or routing grid.") }
-				} else { design.board.traces.append(trace) }
+			}
+			do {
+				try design.finishRoute(points: points, width: args.values["width"]?.intValue, layer: layer, net: net, grid: args.values["grid"]?.intValue ?? 100)
+			} catch let failure as RouteFinishingFailure {
+				throw MCPFailure("routing_error", "The route could not be finished: " + failure.reason, details: [
+					"at": try MCPJSON(failure.junction.point), "layer": .int(failure.junction.layer),
+					"turnDegrees": failure.turn.map { .int($0 * 45) } ?? .null,
+					"directions": try MCPJSON(failure.directions), "vertexIndex": points.firstIndex(of: failure.junction.point).map { .int($0) } ?? .null,
+					"segmentLengths": .array(failure.lengths.map { .double($0) }), "grid": .int(failure.grid),
+					"reason": .string(failure.reason), "attemptedRepair": .string(failure.attemptedRepair)
+				])
 			}
 		case "place_via":
 			let at = try args.point("at")
@@ -122,6 +128,7 @@ extension MCPTools {
 		let counterpart = args.values["counterpartAt"] == nil ? nil : try args.point("counterpartAt")
 		let index = design.place(part, schematicAt: schematic ? at : counterpart, layoutAt: schematic ? counterpart : at)
 		try updatePart(args, index: index, design: &design)
+		if let labels = args.values["labels"]?.objectValue { try setLabels(labels, part: index, design: &design) }
 	}
 
 	private static func updatePart(_ args: MCPArguments, index: Int, design: inout Design) throws {

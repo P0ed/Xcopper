@@ -14,6 +14,16 @@ struct Junction: Hashable {
 	var layer: Int
 }
 
+struct RouteFinishingFailure: Error {
+	var junction: Junction
+	var turn: Int?
+	var lengths: [Double]
+	var directions: [Point] = []
+	var grid: µm
+	var reason: String
+	var attemptedRepair: String
+}
+
 protocol RoutedSegment: Equatable {
 	var start: Point { get set }
 	var end: Point { get set }
@@ -77,6 +87,7 @@ struct RouteGeometry<Segment: RoutedSegment> {
 	var segments: [Segment]
 	var terminals: [RouteTerminal]
 	var angles: RoutingAngles
+	var failure: RouteFinishingFailure? = nil
 }
 
 extension RouteGeometry {
@@ -121,7 +132,7 @@ extension RouteGeometry {
 			RouteEnd(segment: $0, isStart: true)
 		})
 		let headings = headings(of: ends, straightening: true)
-		let joints = ends.flatMap { end in
+		let joints = ends.sorted(by: RouteEnd.order).flatMap { end in
 			[end, end.other].map { Junction(point: self[point: $0], layer: segments[$0.segment].layer) }
 		}
 		for end in ends.sorted(by: RouteEnd.order) {
@@ -132,9 +143,11 @@ extension RouteGeometry {
 		let changed = disturbed(from: stored.segments) + joints
 		_ = fuse(touching: stored.segments, disturbed: changed)
 		var seen: Set<Junction> = []
-		for junction in changed where seen.insert(junction).inserted {
+		for junction in changed.sorted(by: { ($0.layer, $0.point.x, $0.point.y) < ($1.layer, $1.point.x, $1.point.y) }) where seen.insert(junction).inserted {
 			guard chamfer(at: junction, grid: grid) else {
+				let failure = failure
 				self = stored
+				self.failure = failure
 				return false
 			}
 		}
@@ -311,13 +324,19 @@ extension RouteGeometry {
 		let legs = (self[point: first.other] - point, self[point: second.other] - point)
 		let arriving = -legs.0
 		guard !angles.bends(arriving, to: legs.1) else { return true }
-		guard angles == .octilinear, arriving.turn(to: legs.1) == 2 else { return false }
+		func refusal(_ reason: String) -> RouteFinishingFailure {
+			RouteFinishingFailure(junction: junction, turn: arriving.turn(to: legs.1), lengths: [legs.0, legs.1].map { Double($0.distanceSquared(to: .zero)).squareRoot() }, directions: [arriving.heading, legs.1.heading], grid: grid, reason: reason, attemptedRepair: "chamfer")
+		}
+		guard angles == .octilinear, arriving.turn(to: legs.1) == 2 else {
+			failure = refusal("unsupported_turn")
+			return false
+		}
 
 		let step = Int(grid)
 		guard step > 0,
 			max(abs(legs.0.x), abs(legs.0.y)) > step,
 			max(abs(legs.1.x), abs(legs.1.y)) > step
-		else { return false }
+		else { failure = refusal("insufficient_segment_length"); return false }
 
 		let corners = (point + legs.0.heading * step, point + legs.1.heading * step)
 
@@ -507,6 +526,16 @@ extension RouteGeometry {
 extension Design {
 
 	mutating func finishRoute(with trace: Trace, grid: µm) -> Bool {
+		do {
+			try finishRoute(points: [trace.start, trace.end], width: trace.width, layer: trace.layer, net: trace.net, grid: grid)
+			return true
+		} catch { return false }
+	}
+
+	mutating func finishRoute(points supplied: [Point], width: µm?, layer: Int, net: Net.ID?, grid: µm) throws {
+		guard supplied.count > 1 else { return }
+		let reversed = Array(supplied.reversed())
+		let points = reversed.lexicographicallyPrecedes(supplied, by: Point.order) ? reversed : supplied
 		let resolved = resolved.board
 		var route = resolved.routing()
 		route.segments = board.traces
@@ -516,11 +545,13 @@ extension Design {
 				layers: copper.layer ... copper.layer
 			))
 		}
-		let index = route.segments.count
-		route.segments.append(trace)
-		guard route.straighten(route.run(of: index), grid: grid) else { return false }
+		let first = route.segments.count
+		for (start, end) in zip(points, points.dropFirst()) { route.segments.append(Trace(start: start, end: end, width: width, layer: layer, net: net)) }
+		let refs = (first ..< route.segments.count).reduce(into: Set<Int>()) { $0.formUnion(route.run(of: $1)) }
+		guard route.straighten(refs, grid: grid) else {
+			throw route.failure ?? RouteFinishingFailure(junction: Junction(point: points[0], layer: layer), lengths: [], grid: grid, reason: "repair_failed", attemptedRepair: "straighten")
+		}
 		board.traces = route.segments
-		return true
 	}
 }
 

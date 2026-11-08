@@ -17,19 +17,22 @@ extension MCPTools {
 			defer { documents.release(url) }
 			try checkDocumentDestination(url, args: args)
 			guard !documents.documents.contains(where: { $0.url?.resolvingSymlinksInPath().standardizedFileURL == url }) else { throw MCPFailure("destination_open", "The destination is already open. Edit that document or choose another path.") }
-			return try await documents.create(at: url).inspection()
+			return try documentResponse(await documents.create(at: url), args)
 		case "open_document":
 			let path = try args.string("path")
-			if path.hasPrefix("/"), let entry = documents.documents.first(where: { $0.url?.resolvingSymlinksInPath().standardizedFileURL == URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL }) { return try entry.inspection() }
+			if path.hasPrefix("/"), let entry = documents.documents.first(where: { $0.url?.resolvingSymlinksInPath().standardizedFileURL == URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL }) { return try documentResponse(entry, args) }
 			let url = try MCPAccess.shared.workspacePath(path)
 			guard url.pathExtension.lowercased() == "xcb" else { throw MCPFailure("invalid_path", "Open an .xcb document.") }
-			return try await documents.open(url).inspection()
+			return try documentResponse(await documents.open(url), args)
 		default: break
 		}
 		let entry = try documents.entry(args)
 		switch name {
-		case "get_design": return try entry.inspection()
+		case "get_design": return filterInspection(try entry.inspection(), args)
 		case "check_design": return try entry.diagnostics()
+		case "get_netlist": return try entry.netlist()
+		case "render_design": return try renderDesign(args, entry: entry)
+		case "plan_connection": return try await planConnection(args, entry: entry)
 		case "list_module_sources": return try moduleSources(entry)
 		case "save_document", "close_document":
 			try entry.requireIdle()
@@ -61,7 +64,7 @@ extension MCPTools {
 				result["closed"] = true
 				return .object(result)
 			}
-			return try entry.inspection()
+			return try documentResponse(entry, args)
 		case "export_fabrication":
 			try entry.requireIdle()
 			let design = entry.design
@@ -90,12 +93,20 @@ extension MCPTools {
 		}
 		try entry.requireIdle()
 		try entry.requireRevision(args)
+		if name == "apply_connection" { return try applyConnection(args, entry: entry) }
 		if name == "undo" || name == "redo" {
+			let before = try entry.inspection()
 			guard let native = entry.native, !native.isInViewingMode else { throw MCPFailure("read_only", "The document cannot be edited.") }
 			guard let undo = entry.history, name == "undo" ? undo.canUndo : undo.canRedo else { throw MCPFailure("history_empty", "No \(name) step is available.") }
 			if name == "undo" { undo.undo() } else { undo.redo() }
 			entry.refresh()
-			return try entry.inspection()
+			return try mutationResponse(entry, before: before, objects: nil, compact: args.values["response"] == "compact")
+		}
+		if name == "fit_view" {
+			let op = entry.context.operations
+			if try args.string("view") == "layout" { op.editor.mode = .layout; op.layout.viewport.fit(entry.design.board.size) }
+			else { op.editor.mode = .schematic; op.schematic.viewport.fit(entry.design.board.sheetSize) }
+			return entry.summary()
 		}
 		if name == "reveal_objects" {
 			let handles = try args.strings("objects")
@@ -117,13 +128,7 @@ extension MCPTools {
 			entry.native?.showWindows()
 			return entry.summary()
 		}
-		var candidate = entry.design
-		try edit(name, args, entry: entry, design: &candidate)
-		try validate(candidate)
-		if candidate.needsBoardSync(from: entry.design) { _ = candidate.updateBoardFromSchematic() }
-		candidate.inheritConnectedNets()
-		try entry.commit(candidate, name: "AI: " + name.replacingOccurrences(of: "_", with: " "))
-		return try entry.inspection()
+		return try performEdits(name, args, entry: entry)
 	}
 
 	private static func checkDocumentDestination(_ url: URL, args: MCPArguments, current: URL? = nil) throws {

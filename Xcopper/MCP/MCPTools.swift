@@ -111,7 +111,18 @@ enum MCPSchema {
 		case "array":
 			guard let array = value.arrayValue else { throw invalid("must be an array") }
 			guard array.count >= (s["minItems"]?.intValue ?? 0), array.count <= (s["maxItems"]?.intValue ?? 256) else { throw invalid("has an invalid number of items") }
-			if let item = s["items"] { for value in array { try validate(value, schema: item, path: path + "[]") } }
+			if let item = s["items"] {
+				for (index, value) in array.enumerated() {
+					do { try validate(value, schema: item, path: path + "[\(index)]") }
+					catch var failure as MCPFailure {
+						if path == "arguments.operations" {
+							failure.details["operationIndex"] = .int(index)
+							if let id = value.objectValue?["id"] { failure.details["operationId"] = id }
+						}
+						throw failure
+					}
+				}
+			}
 		case "string":
 			guard let string = value.stringValue, string.count >= (s["minLength"]?.intValue ?? 0), string.count <= (s["maxLength"]?.intValue ?? 4096) else { throw invalid("must be a string of the permitted length") }
 		case "integer":
@@ -128,6 +139,7 @@ enum MCPTools {
 		var fields = properties
 		var required = required
 		if document || edit { fields["documentId"] = MCPSchema.string("Runtime UUID from list_documents."); required.append("documentId") }
+		if edit || ["create_document", "open_document", "save_document"].contains(name) { fields["response"] = MCPSchema.choice(["compact", "full"], "Mutation response detail; existing tools default to full.") }
 		if edit { fields["expectedRevision"] = MCPSchema.integer("Revision from the most recent inspection. Reinspect on stale_revision.", min: 1, max: Int.max); required.append("expectedRevision") }
 		return MCP.Tool(name: "xcopper_" + name, description: description, inputSchema: MCPSchema.object(fields, required: required), annotations: .init(readOnlyHint: readOnly, destructiveHint: !readOnly, idempotentHint: readOnly, openWorldHint: false))
 	}
@@ -138,12 +150,18 @@ enum MCPTools {
 		tool("open_document", "Open a workspace .xcb file through the native document controller, or return an already open document with its existing access grant.", ["path": MCPSchema.string("Workspace-relative or absolute .xcb path.")], required: ["path"]),
 		tool("save_document", "Save using the native document system. Untitled documents require a workspace destination; an existing different destination requires overwrite=true.", ["path": MCPSchema.string("Optional .xcb destination in the workspace."), "overwrite": ["type": "boolean"]], document: true),
 		tool("close_document", "Save changes using the native document system, then close the document. Untitled documents require a destination.", ["path": MCPSchema.string("Optional .xcb destination in the workspace."), "overwrite": ["type": "boolean"]], document: true),
-		tool("get_design", "Inspect board and sheet settings, rules, paired parts, placed pins and pads, wires, resolved copper and nets, modules, parameters and module errors. Handles are scoped to this returned revision; imported internals and pads are read only.", document: true, readOnly: true),
+		tool("get_design", "Inspect a design, optionally filtering sections, references and nets. Handles belong to this revision; imported internals and pads are read only.", ["sections": MCPSchema.array(MCPSchema.choice(["parts", "wires", "traces", "vias", "holes", "modules", "nets", "parameters"], "Sections to include."), min: 0), "references": MCPSchema.array(MCPSchema.string("Native or qualified component/module reference.")), "nets": MCPSchema.array(MCPSchema.string("Resolved net name."))], document: true, readOnly: true),
 		tool("search_library", "Discover manufacturer components and generic symbol/footprint specifications, including default pin and pad geometry. Use the returned spec in place_part.", ["query": ["type": "string", "maxLength": 256]], readOnly: true),
 		tool("list_module_sources", "Discover .xcb module sources under the document folder using workspace access; return interfaces, geometry, parameters and load diagnostics.", document: true, readOnly: true),
 		tool("check_design", "Return DRC violations, unrouted connections, schematic connectivity diagnostics, module errors and the inspected revision.", document: true, readOnly: true),
+		tool("apply_edits", "Apply ordered design edits atomically in one Undo step. Each operation has tool, arguments and optional id. Use $id as an object handle for an earlier placement result. dryRun returns a preview without committing or allocating live handles. Responses default to compact.", ["operations": MCPSchema.array(MCPSchema.object(["tool": MCPSchema.choice(designEdits, "Design editing tool without the xcopper_ prefix."), "arguments": MCPSchema.object([:], additional: true), "id": MCPSchema.string("Unique operation name, also usable as a placement alias.")], required: ["tool", "arguments"])), "name": MCPSchema.string("Undo action name."), "dryRun": ["type": "boolean"]], required: ["operations"], edit: true),
+		tool("get_netlist", "Return resolved hierarchical references, component values, pin numbers and nets for external circuit analysis.", document: true, readOnly: true),
+		tool("render_design", "Render an inline PNG from the native layout or schematic rendering geometry without changing selection or viewport. Optional proposalId previews planned copper. Defaults to 1024x1024 and fitted board/sheet bounds.", ["view": MCPSchema.view, "proposalId": MCPSchema.handle, "bounds": MCPSchema.object(["origin": MCPSchema.point, "size": MCPSchema.size], required: ["origin", "size"]), "layers": MCPSchema.array(MCPSchema.integer("Visible copper layer.", max: 5), min: 0, max: 6), "width": MCPSchema.integer("Image width in pixels.", min: 64, max: 2048), "height": MCPSchema.integer("Image height in pixels.", min: 64, max: 2048), "ratsnest": ["type": "boolean"], "silkscreen": ["type": "boolean"]], required: ["view"], document: true, readOnly: true),
+		tool("plan_connection", "Plan one same-net connection without modifying the document. Supply a connection handle from check_design or from/to pad, trace, via or island handles; to=plane connects to the source net's plane. Existing copper stays fixed. Returns exact copper and a proposal valid for ten minutes at this revision.", ["connection": MCPSchema.handle, "from": MCPSchema.handle, "to": MCPSchema.string("Endpoint handle or plane."), "layers": MCPSchema.array(MCPSchema.integer("Permitted outer signal layer index.", max: 5), max: 2), "width": MCPSchema.integer("Trace width; default board rule.", min: 1, max: 100_000), "clearance": MCPSchema.integer("Clearance, at least the board rule.", max: 100_000), "viaLimit": MCPSchema.integer("Maximum added through vias; default 4.", max: 16), "grid": MCPSchema.integer("Search grid; default 100 micrometres.", min: 1, max: 100_000), "maxNodes": MCPSchema.integer("Search budget; default 200000 states.", min: 1, max: 1_000_000)], edit: true, readOnly: true),
+		tool("apply_connection", "Commit the exact copper from a current plan_connection proposal in one Undo step. Defaults to a compact response.", ["proposalId": MCPSchema.handle], required: ["proposalId"], edit: true),
+		tool("fit_view", "Fit the board or sheet in the requested native view without changing the design or revision.", ["view": MCPSchema.view], required: ["view"], edit: true),
 		tool("configure_design", "Set sheet/board dimensions, 2/4/6-layer stackup, solder mask, rule fields and module parameter defaults. A layer reduction must support imported modules.", ["sheetSize": MCPSchema.size, "boardSize": MCPSchema.size, "layers": ["type": "integer", "enum": [2, 4, 6]], "solderMask": ["type": "boolean"], "rules": MCPSchema.rules, "parameters": MCPSchema.parameters], edit: true),
-		tool("place_part", "Place a paired symbol and footprint. at and rotation apply to view; the counterpart is parked unless counterpartAt/counterpartRotation are supplied. Use a component, symbolKind or footprintKind spec.", ["spec": MCPSchema.spec, "view": MCPSchema.view, "at": MCPSchema.point, "rotation": MCPSchema.rotation, "counterpartAt": MCPSchema.point, "counterpartRotation": MCPSchema.rotation, "reference": MCPSchema.string("Unique nonempty reference."), "value": ["type": "string", "maxLength": 4096], "inBOM": ["type": "boolean"]], required: ["spec", "view", "at"], edit: true),
+		tool("place_part", "Place a paired symbol and footprint. at and rotation apply to view; the counterpart is parked unless counterpartAt/counterpartRotation are supplied. Use a component, symbolKind or footprintKind spec.", ["spec": MCPSchema.spec, "view": MCPSchema.view, "at": MCPSchema.point, "rotation": MCPSchema.rotation, "counterpartAt": MCPSchema.point, "counterpartRotation": MCPSchema.rotation, "reference": MCPSchema.string("Unique nonempty reference."), "value": ["type": "string", "maxLength": 4096], "inBOM": ["type": "boolean"], "labels": MCPSchema.labels], required: ["spec", "view", "at"], edit: true),
 		tool("update_part", "Update a native paired part's unique reference, value or BOM inclusion. Use transform_objects to change geometry.", ["object": MCPSchema.handle, "reference": MCPSchema.string("Unique nonempty reference."), "value": ["type": "string", "maxLength": 4096], "inBOM": ["type": "boolean"]], required: ["object"], edit: true),
 		tool("set_pin_labels", "Set connectivity labels by pin number on a native part or module. Null or empty values clear labels. Matching names connect; '#1 OUT' exposes module IO pin 1.", ["object": MCPSchema.handle, "labels": MCPSchema.labels], required: ["object", "labels"], edit: true),
 		tool("add_wires", "Draw schematic wire polylines. Each segment must be nonzero and orthogonal. The entire request commits in one Undo step.", ["paths": MCPSchema.array(MCPSchema.array(MCPSchema.point, min: 2))], required: ["paths"], edit: true),
@@ -159,7 +177,7 @@ enum MCPTools {
 		tool("reload_modules", "Reload and validate module sources with workspace access. Any failure leaves the design unchanged.", edit: true),
 		tool("undo", "Undo one native document history step. Human changes also advance the revision.", edit: true),
 		tool("redo", "Redo one native document history step. Human changes also advance the revision.", edit: true),
-		tool("reveal_objects", "Select objects and reveal them in the requested app view. Requires current handles and revision; does not change the design.", ["objects": MCPSchema.array(MCPSchema.handle), "view": MCPSchema.view], required: ["objects", "view"], edit: true),
+		tool("reveal_objects", "Select objects and reveal them in the requested app view. Requires current handles and revision; does not change the design.", ["objects": MCPSchema.array(MCPSchema.handle, min: 0), "view": MCPSchema.view], required: ["objects", "view"], edit: true),
 		tool("export_fabrication", "Export the existing Gerber, Excellon, BOM and placement set into a workspace folder. Unresolved modules always block export. DRC findings require allowViolations=true; an existing destination requires overwrite=true.", ["path": MCPSchema.string("Destination folder inside the workspace."), "overwrite": ["type": "boolean"], "allowViolations": ["type": "boolean"]], required: ["path"], document: true)
 	]
 
@@ -186,7 +204,9 @@ enum MCPTools {
 			let denied = native.domain == NSCocoaErrorDomain && [NSFileReadNoPermissionError, NSFileWriteNoPermissionError].contains(native.code)
 			let code = (error as? MCPFailure)?.code ?? (denied ? "access_required" : error is CancellationError ? "cancelled" : "operation_failed")
 			let message = denied ? "File access was denied. Select a containing workspace in AI Access settings, or reopen the document through File → Open, then retry. " + error.localizedDescription : error.localizedDescription
-			var body: [String: MCPJSON] = ["code": .string(code), "message": .string(message)]
+			var body = (error as? MCPFailure)?.details ?? [:]
+			body["code"] = .string(code)
+			body["message"] = .string(message)
 			if let id = params.arguments?["documentId"]?.stringValue,
 				let entry = MCPDocuments.shared.documents.first(where: { $0.id.uuidString == id }) {
 				entry.refresh()
@@ -197,8 +217,14 @@ enum MCPTools {
 		}
 	}
 
-	private static func result(_ value: MCPJSON, error: Bool = false) -> CallTool.Result {
+	static func result(_ supplied: MCPJSON, error: Bool = false) -> CallTool.Result {
+		var value = supplied
+		var image: MCP.Tool.Content?
+		if var fields = supplied.objectValue, let data = fields.removeValue(forKey: "imageData")?.stringValue {
+			value = .object(fields)
+			image = .image(data: data, mimeType: "image/png", annotations: nil, _meta: nil)
+		}
 		let text = (try? JSONEncoder().encode(value)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
-		return .init(content: [.text(text: text, annotations: nil, _meta: nil)], structuredContent: Optional.some(value), isError: error)
+		return .init(content: [.text(text: text, annotations: nil, _meta: nil)] + (image.map { [$0] } ?? []), structuredContent: Optional.some(value), isError: error)
 	}
 }

@@ -18,6 +18,10 @@ struct Violation: Hashable {
 	var layer: Int?
 	var refs: Set<Ref>
 	var text: String
+	var preciseRefs: Set<Ref>? = nil
+	var nets: Set<Net.ID> = []
+	var measured: Double? = nil
+	var required: Double? = nil
 }
 
 extension Violation {
@@ -56,8 +60,10 @@ struct BoardObject {
 	var layers: ClosedRange<Int>
 	var drilled: Bool
 	var bounds: Rect
+	var detailRef: Ref
 
-	init(_ figure: Figure, net: Net.ID?, ref: Ref, layers: ClosedRange<Int>, drilled: Bool = false) {
+	init(_ figure: Figure, net: Net.ID?, ref: Ref, layers: ClosedRange<Int>, drilled: Bool = false, detailRef: Ref? = nil) {
+		self.detailRef = detailRef ?? ref
 		self.figure = figure
 		self.net = net
 		self.ref = ref
@@ -103,13 +109,14 @@ extension Board {
 					layers: trace.layer ... trace.layer
 				))
 			}
-			for pad in footprint.placedPads {
+			for (padIndex, pad) in footprint.placedPads.enumerated() {
 				let layer = footprint.layer(of: pad, in: stack)
 				objects.append(BoardObject(
 					pad.figure,
 					net: pad.net,
 					ref: .footprint(index),
-					layers: pad.isThrough ? through : layer ... layer
+					layers: pad.isThrough ? through : layer ... layer,
+					detailRef: .pad(index, padIndex)
 				))
 			}
 		}
@@ -142,7 +149,8 @@ private extension Design {
 				at: Rect(from: trace.start, to: trace.end).center,
 				layer: trace.layer,
 				refs: [.trace(index)],
-				text: "\(label(trace.net)) trace \(mm(actual * 1_000)) below minimum \(mm(Double(board.rules.minTraceLength)))"
+				text: "\(label(trace.net)) trace \(mm(actual * 1_000)) below minimum \(mm(Double(board.rules.minTraceLength)))",
+				nets: Set([trace.net].compactMap { $0 }), measured: actual * 1_000, required: Double(board.rules.minTraceLength)
 			)
 		}
 	}
@@ -172,7 +180,7 @@ private extension Design {
 		guard a.bounds.outset(clearance).intersects(b.bounds) else { return nil }
 
 		let apart = gap(a.figure, b.figure)
-		guard apart < Double(clearance) - 0.5 else { return nil }
+		guard apart <= 0.5 || apart < Double(clearance) - 0.5 else { return nil }
 
 		let touching = apart <= 0.5
 		let drilled = a.drilled || b.drilled
@@ -194,7 +202,8 @@ private extension Design {
 			at: meeting(a.figure, b.figure),
 			layer: layer,
 			refs: [a.ref, b.ref],
-			text: text
+			text: text,
+			preciseRefs: [a.detailRef, b.detailRef], nets: Set([a.net, b.net].compactMap { $0 }), measured: apart, required: Double(clearance)
 		)
 	}
 
@@ -216,7 +225,8 @@ private extension Design {
 				refs: [object.ref],
 				text: margin <= 0
 					? "\(what) over the edge"
-					: "\(what) \(mm(Double(margin))) from the edge"
+					: "\(what) \(mm(Double(margin))) from the edge",
+				preciseRefs: [object.detailRef], nets: Set([object.net].compactMap { $0 }), measured: Double(margin), required: Double(clearance)
 			)
 		}
 	}
@@ -229,7 +239,7 @@ private extension Design {
 				at: Point(x: (rat.from.x + rat.to.x) / 2, y: (rat.from.y + rat.to.y) / 2),
 				layer: nil,
 				refs: [],
-				text: "\(label(rat.net)) not joined"
+				text: "\(label(rat.net)) not joined", nets: [rat.net]
 			)
 		} + board.stranded(planes: planes).map { strand in
 			Violation(
@@ -237,7 +247,7 @@ private extension Design {
 				at: strand.at,
 				layer: nil,
 				refs: [],
-				text: "\(label(strand.net)) not joined to its plane"
+				text: "\(label(strand.net)) not joined to its plane", nets: [strand.net]
 			)
 		}
 	}

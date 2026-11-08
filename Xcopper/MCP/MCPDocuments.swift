@@ -18,6 +18,7 @@ final class MCPDocumentEntry {
 	private var historyObservers: [NSObjectProtocol] = []
 	private weak var observedUndo: UndoManager?
 	var fileOperation = false
+	var proposals: [UUID: MCPConnectionProposal] = [:]
 
 	init(id: UUID, native: NSDocument, design: Design) {
 		self.id = id
@@ -42,6 +43,7 @@ final class MCPDocumentEntry {
 	}
 
 	func dispose() {
+		proposals.removeAll()
 		for observer in historyObservers { NotificationCenter.default.removeObserver(observer) }
 		historyObservers.removeAll()
 		contexts.removeAll()
@@ -54,7 +56,7 @@ final class MCPDocumentEntry {
 
 	func refresh() {
 		let current = design
-		if current != snapshot { revision += 1; snapshot = current }
+		if current != snapshot { revision += 1; snapshot = current; proposals.removeAll() }
 	}
 
 	func requireRevision(_ args: MCPArguments) throws {
