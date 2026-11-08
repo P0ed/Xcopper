@@ -6,9 +6,10 @@ Build a release and copy it to `/Applications`:
 
 ```sh
 xcodebuild -project Xcopper.xcodeproj -scheme Xcopper -configuration Release \
-  -destination 'platform=macOS' -derivedDataPath /tmp/XcopperRelease \
-  CODE_SIGNING_ALLOWED=NO build && \
-  ditto /tmp/XcopperRelease/Build/Products/Release/Xcopper.app /Applications/Xcopper.app
+  -destination 'generic/platform=macOS' -derivedDataPath /tmp/XcopperRelease \
+  -archivePath /tmp/XcopperRelease.xcarchive \
+  ENABLE_CODE_COVERAGE=NO CODE_SIGNING_ALLOWED=NO archive && \
+  ditto /tmp/XcopperRelease.xcarchive/Products/Applications/Xcopper.app /Applications/Xcopper.app
 ```
 
 - Schematic capture with parametric symbols, a built-in component library and net labels

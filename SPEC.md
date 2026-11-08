@@ -49,6 +49,13 @@ The board stores `solderMask`; older documents without it open with mask enabled
 Module origins are derived from the source board center and are not stored.
 Saved `origin` fields in older documents are ignored.
 
+## Release packaging
+
+Release builds disable code coverage and strip symbols during deployment
+postprocessing. Build an archive and copy its `Products/Applications/Xcopper.app`
+into place, as shown in the README. Retain the archive's matching dSYM outside the
+app bundle for symbolication. Debug builds remain available for tests and coverage.
+
 ## Editing and geometry
 
 ### Paired parts and placement
@@ -226,6 +233,10 @@ span the parent stack. Module rectangles are placement bounds; fabrication
 exports only the parent's outline.
 
 ### Reload, access and history
+
+Folder permission lookup checks the requested directory and each normalized
+ancestor through the filesystem root exactly once. It stops by path depth rather
+than URL equality, including for bridged `NSURL` values.
 
 Unused nets are removed when a file opens; copper assignments, schematic labels
 and power nets are retained. Sources reload when the parent opens or moves. After editing a source, choose

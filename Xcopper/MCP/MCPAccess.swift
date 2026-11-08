@@ -162,8 +162,7 @@ final class MCPModuleAccess {
 	private func allow(_ url: URL) throws {
 		let resolved = url.resolvingSymlinksInPath().standardizedFileURL
 		if allowed.contains(where: { resolved.pathComponents.starts(with: $0.pathComponents) }) { return }
-		var candidate = url.standardizedFileURL
-		while true {
+		for candidate in url.ancestorDirectories {
 			let key = "moduleFolder." + candidate.path
 			if let data = UserDefaults.standard.data(forKey: key) {
 				var stale = false
@@ -175,9 +174,6 @@ final class MCPModuleAccess {
 					return
 				}
 			}
-			let parent = candidate.deletingLastPathComponent()
-			if parent == candidate { break }
-			candidate = parent
 		}
 		throw MCPFailure("access_required", "Module access is missing for \(resolved.path). Choose a containing AI workspace, or grant this folder through Reload Modules in Xcopper, then retry.")
 	}

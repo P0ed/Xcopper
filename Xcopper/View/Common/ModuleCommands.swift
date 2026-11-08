@@ -41,8 +41,7 @@ private final class ModuleFolderAccess {
 	}
 
 	static func acquire(to folder: URL, interactive: Bool = true) throws -> URL? {
-		var candidate = folder.standardizedFileURL
-		while true {
+		for candidate in folder.ancestorDirectories {
 			let key = "moduleFolder." + candidate.path
 			if let data = UserDefaults.standard.data(forKey: key) {
 				var stale = false
@@ -52,9 +51,6 @@ private final class ModuleFolderAccess {
 					return url
 				}
 			}
-			let parent = candidate.deletingLastPathComponent()
-			if parent == candidate { break }
-			candidate = parent
 		}
 		var scoped: URL?
 		if (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) == nil {

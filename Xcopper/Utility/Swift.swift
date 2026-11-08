@@ -1,5 +1,20 @@
 import Foundation
 
+extension URL {
+	var ancestorDirectories: [URL] {
+		var result: [URL] = []
+		var directory = absoluteURL.standardizedFileURL
+		while true {
+			result.append(directory)
+			guard directory.pathComponents.count > 1 else { break }
+			let parent = directory.deletingLastPathComponent().absoluteURL.standardizedFileURL
+			guard parent.pathComponents.count < directory.pathComponents.count else { break }
+			directory = parent
+		}
+		return result
+	}
+}
+
 func ø<each A>(_ x: repeat each A) {}
 
 func modifying<A>(_ value: A, _ transform: (inout A) -> Void) -> A {
