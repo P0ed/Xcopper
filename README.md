@@ -47,21 +47,15 @@ or wire. Click or drag to draw and continue from the last endpoint; landing on a
 pin or existing wire finishes the route and returns to Select. Hold `⌃`
 to ignore connection snapping, or press `⎋` to cancel. `⇧` keeps wires orthogonal.
 
-Dragging a symbol, module or wire segment keeps its existing
-connections. Neighbouring wires extend or contract, corners slide, and extra
-right-angle legs appear where needed to reach a fixed pin or junction. Collapsed segments disappear
-and straight segments fuse. `⌘` selects a whole wire run up to a pin or
-branch, using the same selection rules as layout traces.
-
-A selected symbol or wire lights up the way copper does on the layout,
-with the glow carrying the selection on a symbol already drawn near white.
+Dragging a symbol, module or wire segment preserves its connections.
+Hold `⌘` to select a whole wire run up to a pin or branch.
 
 Symbols are parametric: resistor, capacitor, inductor, diode, transistor and an IC
 box with any pin count. Every symbol represents a part with one footprint.
 Double-click a resistor or capacitor in Select mode to edit its value in the
 sidebar.
 Select a symbol or module and edit its **Pin net labels** fields in the sidebar.
-Each pin has an optional net label; an empty field means no label (`.none`).
+Each pin has an optional net label; an empty field clears the label.
 Labels appear at every pin that specifies one and move with the part. Matching
 labels connect pins, including supplies such as `GND`, `VCC` and `VEE`.
 Use `#1 OUT1` to name a net `OUT1` and expose it as module IO pin 1, named `OUT1`.
@@ -109,23 +103,12 @@ only the drawing; the fabrication set carries no silkscreen.
 The **Layers → Ratsnest** toggle follows the copper layer toggles and shows or hides
 unrouted connection lines. It starts enabled.
 
-While routing, segments snap to 45° and chain from the previous endpoint —
-click, click, click. Hold `⇧` for a free angle, `⌃` to ignore pad snapping,
-or press Delete to remove the last placed segment and redraw it from its start.
-Repeat Delete to step back through the current route; `⎋` cancels routing.
-Landing on a pad, a via or copper already drawn ends the route
-there, straightens the connected run into horizontal, vertical and 45° legs,
-and hands the tool back to Select. Compatible segments in a straight line merge,
-while pad, via and branch connections stay fixed. Finishing and straightening
-share one undo step. If there is no room for the required bends, routing stays
-active so the last segment can be adjusted.
-
-Copper never turns a right angle. A route chaining on from a segment already
-drawn keeps to the three headings that carry straight on or bend 45° either
-way, so a square corner has to be drawn as the two bends it is really made of,
-and there is no heading at all straight back the way the route came. Copper
-joined on a pad or a via is joined rather than bent, and so is copper the route
-branches off, so neither ties down which way the next segment leaves.
+While routing, segments snap to 45° and chain from the previous endpoint.
+Click or drag to draw; hold `⇧` for a free angle or `⌃` to ignore pad snapping.
+Delete removes the last placed segment and returns to its start; repeat to step
+back through the route. `⎋` cancels routing. Landing on a pad, via or existing
+copper finishes the route and returns to Select. If there is no room to finish,
+adjust the last segment and try again.
 
 Selection includes both top and bottom copper when visible, including Select All.
 Overlapping traces prefer the active layer.
@@ -145,57 +128,18 @@ in the inspector to move or edit the whole part. Module pads can be clicked dire
 to inspect their resolved net, dimensions and position.
 `⌘`-click an imported object to select its whole module instance.
 
-A click is still a click when the hand is not quite still. The pointer has to
-travel a few points across the screen before a press counts as a drag, so a
-wobble under the button neither carries a part off its position nor turns a
-click into a rubber band that catches nothing. It is measured on the screen
-rather than on the board, since it is the hand that wanders and not the design,
-so the same wobble is forgiven at any magnification, and a pointer brought back
-inside it is a click again. The sheet reads a press the same way.
-
-Dragging a segment straightens it and the neighbours it stretches to horizontal,
-vertical or 45° legs. Copper already on those headings keeps its direction, and the joint slides to
-where those headings now cross, so the segment dragged changes length and so does
-the one it hangs off, while the far end of it stays put: drag the bottom of a U
-towards the top and it comes out longer, the legs either side of it shorter. A
-leg taken up to nothing goes away with the drag.
-
-Copper a pad carries off has no such say. Every trace end sitting on a pad of a
-moving footprint follows the pad exactly, and the segment it stretches is put
-back on the 45° grid — the corner it runs into slides along to absorb the move,
-and where there is no corner to slide, a pad, a via or a branch, the segment
-folds into two legs instead. The fold picks the leg order that leaves the joint
-it hangs off gently, rather than the one that would meet it square. A joint no
-stretch can work out is carried and folded the same way: one at a branch, which
-has no single heading to keep, or between two headings that never meet. A segment
-drag also folds copper drawn at a free angle into 45° legs, keeping the far
-connections in place. Moving a footprint alone preserves free-angle copper.
-
-No drag leaves copper turning a right angle either. Where a corner comes out
-square anyway, it comes apart into the two 45° bends it is really made of: each
-leg gives up one snap grid step and a short segment joins where they left off.
-Where even that will not do — copper doubled right back on itself, or a leg with
-no step to spare — the drag is refused whole. The board is left exactly as it
-stood, so the copper visibly stops following the pointer rather than bending
-square, and a refused drag leaves nothing on the undo stack.
-
-A drag never leaves a straight line in pieces: segments that come to rest end to
-end in line fuse back into the one segment they look like, and a segment
-squashed down to nothing goes away. Copper meeting on a pad or a via is joined
-there rather than bent, so that stays two segments.
+Dragging parts, vias or traces preserves their existing connections. Copper is
+adjusted to horizontal, vertical and 45° segments as needed. An invalid drag is
+refused without changing the board or adding an Undo step. Moving a footprint
+alone preserves any free-angle copper attached to it.
 
 ## Parts
 
-A part is placed once and stands on both sides. Placing a symbol on the sheet
-also puts its footprint on the board, and placing a footprint puts its symbol on
-the sheet. Their shared reference designator pairs the symbol and footprint
-when the board updates automatically.
+Placing a symbol also creates its footprint, and placing a footprint creates
+its symbol. Both views share the part's reference and value.
 
-The counterpart is parked at the first spot, in reading order, where it covers
-nothing already drawn, on the 0.1 inch pitch both snap grids share, so it lands
-on the grid whatever the snap is set to and is ready to be dragged where it
-belongs. On the sheet that keeps a parked symbol off the wires as well as off the
-other parts — a pin tip landing on a wire would join its net.
+The counterpart is parked automatically where there is room. Move it into place
+when you switch to the other view.
 
 The value belongs to the part rather than to either drawing. Typing a resistance
 into the sidebar on the sheet writes it on the footprint as well, typing it on
@@ -214,12 +158,8 @@ and pasting or duplicating lays the half in front of you where the offset falls
 while the other is parked where there is room, the two sharing the one new
 reference. Pin net labels travel with the copied part or module.
 
-Either half shows the other. With a part picked, `⌘J` turns the document over,
-lights up what stands there for it — the footprint a symbol stands for, or the
-symbol a footprint does — and scrolls it into the middle of the view. The sidebar
-offers the same under the selection. It is the shared designator that pairs the
-two, so a part whose other half has been deleted has nothing to show, and neither
-has a wire or a length of copper.
+Select a part and press `⌘J` to switch views, select its counterpart and bring it
+into view. The sidebar offers the same action.
 
 The picker shelves the library by what a part does rather than by the package
 it comes in — op-amps, multipliers, logic, switches, panel controls, connectors
@@ -232,11 +172,8 @@ a transistor, SOIC for an IC — and the symbol dialog names it before placement
 The layout picker lets you choose the device and a supported package separately,
 including chip size or SOIC versus DIP for an IC, and draws the matching symbol.
 
-Each footprint has a device type, physical package and optional library identity
-separate from its reference and value. Renaming a part or importing it into
-a module preserves its identity. Library components load their current footprint
-definition whenever a document opens. Custom land patterns can be represented
-without assigning a device or library identity.
+Library parts use the current library footprint definition when a document
+opens.
 
 ## Find
 
@@ -247,7 +184,7 @@ capacitor, `1K5` everything of that value. A module answers to its reference and
 to the file it came from. Pin net labels also match: `GND` finds every symbol
 or module with a pin carrying that net name. What matched becomes the selection and is scrolled
 into view, ready for the sidebar to edit as one; a query nothing answers selects
-nothing. The part pickers, which `⌘F` used to open, are on `⌘⇧F` on both sides.
+nothing. Open the part picker with `⌘⇧F` in either view.
 
 ## Inspector
 
@@ -258,9 +195,7 @@ value, side, rotation, position and whether the bill of materials carries it.
 On the sheet a symbol gives its reference and value — the resistance, the
 capacitance, the part number — along with its rotation, whether it is mirrored
 and where it stands. A single symbol or module also gives an editable net label
-for each pin. A wire reports
-the net it lands in and how long it is, both read back out of the drawing
-rather than stored.
+for each pin. A wire reports its net and length.
 
 Several objects of one kind are edited at once. A selection of traces, of
 footprints — anything of a single kind — puts the same rows
@@ -273,38 +208,25 @@ how much copper or wire the selection comes to.
 
 ## Nets
 
-Connectivity is derived from wires and pin labels. A wire shorts its own two ends, and any
-pin tip or wire end sitting on a wire joins it. Pins with matching net labels
-also share a net without a wire.
-Because only those terminals are tested against wires, a T-junction connects
-and two wires merely crossing do not — the usual schematic convention, and junction dots follow from
-it rather than being placed by hand.
+Wires and matching pin labels connect pins. A T-junction connects, while two
+wires crossing without a junction do not. Junction dots appear automatically.
 
-A net takes its name from a label in it. New unnamed nets get a name based on
-their sorted reference and pin numbers, such as `N$R1.1/R2.2`, when they reach the board.
-Existing unnamed nets keep their names and IDs so routed copper stays connected.
-
-Schematic edits automatically update the layout: footprints are matched to symbols by
-reference designator and pads to pins by number, and `Pad.net` is set from that.
-The pass is additive — a pad the schematic says nothing about keeps the net it
-had. Unnamed nets keep their names across updates, and undo restores the schematic
-and board together.
+Schematic edits update the layout automatically. Unnamed nets receive generated
+names; pin labels give them meaningful names. Undo restores the schematic and
+board together.
 
 Traces and vias without a net inherit the single net of physically connected
-copper as the design changes, including chains through pads and vias across their
-copper layers. Existing assignments are preserved. Disconnected copper and copper
-touching more than one net stay unassigned.
+copper, including connections through pads and vias across layers. Existing
+assignments are preserved. Disconnected copper and copper touching more than one
+net stay unassigned.
 
-The layout then draws a ratsnest for every net whose copper does not yet join all
-of it, as a minimum spanning tree over the disconnected islands. Route one of
-those connections and its line goes away.
+The ratsnest shows connections the schematic requires but the copper has not
+joined. Routing a connection removes its ratsnest line.
 
 ## Design rules
 
-The board is looked over as it is drawn, and what is wrong with it is listed in
-the sidebar under the clearance it is measured against. Nothing is stored: the
-violations are read back out of the copper the way the netlist is read back out
-of the wires, so one can never outlive the thing that caused it.
+The sidebar lists design-rule violations as you edit. Checks cover shorts,
+clearance, holes, board edges, minimum trace length and unrouted connections.
 
 Copper is judged against copper of another net. Touching is a short, and coming
 closer than the clearance without touching is the clearance itself. Copper the
@@ -359,17 +281,11 @@ copper on the bottom follows the bottom to wherever the new stackup puts it.
 
 ## 3D preview
 
-`⌘3` shows the board the way it comes back from the fab: laminate of the chosen
-thickness with its cut edge showing, solder mask over it, copper reading through
-the mask, pads left open and plated, holes drilled through and lined, and every
-part standing where the layout puts it. Nothing is approximated away: the copper
-drawn is the copper on the board, and no legend is drawn because the fabrication
-set carries none. With solder mask turned off in Board settings, the faces show
-bare laminate and exposed plated copper. The preview starts with the board's
-solder-mask setting. Its **Mask** picker offers **None**, **Green** and **Black**
-to override the preview appearance without changing the saved board or fabrication
-output. Preview choices persist when switching views; changing the board's
-solder-mask setting updates the preview too.
+`⌘3` previews the assembled board with its parts, copper, solder mask and drilled
+holes. The preview starts with the board's solder-mask setting. Its **Mask**
+picker offers **None**, **Green** and **Black** to change the preview without
+changing the saved board or fabrication output. Preview choices persist when
+switching views; changing solder mask in Board settings updates the preview too.
 
 | Key | View |
 | --- | --- |
@@ -378,11 +294,7 @@ solder-mask setting updates the preview too.
 | `F` | Front |
 | `A` | Angled |
 
-Only the outer copper layers are on show, since those are the only ones a
-finished board lets you see. Part appearance comes from the stored device and
-package: chip capacitors have a ceramic body and stand taller than resistors of
-the same size. Custom packages use a geometric approximation based on their land
-pattern. Reference and value text do not select a 3D model.
+The 3D preview shows the outer copper layers.
 
 ## Fabrication
 
@@ -412,50 +324,20 @@ With solder mask enabled, pads open the mask and vias do not, so vias come back
 tented. Turning it off in Board settings writes a full-board opening into each
 mask Gerber, leaving both faces unmasked.
 
-The Gerbers are RS-274X in millimeters at a 4.6 format. Board coordinates are stored
-as integer micrometers and multiplied by 1,000 for export without rounding. Copper
-carries X2 net attributes, and each file states its own place in the stack. A plane goes
-out the way the layout draws it: poured over the board, cleared back around
-everything on another net, then the copper on that layer drawn over the top.
-
-The bill of materials carries one line per value and package, with everything
-that shares them gathered into a single designator field and counted. The
-placement list gives each part its middle, the face it stands on, and how far it
-is turned counter-clockwise seen from that face — measured from the same corner
-the Gerbers count from, so the two agree. A part's value is what the bill calls
-it, or failing that the library part it came from, or what sort of device it is.
+The bill of materials groups parts with the same value and package. The placement
+list includes each fitted part's position, board face and rotation.
 
 Not everything drawn is fitted. A part carries its own place in the bill, turned
 off in the sidebar for a panel jack, a test pad or anything else the board is
 drawn around rather than populated with, and a part left out is neither bought
 nor placed.
 
-## File format
+## Documents
 
-Every design is a `.xcb` JSON document holding `nets`, `board`, `schematic` and module instance metadata. Existing documents without `modules` remain readable. Resolved source geometry and folder access bookmarks are not embedded in the file.
-All coordinates and lengths are stored as integer micrometers.
-The schematic stores parts in `symbols`, with optional `netLabel` values on their
-pins. Module instances store numbered IO definitions in `interface` and optional
-pin assignments in `netLabels`, keyed by IO number.
-Each design stores its parameter names and defaults in a `parameters` array.
-Names are derived from schematic values beginning with `#NAME`; repeated names
-share one parameter. Legacy `valueParameter` flags migrate to `#REFERENCE` values
-and module-level defaults when opened.
-Module instances retain parameter definitions and defaults in `parameters`, with
-per-instance overrides in `parameterValues`, keyed by parameter name. Older
-documents without these fields derive parameters from their schematic values and
-have no overrides.
-Library footprints store their component ID, placement, reference, value and BOM
-setting. Pads, body dimensions, device and package come from the current library
-definition when opened, and pad nets are rebuilt from the schematic.
-Generic and custom footprints retain their stored geometry.
-Via diameters are stored once in the board's rules. Older documents use their
-saved board via sizes; per-via drill and pad overrides are discarded when opened.
-The rules also store `minTraceLength`; older documents default to 100 µm (0.1 mm).
-Saved via layer ranges are also discarded: every via spans the current board stack.
-The board stores `solderMask`; older documents without it open with mask enabled.
-Module origins are derived from the source board center and are not stored.
-Saved `origin` fields in older documents are ignored.
+Save designs as `.xcb` files using the standard macOS document commands.
+A document contains the paired schematic and board. Module source designs remain
+separate files; keep them available alongside the parent design or in its module
+search folders.
 
 ## Modularity
 
@@ -485,20 +367,10 @@ bill of materials; instance overrides apply to imported parts, including nested
 modules. A child instance's parameter override can use `#NAME` to forward a
 parameter from its containing module.
 
-The instance's layout position places the center of its source board in the parent.
-Rotating a single module turns around that center. Nested modules also use their
-own source board centers. Resizing a source board and reloading keeps the instance's
-position fixed and centers the resized board there. Opening a source directly keeps
-the root board's origin at `[0, 0]`.
-
-Save the parent design. Xcopper finds modules by name in the document's folder
-and its subfolders, following Finder aliases and symbolic links to other folders.
-For example, a design in `Modules/Function` can use modules from `Modules/Base`
-through an alias to `Base` inside `Function`. Hidden folders and packages are skipped.
-Names must be unique throughout the search, including differences only in letter
-case. Multiple aliases to the same source count as one module. Circular folder
-links are visited only once. Nested dependencies use the same search results.
-Existing saved filenames and relative paths are resolved by their module names.
+Save the parent design before importing modules. Xcopper searches its folder
+and subfolders, including folders reached through Finder aliases or symbolic
+links. Module names must be unique regardless of letter case. For a shared
+library, place an alias to its folder within the parent's search folders.
 
 Choose **Objects → Place Module** (`M`) to open a searchable list of module names.
 Select a module and choose **Place**, or double-click it. The current document is
@@ -513,16 +385,10 @@ lists IO pins in ascending numeric order. A module can import other modules, pro
 source has no more copper layers than its containing design. Circular dependencies
 and duplicate module names are rejected.
 
-Wire the block's pins; the board updates automatically. Connections
-pass through module IO to imported pads, traces, vias and nested modules. All
-non-power nets, including IO nets, and component references belong to their
-instance hierarchy. Use qualified labels such as `M1.NET` to connect to a module's
-local nets. IO connections do not add module nets to the parent's net list.
-The `GND`, `VCC` and `VEE` supply nets are shared between instances.
-The parent supplies its stack, internal planes, clearance rules, via sizes, solder mask and 3D thickness.
-Source top and bottom copper map to the parent's outer layers, and through holes
-span the parent stack. Module rectangles are placement bounds; fabrication
-exports only the parent's outline.
+Wire the block's pins; the board updates automatically. Use qualified labels such
+as `M1.NET` to connect to a module's local nets. `GND`, `VCC` and `VEE` are shared
+between instances. The parent board's stackup and design rules apply to imported
+modules.
 
 Click an imported layout part to inspect it individually, or click a pad directly
 to inspect its net and dimensions. `⌘`-click any imported object or
@@ -546,25 +412,26 @@ Moving a layout group keeps its geometry rigid and stretches parent traces
 attached to its pads or vias. If trace repair fails, the whole move is refused.
 Rotating a group leaves external copper in place.
 
-Unused nets are removed when a file opens; copper assignments, schematic labels
-and power nets are retained. Sources reload when the parent opens or moves. After editing a source, choose
-**File → Reload Modules** in its parent. Placements stay fixed; if the IO list
-changes, pins regenerate and a notice asks you to check the parent wires, which
-retain their coordinates. Missing, malformed, cyclic or incompatible dependencies
-appear as unresolved blocks and layout rectangles. The Modules panel explains
-how to recover. Unresolved geometry is excluded, and fabrication stays blocked
-until every dependency resolves. Stack reductions that would invalidate imports
-are refused. Pasting into another document searches for module names in the
-destination's folder and subfolders before adding any instances.
+After editing a source, choose **File → Reload Modules** in its parent. Sources
+also reload when the parent opens or moves. Placements stay fixed. If the IO list
+changes, check the parent wires as the notice requests.
 
-macOS may ask you to select a source's containing folder to grant access.
-You can select a shared parent folder, such as `Modules`, to cover all of its
-subfolders. Xcopper retains that grant in its preferences, outside the design.
-Moving the parent searches its new folder for dependencies and may require a new grant.
-Import, source replacement, movement, rotation, duplication, deletion, paste and explicit reload are
-undoable. Undo restores the previous resolved snapshot even if sources have since
-changed or disappeared; source files are never modified by parent edits.
+Missing, malformed, cyclic or incompatible dependencies appear as unresolved
+blocks and layout rectangles. The Modules panel explains how to recover.
+Fabrication stays blocked until every dependency resolves. Stack reductions that
+would invalidate an imported module are refused.
+
+macOS may ask you to select a source's containing folder to grant access. Select a
+shared parent folder, such as `Modules`, to cover its subfolders. Xcopper remembers
+the grant. Moving the parent to another folder may require a new grant.
+
+Module imports, edits and explicit reloads are undoable. Changes in the parent do
+not modify source files.
 
 ## MCP access
 
 See [MCP.md](MCP.md) for setup, the tool reference, routing, and example workflows.
+
+## Developer reference
+
+See [SPEC.md](SPEC.md) for document formats, editing rules and implementation details.
