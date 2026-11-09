@@ -1,5 +1,5 @@
 import AppKit
-import MCP
+import MCPS
 import SwiftUI
 
 @MainActor
@@ -159,7 +159,7 @@ final class MCPDocumentEntry {
 		})
 	}
 
-	func summary() -> MCP.Value {
+	func summary() -> MCPS.Value {
 		refresh()
 		return .object([
 			"documentId": .string(id.uuidString), "revision": .int(revision),

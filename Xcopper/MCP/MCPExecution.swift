@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import MCP
+import MCPS
 
 @MainActor
 extension MCPTools {

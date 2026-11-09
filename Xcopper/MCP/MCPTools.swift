@@ -1,7 +1,7 @@
 import Foundation
-import MCP
+import MCPS
 
-typealias MCPJSON = MCP.Value
+typealias MCPJSON = MCPS.Value
 
 struct MCPArguments {
 	var values: [String: MCPJSON]
@@ -135,16 +135,16 @@ enum MCPSchema {
 }
 
 enum MCPTools {
-	private static func tool(_ name: String, _ description: String, _ properties: [String: MCPJSON] = [:], required: [String] = [], document: Bool = false, edit: Bool = false, readOnly: Bool = false) -> MCP.Tool {
+	private static func tool(_ name: String, _ description: String, _ properties: [String: MCPJSON] = [:], required: [String] = [], document: Bool = false, edit: Bool = false, readOnly: Bool = false) -> MCPS.Tool {
 		var fields = properties
 		var required = required
 		if document || edit { fields["documentId"] = MCPSchema.string("Runtime UUID from list_documents."); required.append("documentId") }
 		if edit || ["create_document", "open_document", "save_document"].contains(name) { fields["response"] = MCPSchema.choice(["compact", "full"], "Mutation response detail; existing tools default to full.") }
 		if edit { fields["expectedRevision"] = MCPSchema.integer("Revision from the most recent inspection. Reinspect on stale_revision.", min: 1, max: Int.max); required.append("expectedRevision") }
-		return MCP.Tool(name: "xcopper_" + name, description: description, inputSchema: MCPSchema.object(fields, required: required), annotations: .init(readOnlyHint: readOnly, destructiveHint: !readOnly, idempotentHint: readOnly, openWorldHint: false))
+		return MCPS.Tool(name: "xcopper_" + name, description: description, inputSchema: MCPSchema.object(fields, required: required), annotations: .init(readOnlyHint: readOnly, destructiveHint: !readOnly, idempotentHint: readOnly, openWorldHint: false))
 	}
 
-	static let catalog: [MCP.Tool] = [
+	static let catalog: [MCPS.Tool] = [
 		tool("list_documents", "List every live Xcopper document, independent of window focus, with runtime IDs, revisions, paths, dirty and busy state.", readOnly: true),
 		tool("create_document", "Create and natively save a new design at a workspace-relative .pcb path, then open its window. Existing destinations require overwrite=true.", ["path": MCPSchema.string("Workspace-relative .pcb destination."), "overwrite": ["type": "boolean"]], required: ["path"]),
 		tool("open_document", "Open a workspace .pcb file through the native document controller, or return an already open document with its existing access grant.", ["path": MCPSchema.string("Workspace-relative or absolute .pcb path.")], required: ["path"]),
@@ -188,7 +188,7 @@ enum MCPTools {
 	]
 
 	@MainActor
-	static func call(_ params: CallTool.Parameters, serverID: UUID, permit: MCPSessionPermit) async -> CallTool.Result {
+	static func call(_ params: CallTool.Parameters, serverID: UUID, permit: SessionPermit) async -> CallTool.Result {
 		do {
 			guard MCPAccess.shared.isRunning, MCPAccess.shared.serverID == serverID else { throw MCPFailure("server_stopped", "The MCP server was stopped. Reconnect after starting it again.") }
 			guard permit.isValid else { throw MCPFailure("session_expired", "This MCP session ended. Initialize a new session before making tool calls.") }
@@ -219,7 +219,7 @@ enum MCPTools {
 
 	static func result(_ supplied: MCPJSON, error: Bool = false) -> CallTool.Result {
 		var value = supplied
-		var image: MCP.Tool.Content?
+		var image: MCPS.Tool.Content?
 		if var fields = supplied.objectValue, let data = fields.removeValue(forKey: "imageData")?.stringValue {
 			value = .object(fields)
 			image = .image(data: data, mimeType: "image/png", annotations: nil, _meta: nil)

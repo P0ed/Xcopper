@@ -1,5 +1,5 @@
 import AppKit
-import MCP
+import MCPS
 import XCTest
 @testable import Xcopper
 

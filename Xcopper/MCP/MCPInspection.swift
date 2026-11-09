@@ -1,5 +1,5 @@
 import Foundation
-import MCP
+import MCPS
 
 @MainActor
 extension MCPDocumentEntry {

@@ -1,7 +1,7 @@
 # MCP access
 
-Xcopper embeds the [official MCP Swift SDK 0.12.1](https://github.com/modelcontextprotocol/swift-sdk/releases/tag/0.12.1)
-and hosts its Streamable HTTP transport with SwiftNIO. Use **AI Access → Start MCP Server**
+Xcopper uses the local, dependency-free `MCPS` Swift package at [../MCPS](https://github.com/P0ed/MCPS),
+which hosts Streamable HTTP using Apple's Network framework. Use **AI Access → Start MCP Server**
 to listen at `http://127.0.0.1:8765/mcp`, and **Stop MCP Server** to disconnect clients
 and close the listener. The server starts stopped on every app launch.
 
@@ -39,7 +39,7 @@ configuration format:
 Clients must support [MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
 including SSE responses. Initialize a session at `/mcp`, then send its
 `MCP-Session-Id` and negotiated `MCP-Protocol-Version` headers on subsequent requests.
-Each session has a separate SDK server and transport. Requests require the bearer
+Each session has its own permit, pending calls and event stream. Requests require the bearer
 token, a Host of `127.0.0.1:PORT` or `localhost:PORT`, and, if supplied, the matching
 `http://` Origin. The listener binds only to IPv4 loopback. Sessions expire after
 one hour without requests; clients can terminate a session with HTTP DELETE.

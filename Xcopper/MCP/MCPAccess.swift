@@ -1,5 +1,5 @@
 import AppKit
-import MCP
+import MCPS
 import Observation
 import Security
 import SwiftUI

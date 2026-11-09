@@ -1,5 +1,5 @@
 import Foundation
-import MCP
+import MCPS
 
 struct MCPConnectionProposal {
 	var revision: Int

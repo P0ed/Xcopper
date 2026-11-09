@@ -7,10 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B10000000000000000000007 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000000003 /* MCP */; };
-		B10000000000000000000008 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000000004 /* NIOCore */; };
-		B10000000000000000000009 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000000005 /* NIOPosix */; };
-		B1000000000000000000000A /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = B10000000000000000000006 /* NIOHTTP1 */; };
+		4C4DBEC330A2745A00A73B09 /* MCPS in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4DBEC230A2745A00A73B09 /* MCPS */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,10 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B10000000000000000000007 /* MCP in Frameworks */,
-				B10000000000000000000008 /* NIOCore in Frameworks */,
-				B10000000000000000000009 /* NIOPosix in Frameworks */,
-				B1000000000000000000000A /* NIOHTTP1 in Frameworks */,
+				4C4DBEC330A2745A00A73B09 /* MCPS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +74,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4C4DBEC130A2745A00A73B09 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		5FF2A3A72E8F136C00EA7883 = {
 			isa = PBXGroup;
 			children = (
@@ -90,6 +91,7 @@
 				4CDAC0D230507811006EECD5 /* AGENTS.md */,
 				4C856D8230A0F5310097797F /* MCP.md */,
 				4C856D8330A0F5310097797F /* SPEC.md */,
+				4C4DBEC130A2745A00A73B09 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,16 +118,14 @@
 			buildRules = (
 			);
 			dependencies = (
+				4C4DBEC030A2744C00A73B09 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4CDEAEC2301783BB00FE51C4 /* Xcopper */,
 			);
 			name = Xcopper;
 			packageProductDependencies = (
-				B10000000000000000000003 /* MCP */,
-				B10000000000000000000004 /* NIOCore */,
-				B10000000000000000000005 /* NIOPosix */,
-				B10000000000000000000006 /* NIOHTTP1 */,
+				4C4DBEC230A2745A00A73B09 /* MCPS */,
 			);
 			productName = Xcopper;
 			productReference = 5FF2A3B02E8F136C00EA7883 /* Xcopper.app */;
@@ -161,7 +161,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					5FF2A3AF2E8F136C00EA7883 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -182,8 +182,7 @@
 			mainGroup = 5FF2A3A72E8F136C00EA7883;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-sdk" */,
-				B10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				4C4DBDD830A2740800A73B09 /* XCRemoteSwiftPackageReference "MCPS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5FF2A3B12E8F136C00EA7883 /* Products */;
@@ -224,6 +223,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		4C4DBEC030A2744C00A73B09 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 4C4DBEBF30A2744C00A73B09 /* MCPS */;
+		};
 		A1000000000000000000000A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5FF2A3AF2E8F136C00EA7883 /* Xcopper */;
@@ -438,8 +441,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = p0.xcopper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				STRIP_INSTALLED_PRODUCT = YES;
-				STRIP_STYLE = all;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
@@ -509,44 +510,26 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		B10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+		4C4DBDD830A2740800A73B09 /* XCRemoteSwiftPackageReference "MCPS" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			repositoryURL = "https://github.com/p0ed/MCPS";
 			requirement = {
-				kind = exactVersion;
-				version = 0.12.1;
-			};
-		};
-		B10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-nio.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.65.0;
+				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B10000000000000000000003 /* MCP */ = {
+		4C4DBEBF30A2744C00A73B09 /* MCPS */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-sdk" */;
-			productName = MCP;
+			package = 4C4DBDD830A2740800A73B09 /* XCRemoteSwiftPackageReference "MCPS" */;
+			productName = MCPS;
 		};
-		B10000000000000000000004 /* NIOCore */ = {
+		4C4DBEC230A2745A00A73B09 /* MCPS */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOCore;
-		};
-		B10000000000000000000005 /* NIOPosix */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOPosix;
-		};
-		B10000000000000000000006 /* NIOHTTP1 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOHTTP1;
+			package = 4C4DBDD830A2740800A73B09 /* XCRemoteSwiftPackageReference "MCPS" */;
+			productName = MCPS;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
