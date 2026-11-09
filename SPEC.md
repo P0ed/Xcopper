@@ -8,7 +8,7 @@ workflows are in [README.md](README.md); MCP setup and the tool contract are in
 
 ### Structure
 
-Each `.xcb` JSON document encodes `nets`, `board`, `modules` and `parameters`.
+Each `.pcb` JSON document encodes `nets`, `board`, `modules` and `parameters`.
 Existing documents without `modules` remain readable. Resolved source geometry,
 projection caches and folder access bookmarks are not embedded in the file.
 All coordinates and lengths are stored as integer micrometers.

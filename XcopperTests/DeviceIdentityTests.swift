@@ -52,25 +52,25 @@ final class DeviceIdentityTests: XCTestCase {
 	}
 
 	func testNestedImportsRetainCapacitorAndLibraryAppearance() throws {
-		let parentURL = URL(fileURLWithPath: "/tmp/xcopper-identity-tests/Parent.xcb")
+		let parentURL = URL(fileURLWithPath: "/tmp/xcopper-identity-tests/Parent.pcb")
 		var leaf = Design(board: Board(size: Size(width: 20 * .mm, height: 20 * .mm), stack: .classic))
 		leaf.place(Footprint.Spec(chip: .c0805, device: .capacitor), at: Point(x: 5 * .mm, y: 5 * .mm))
 		leaf.place(Footprint.Spec(component: .hlmpWL02), at: Point(x: 12 * .mm, y: 12 * .mm))
 		leaf.board.footprints[0].symbol.pins[0].netLabel = "#1 IN"
 		let appearances = leaf.board.footprints.map(\.appearance)
 
-		let library = try ModuleLibrary(sources: ["Leaf.xcb", "Middle.xcb"].map { parentURL.deletingLastPathComponent().appendingPathComponent($0) })
+		let library = try ModuleLibrary(sources: ["Leaf.pcb", "Middle.pcb"].map { parentURL.deletingLastPathComponent().appendingPathComponent($0) })
 		let leafData = try Document(design: leaf).encoded()
 		var middle = Design()
-		try middle.importModule(filename: "Leaf.xcb", documentURL: parentURL, library: library, read: { _ in leafData })
+		try middle.importModule(filename: "Leaf.pcb", documentURL: parentURL, library: library, read: { _ in leafData })
 		XCTAssertEqual(middle.resolved.board.footprints.map(\.reference), ["M1.C1", "M1.D1"])
 		XCTAssertEqual(middle.resolved.board.footprints.map(\.appearance), appearances)
 		let middleData = try Document(design: middle).encoded()
 		let read: (URL) throws -> Data = { url in
-			url.lastPathComponent == "Middle.xcb" ? middleData : leafData
+			url.lastPathComponent == "Middle.pcb" ? middleData : leafData
 		}
 		var parent = Design()
-		let id = try parent.importModule(filename: "Middle.xcb", documentURL: parentURL, library: library, read: read)
+		let id = try parent.importModule(filename: "Middle.pcb", documentURL: parentURL, library: library, read: read)
 		XCTAssertEqual(parent.resolved.board.footprints.map(\.reference), ["M1.M1.C1", "M1.M1.D1"])
 		XCTAssertEqual(parent.resolved.board.footprints.map(\.appearance), appearances)
 		parent.renameReference(Ref.module(id), to: "C2")

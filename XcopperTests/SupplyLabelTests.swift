@@ -66,7 +66,7 @@ final class SupplyLabelTests: XCTestCase {
 	@MainActor
 	func testModulePinInspectorEditsSynchronizeAndStoreEmptyAsNone() {
 		var design = Design()
-		design.modules = [ModuleInstance(reference: "M1", filename: "Part.xcb", interface: [IODesignator(number: 1, name: "OUT1")])]
+		design.modules = [ModuleInstance(reference: "M1", filename: "Part.pcb", interface: [IODesignator(number: 1, name: "OUT1")])]
 		let harness = EditorHarness(design: design)
 		harness.perform { $0.design.modules[0][netLabel: "1"] = "#10 BUS" }
 		XCTAssertEqual(harness.design.modules[0].symbol.pins[0].netLabel, "#10 BUS")

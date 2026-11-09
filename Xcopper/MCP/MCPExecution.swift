@@ -11,7 +11,7 @@ extension MCPTools {
 		case "search_library": return try library(args.values["query"]?.stringValue ?? "")
 		case "create_document":
 			let path = try args.string("path")
-			guard !path.hasPrefix("/"), !path.split(separator: "/").contains("..") else { throw MCPFailure("invalid_path", "Creation requires a workspace-relative .xcb path.") }
+			guard !path.hasPrefix("/"), !path.split(separator: "/").contains("..") else { throw MCPFailure("invalid_path", "Creation requires a workspace-relative .pcb path.") }
 			let url = try MCPAccess.shared.workspacePath(path)
 			try documents.reserve(url)
 			defer { documents.release(url) }
@@ -22,7 +22,7 @@ extension MCPTools {
 			let path = try args.string("path")
 			if path.hasPrefix("/"), let entry = documents.documents.first(where: { $0.url?.resolvingSymlinksInPath().standardizedFileURL == URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL }) { return try documentResponse(entry, args) }
 			let url = try MCPAccess.shared.workspacePath(path)
-			guard url.pathExtension.lowercased() == "xcb" else { throw MCPFailure("invalid_path", "Open an .xcb document.") }
+			guard url.pathExtension.lowercased() == "pcb" else { throw MCPFailure("invalid_path", "Open a .pcb document.") }
 			return try documentResponse(await documents.open(url), args)
 		default: break
 		}
@@ -47,7 +47,7 @@ extension MCPTools {
 				try checkDocumentDestination(destination, args: args, current: entry.url)
 				guard !documents.documents.contains(where: { $0 !== entry && $0.url?.resolvingSymlinksInPath().standardizedFileURL == destination.resolvingSymlinksInPath().standardizedFileURL }) else { throw MCPFailure("destination_open", "The destination is open in another document.") }
 			} else if let url = entry.url { destination = url }
-			else { throw MCPFailure("destination_required", "Saving or closing an untitled document requires path to an .xcb file in the AI workspace.") }
+			else { throw MCPFailure("destination_required", "Saving or closing an untitled document requires path to a .pcb file in the AI workspace.") }
 			try documents.reserve(destination)
 			defer { documents.release(destination) }
 			entry.fileOperation = true
@@ -132,12 +132,12 @@ extension MCPTools {
 	}
 
 	private static func checkDocumentDestination(_ url: URL, args: MCPArguments, current: URL? = nil) throws {
-		guard url.pathExtension.lowercased() == "xcb" else { throw MCPFailure("invalid_path", "The document destination must end in .xcb.") }
+		guard url.pathExtension.lowercased() == "pcb" else { throw MCPFailure("invalid_path", "The document destination must end in .pcb.") }
 		if current?.resolvingSymlinksInPath().standardizedFileURL == url.resolvingSymlinksInPath().standardizedFileURL { return }
 		guard !FileManager.default.fileExists(atPath: url.path) || args.values["overwrite"] == true else { throw MCPFailure("overwrite_required", "The destination exists. Set overwrite=true or choose a new path.") }
 		var isDirectory: ObjCBool = false
 		guard FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path, isDirectory: &isDirectory), isDirectory.boolValue else { throw MCPFailure("invalid_path", "The destination's parent folder must exist inside the workspace.") }
-		if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue { throw MCPFailure("invalid_path", "The destination is a folder. Choose an .xcb file path.") }
+		if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue { throw MCPFailure("invalid_path", "The destination is a folder. Choose a .pcb file path.") }
 	}
 
 	private static func writeFabrication(_ files: [Fabrication.File], to url: URL) throws {

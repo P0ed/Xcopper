@@ -30,7 +30,7 @@ final class MCPInspectionTests: XCTestCase {
 		_ = source.updateBoardFromSchematic()
 		let data = try JSONEncoder().encode(source)
 		var design = Design()
-		let id = try design.importModule(filename: "Buffer.xcb", documentURL: root.appendingPathComponent("Parent.xcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Buffer.xcb")]), read: { _ in data })
+		let id = try design.importModule(filename: "Buffer.pcb", documentURL: root.appendingPathComponent("Parent.pcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Buffer.pcb")]), read: { _ in data })
 		design.modules[0].parameterValues["R"] = "22k"
 		design.modules[0][netLabel: "1"] = "SIGNAL"
 		_ = design.updateBoardFromSchematic()
@@ -50,7 +50,7 @@ final class MCPInspectionTests: XCTestCase {
 		source.board.footprints[0].symbol.pins[0].netLabel = "#1 IN"
 		let data = try JSONEncoder().encode(source)
 		var design = Design()
-		_ = try design.importModule(filename: "Buffer.xcb", documentURL: root.appendingPathComponent("Parent.xcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Buffer.xcb")]), read: { _ in data })
+		_ = try design.importModule(filename: "Buffer.pcb", documentURL: root.appendingPathComponent("Parent.pcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Buffer.pcb")]), read: { _ in data })
 		let fixture = MCPHarness(design)
 		let result = try fixture.batch([["tool": "place_part", "arguments": ["spec": ["symbolKind": "resistor"], "view": "layout", "at": ["x": 10000, "y": 10000], "reference": "R1"]]])
 		let changes = try XCTUnwrap(result.objectValue?["changes"]?.objectValue)

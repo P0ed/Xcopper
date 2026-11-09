@@ -407,7 +407,7 @@ struct ModuleLibrary {
 
 	static func name(of filename: String) -> String {
 		let name = (filename as NSString).lastPathComponent
-		return (name as NSString).pathExtension.lowercased() == "xcb" ? (name as NSString).deletingPathExtension : name
+		return (name as NSString).pathExtension.lowercased() == "pcb" ? (name as NSString).deletingPathExtension : name
 	}
 
 	private static func key(_ name: String) -> String {
@@ -464,7 +464,7 @@ struct ModuleLibrary {
 					}
 					if values.isDirectory == true {
 						if values.isPackage != true { pending.append(url) }
-					} else if values.isRegularFile == true, url.pathExtension.lowercased() == "xcb" {
+					} else if values.isRegularFile == true, url.pathExtension.lowercased() == "pcb" {
 						sources.append(url)
 					}
 					break

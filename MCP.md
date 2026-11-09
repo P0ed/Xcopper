@@ -8,7 +8,7 @@ and close the listener. The server starts stopped on every app launch.
 In **Settings → AI Access**, choose a workspace folder and, optionally, a different
 port from 1024 through 65535 while the server is stopped. Configuration persists.
 The workspace uses a security-scoped bookmark; paths are resolved against it and
-symlinks cannot extend its access. Document creation requires a relative `.xcb`
+symlinks cannot extend its access. Document creation requires a relative `.pcb`
 path whose parent folder exists. Other paths may be workspace-relative or absolute
 inside that folder. Already open documents keep their native access grants and can
 be inspected, edited and saved without selecting a workspace. Module loading also
@@ -77,7 +77,7 @@ inspection. Batches can use `$id` aliases for earlier placement results within
 that request. Aliases are temporary and are returned as current handles after
 commit. Human edits and native history changes advance revisions too. On
 `stale_revision`, inspect again and rebuild the request with current handles. Runtime
-IDs, revisions and handles are never written into `.xcb` files.
+IDs, revisions and handles are never written into `.pcb` files.
 
 Edits operate on a candidate design on the main actor, validate it, synchronize
 connectivity and commit through the document binding in one Undo group. A failed
@@ -165,7 +165,7 @@ These are `tools/call` payloads after initialization. Replace `DOC` and each
 revision/handle with the actual values returned by the preceding call.
 
 ```json
-{"name":"xcopper_create_document","arguments":{"path":"mcp-demo.xcb"}}
+{"name":"xcopper_create_document","arguments":{"path":"mcp-demo.pcb"}}
 ```
 
 Place two fully labeled parts in one transaction:

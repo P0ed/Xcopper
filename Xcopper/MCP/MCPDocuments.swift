@@ -247,7 +247,7 @@ final class MCPDocuments {
 	}
 
 	func create(at url: URL) async throws -> MCPDocumentEntry {
-		let native = try NSDocumentController.shared.makeUntitledDocument(ofType: "p0.xcopper.xcb")
+		let native = try NSDocumentController.shared.makeUntitledDocument(ofType: "p0.xcopper.pcb")
 		NSDocumentController.shared.addDocument(native)
 		do { try await save(native, to: url) }
 		catch { native.close(); throw error }
@@ -258,7 +258,7 @@ final class MCPDocuments {
 
 	func save(_ native: NSDocument, to url: URL) async throws {
 		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-			native.save(to: url, ofType: native.fileType ?? "p0.xcopper.xcb", for: native.fileURL == url ? .saveOperation : .saveAsOperation) { error in
+			native.save(to: url, ofType: native.fileType ?? "p0.xcopper.pcb", for: native.fileURL == url ? .saveOperation : .saveAsOperation) { error in
 				if let error { continuation.resume(throwing: error) }
 				else { continuation.resume() }
 			}

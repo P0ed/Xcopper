@@ -82,7 +82,7 @@ final class MCPConnectionTests: XCTestCase {
 		source.board.traces = [Trace(start: Point(x: 2000, y: 0), end: Point(x: 2000, y: 12000), width: 600, layer: 0, net: 1)]
 		let data = try JSONEncoder().encode(source)
 		var design = ConnectionFixtures.design()
-		_ = try design.importModule(filename: "Wall.xcb", documentURL: root.appendingPathComponent("Parent.xcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Wall.xcb")]), read: { _ in data })
+		_ = try design.importModule(filename: "Wall.pcb", documentURL: root.appendingPathComponent("Parent.pcb"), library: ModuleLibrary(sources: [root.appendingPathComponent("Wall.pcb")]), read: { _ in data })
 		design.modules[0].layoutAt = Point(x: 10000, y: 6000)
 		let imported = design.resolved.board.traces
 		let fixture = MCPHarness(design)

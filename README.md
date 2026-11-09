@@ -23,7 +23,7 @@ xcodebuild -project Xcopper.xcodeproj -scheme Xcopper -configuration Release \
 - Traces with 45° routing, vias, plated and non-plated holes
 - Solid plane fills on internal layers, with automatic clearance knockouts
 - Built-in parametric footprints plus manufacturer-specific library footprints
-- Reusable `.xcb` designs as modules with schematic IO blocks and locked layout groups
+- Reusable `.pcb` designs as modules with schematic IO blocks and locked layout groups
 - Gerber and Excellon export of the whole manufacturing set
 - 3D preview of the finished board with the parts standing on it
 
@@ -335,14 +335,14 @@ nor placed.
 
 ## Documents
 
-Save designs as `.xcb` files using the standard macOS document commands.
+Save designs as `.pcb` files using the standard macOS document commands.
 A document contains the paired schematic and board. Module source designs remain
 separate files; keep them available alongside the parent design or in its module
 search folders.
 
 ## Modularity
 
-Any `.xcb` design can be imported into another as a module. Save and edit it with
+Any `.pcb` design can be imported into another as a module. Save and edit it with
 the usual schematic and layout tools. Set pin net labels in the inspector,
 such as `#1 IN`, `#2 OUT` and `#3 ENABLE`. The number immediately after `#` must
 be a positive integer, followed by whitespace and a nonempty, case-sensitive

@@ -30,11 +30,11 @@ final class FolderAccessTests: XCTestCase {
 		defer { try? FileManager.default.removeItem(at: directory) }
 		var source = Design()
 		source.place(Symbol.Spec(kind: .resistor), at: Point(x: 10000, y: 10000))
-		try Document(design: source).encoded().write(to: directory.appendingPathComponent("Base.xcb"))
+		try Document(design: source).encoded().write(to: directory.appendingPathComponent("Base.pcb"))
 		var design = Design()
 		design.modules = [ModuleInstance(reference: "M1", filename: "Base")]
 		let harness = EditorHarness(design: design)
-		harness.url = NSURL(fileURLWithPath: directory.appendingPathComponent("Parent.xcb").path) as URL
+		harness.url = NSURL(fileURLWithPath: directory.appendingPathComponent("Parent.pcb").path) as URL
 		harness.undo.disableUndoRegistration()
 		defer { harness.undo.enableUndoRegistration() }
 		harness.operations.reloadModules(automatic: true)
