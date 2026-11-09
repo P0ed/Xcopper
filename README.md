@@ -2,6 +2,10 @@
 
 Minimal schematic capture and PCB layout for macOS. One rectangular board and one sheet per document.
 
+<img width="1182" height="1061" alt="Schematic" src="https://github.com/user-attachments/assets/c4e252d7-1aa8-4069-956c-cd7a7ed98412" />
+<img width="1182" height="1061" alt="Layout" src="https://github.com/user-attachments/assets/8ba4ad3c-9487-4f93-8a98-507286a30ec8" />
+<img width="1182" height="1061" alt="3D" src="https://github.com/user-attachments/assets/906a2e21-423c-422a-9508-f44de21d7692" />
+
 Build a release and copy it to `/Applications`:
 
 ```sh
